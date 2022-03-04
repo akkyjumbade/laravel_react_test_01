@@ -12,6 +12,8 @@
 </head>
 
 <body class="antialiased">
-   <div id="root"></div>
+   <div class="container">
+
+   </div>
 </body>
 </html>

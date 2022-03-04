@@ -1,4 +1,15 @@
+import { sumBy } from "lodash"
+import { useMemo } from "react"
+import { useQuery } from "react-query"
+
 export default function DashboardScreen(props) {
+   const { data: orders, isLoading } = useQuery([ 'api/orders' ])
+   const { data: users, isLoadingUsers } = useQuery([ 'api/users' ])
+   const { data: products, isLoadingProducts } = useQuery([ 'api/products' ])
+   const salesTotal = useMemo(() => {
+      return sumBy(orders?.data, 'total')
+   }, [ orders ])
+
    return (
       <div>
          <div className="row">
@@ -9,13 +20,10 @@ export default function DashboardScreen(props) {
                      <div className="col-8">
                      <div className="numbers">
                         <p className="text-sm mb-0 text-capitalize font-weight-bold">
-                           Today's Money
+                           Total orders
                         </p>
                         <h5 className="font-weight-bolder mb-0">
-                           $53,000
-                           <span className="text-success text-sm font-weight-bolder">
-                           +55%
-                           </span>
+                           {orders?.total ?? 0}
                         </h5>
                      </div>
                      </div>
@@ -38,13 +46,10 @@ export default function DashboardScreen(props) {
                      <div className="col-8">
                      <div className="numbers">
                         <p className="text-sm mb-0 text-capitalize font-weight-bold">
-                           Today's Users
+                           Total Users
                         </p>
                         <h5 className="font-weight-bolder mb-0">
-                           2,300
-                           <span className="text-success text-sm font-weight-bolder">
-                           +3%
-                           </span>
+                           {users?.total ?? 0}
                         </h5>
                      </div>
                      </div>
@@ -67,13 +72,10 @@ export default function DashboardScreen(props) {
                      <div className="col-8">
                      <div className="numbers">
                         <p className="text-sm mb-0 text-capitalize font-weight-bold">
-                           New Clients
+                           Products
                         </p>
                         <h5 className="font-weight-bolder mb-0">
-                           +3,462
-                           <span className="text-danger text-sm font-weight-bolder">
-                           -2%
-                           </span>
+                           {products?.total ?? 0}
                         </h5>
                      </div>
                      </div>
@@ -99,10 +101,7 @@ export default function DashboardScreen(props) {
                            Sales
                         </p>
                         <h5 className="font-weight-bolder mb-0">
-                           $103,430
-                           <span className="text-success text-sm font-weight-bolder">
-                           +5%
-                           </span>
+                           Rs.{salesTotal ?? 0}
                         </h5>
                      </div>
                      </div>
@@ -200,12 +199,7 @@ export default function DashboardScreen(props) {
                <div className="card-header pb-0">
                   <div className="row">
                      <div className="col-lg-6 col-7">
-                     <h6>Projects</h6>
-                     <p className="text-sm mb-0">
-                        <i className="fa fa-check text-info" aria-hidden="true" />
-                        <span className="font-weight-bold ms-1">30 done</span> this
-                        month
-                     </p>
+                     <h6>Recent Orders</h6>
                      </div>
                      <div className="col-lg-6 col-5 my-auto text-end">
                      <div className="dropdown float-lg-end pe-4">

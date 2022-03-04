@@ -78,7 +78,32 @@ export default [
          },
          {
             path: 'orders',
-            element: <OrdersScreen />,
+            children: [
+               {
+                  path: '/',
+                  element: <OrdersScreen />,
+               },
+               {
+                  path: 'create',
+                  element: <OrdersScreen.Create />,
+               },
+               {
+                  path: 'edit/:id',
+                  element: <OrdersScreen.Create />,
+                  loader: async ({ params }) => {
+                     try {
+                        const { data } = await axios.get(`/api/orders/${params?.id}`)
+                        return data
+                     } catch (error) {
+                        return {}
+                     }
+                  }
+               },
+               {
+                  path: 'info/:id',
+                  element: <OrdersScreen.Create />,
+               },
+            ]
          },
       ]
    },
