@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": "assets",
+    "baseUrl": "./",
     "paths": {
       "*": ["assets/*"]
     }
