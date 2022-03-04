@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Order;
 use Illuminate\Support\Facades\Route;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,7 +16,13 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+   return view('welcome');
+});
+
+Route::get('/invoice', function () {
+   $data['order'] = Order::latest()->first();
+   $pdf = Pdf::loadView('pdf.invoice', $data);
+   return $pdf->stream('invoice.pdf');
 });
 
 Route::get('/dashboard', function () {
