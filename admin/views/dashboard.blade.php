@@ -9,7 +9,7 @@
 
    <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
    <script src="{{ mix('js/admin.js') }}"></script>
-   <script src="https://kit.fontawesome.com/42d5adcbca.js"></script>
+   {{-- <script src="https://kit.fontawesome.com/42d5adcbca.js"></script> --}}
 </head>
 
 <body class="antialiased bg-gray-100">

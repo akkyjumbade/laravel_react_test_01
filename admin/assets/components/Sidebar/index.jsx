@@ -15,7 +15,7 @@ export default function Sidebar({ appName }) {
                <NavItem label={'Dashboard'} url={'/'} />
                <NavItem label={'Products'} url={'/products'} iconClass={'fa-cube'} />
                <NavItem label={'Orders'} url={'/orders'} iconClass={'fa-list'} />
-               <NavItem label={'Customers'} url={'/customers'} iconClass={'fa-users'} />
+               <NavItem label={'Customers'} url={'/users'} iconClass={'fa-users'} />
             </ul>
          </div>
          <Sidebar_Footer />

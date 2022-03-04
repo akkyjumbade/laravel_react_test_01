@@ -1,4 +1,4 @@
-import Router from "./services/Router";
+import Router from "./router";
 import {QueryClientProvider} from 'react-query';
 import { queryClient } from "./utils";
 

@@ -1,21 +1,84 @@
-import { useMemo } from "react"
+import { Fragment, useMemo } from "react"
+import { useQuery } from "react-query"
+import { useTable } from "react-table"
+import Table from "."
 import Column from "./Column"
 
-export default function DataTable({ children, ...props }) {
-   // const { children } =
-   const Columns = useMemo(() => {
-      console.log({ children })
-      return children
+export default function DataTable({ url, children, ...props }) {
+   const { data: { data } = {} } = useQuery(url, {
+      placeholderData: () => ({
+         data: [],
+      })
+   })
+   const tableColumns = useMemo(() => {
+      const _mapedCols = children?.map(cl => ({
+         ...cl.props,
+         Header: cl.props.title,
+         accessor: cl.props.name,
+      }))
+      console.log({ children, _mapedCols })
+      return _mapedCols
    }, [ children ])
+
+   const table = useTable({ columns: tableColumns, data: data })
+   const {
+      getTableProps,
+      getTableBodyProps,
+      headerGroups,
+      rows,
+      prepareRow,
+    } = table
+   if (!data) {
+      return null;
+   }
    return (
       <>
-         {Columns}
+         <Table {...getTableProps()}>
+            <thead>
+               {// Loop over the header rows
+               headerGroups.map(headerGroup => (
+                  // Apply the header row props
+                  <Table.Row {...headerGroup.getHeaderGroupProps()}>
+                  {// Loop over the headers in each row
+                  headerGroup.headers.map(column => (
+                     // Apply the header cell props
+                     <Table.Column {...column.getHeaderProps()}>
+                        {// Render the header
+                        column.render('Header')}
+                     </Table.Column>
+                  ))}
+                  </Table.Row>
+               ))}
+            </thead>
+            <tbody {...getTableBodyProps()}>
+               {// Loop over the table rows
+               rows.map(row => {
+                  // Prepare the row for display
+                  prepareRow(row)
+                  return (
+                  // Apply the row props
+                  <Table.Row {...row.getRowProps()}>
+                     {// Loop over the rows cells
+                     row.cells.map(cell => {
+                        // Apply the cell props
+                        return (
+                        <Table.Cell {...cell.getCellProps()}>
+                           {// Render the cell contents
+                           cell.render('Cell')}
+                        </Table.Cell>
+                        )
+                     })}
+                  </Table.Row>
+                  )
+               })}
+            </tbody>
+         </Table>
       </>
    )
 }
 
-DataTable.Field = ({ value, label }) => {
+DataTable.Field = ({ name, title }) => {
    return (
-      <Column>{label}</Column>
+      <Fragment />
    )
 }
