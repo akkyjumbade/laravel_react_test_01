@@ -1,4 +1,5 @@
 // import { Router } from "@tanstack/react-location";
+import axios from "axios";
 import Layout from "../components/Layout";
 import DashboardScreen from "../screens/DashboardScreen";
 import OrdersScreen from "../screens/OrdersScreen";
@@ -26,11 +27,19 @@ export default [
                },
                {
                   path: 'create',
-                  element: <UsersScreen.Create />,
+                  element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
                },
                {
                   path: 'edit/:id',
-                  element: <UsersScreen.Create />,
+                  element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
+                  loader: async ({ params }) => {
+                     try {
+                        const { data } = await axios.get(`/api/users/${params?.id}`)
+                        return data
+                     } catch (error) {
+                        return {}
+                     }
+                  }
                },
                {
                   path: 'info/:id',

@@ -24,6 +24,11 @@ class UserRequest extends FormRequest
     */
    public function rules()
    {
+      if ($this->isMethod('get')) {
+         return [];
+      } else if($this->isMethod('delete')) {
+         return [];
+      }
       return [
          'name' => [
             Rule::when($this->isMethod('patch'), [
@@ -37,23 +42,23 @@ class UserRequest extends FormRequest
          'email' => [
             Rule::when($this->isMethod('patch'), [
                'nullable',
-               Rule::unique('users')
+               Rule::unique('users')->ignore($this->user)
             ], [
                'required',
                'string',
                'max:200',
-               Rule::unique('users')->ignore($this->user)
+               Rule::unique('users')
             ]),
             'email:dns,rfc',
          ],
          'phone_number' => [
             Rule::when($this->isMethod('patch'), [
                'nullable',
-               Rule::unique('users')
+               Rule::unique('users')->ignore($this->user)
             ], [
                'required',
                'digits:10',
-               Rule::unique('users')->ignore($this->user)
+               Rule::unique('users'),
             ]),
          ],
          'password' => [

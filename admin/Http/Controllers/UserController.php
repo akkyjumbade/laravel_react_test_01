@@ -27,4 +27,36 @@ class UserController extends Controller
       }
    }
 
+   function show(UserRequest $request, User $user) {
+      try {
+         return response()->json($user);
+      } catch (\Throwable $th) {
+         throw $th;
+      }
+   }
+
+   function update(UserRequest $request, User $user) {
+      try {
+         $user->update($request->validated());
+         return response()->json([
+            'ok' => true,
+            'message' => 'User updated'
+         ]);
+      } catch (\Throwable $th) {
+         throw $th;
+      }
+   }
+
+   function destroy(UserRequest $request, User $user) {
+      try {
+         $user->delete();
+         return response()->json([
+            'ok' => true,
+            'message' => 'User removed'
+         ]);
+      } catch (\Throwable $th) {
+         throw $th;
+      }
+   }
+
 }

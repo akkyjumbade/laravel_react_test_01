@@ -12,7 +12,7 @@ export default function Table({ title, description, children, ...props }) {
          </div>
          <div className="card-body px-0 pt-0 pb-2">
             <div className="table-responsive p-0">
-               <table className="table align-items-center mb-0" {...props}>
+               <table className="table table-hover align-items-center mb-0" {...props}>
                   {children}
                </table>
             </div>

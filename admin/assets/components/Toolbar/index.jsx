@@ -16,7 +16,7 @@ export default function Toolbar({ title, description, createAction =  null }) {
          </div>
          <div className="align-self-end">
             {/* {JSON.stringify({ createAction })} */}
-            <Link {...createAction}>Create</Link>
+            <Link className="btn bg-gradient-primary  mb-0" {...createAction}>Create</Link>
             {/* <button onClick={() => onCreateClick()}>Create</button> */}
             {/* {createAction && (
             <Link {...createAction} className="btn bg-gradient-primary btn-sm mb-0">
