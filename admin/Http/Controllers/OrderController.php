@@ -51,6 +51,18 @@ class OrderController extends Controller
    function update(OrderRequest $request, Order $order) {
       try {
          $order->update($request->validated());
+         if ($request->input('items')) {
+            foreach ($request->items as $key => $_item) {
+               $product = Product::find(@$_item['product_id']);
+               $order->items()->updateOrCreate([
+                  'order_id' => $order->id,
+                  'product_id' => $product->id,
+               ], array_merge($_item, [
+                  'price' => $product->price,
+                  'subtotal' => ($product->price * $_item['qty']),
+               ]));
+            }
+         }
          return response()->json([
             'ok' => true,
             'message' => 'Order updated'
