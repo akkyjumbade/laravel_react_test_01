@@ -49,7 +49,32 @@ export default [
          },
          {
             path: 'products',
-            element: <ProductsScreen />,
+            children: [
+               {
+                  path: '/',
+                  element: <ProductsScreen />,
+               },
+               {
+                  path: 'create',
+                  element: <ProductsScreen.Create />,
+               },
+               {
+                  path: 'edit/:id',
+                  element: <ProductsScreen.Create />,
+                  loader: async ({ params }) => {
+                     try {
+                        const { data } = await axios.get(`/api/products/${params?.id}`)
+                        return data
+                     } catch (error) {
+                        return {}
+                     }
+                  }
+               },
+               {
+                  path: 'info/:id',
+                  element: <ProductsScreen.Create />,
+               },
+            ]
          },
          {
             path: 'orders',

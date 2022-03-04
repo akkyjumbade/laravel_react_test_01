@@ -21,6 +21,7 @@ const Index = () => (
          )} />
          <DataTable.Field name={'email'} title={'Email'} />
          <DataTable.Field name={'phone_number'} title={'Phone number'} />
+         <DataTable.Field name={'address'} title={'Address'} />
          <DataTable.Field name={'created_at'} title={'Regd. at'} />
       </DataTable>
    </>
@@ -95,9 +96,17 @@ function CreateUser ({ ...props }) {
                      <input type={'password'} className='form-control' value={values.password} onChange={handleChange('password')} />
                   </Field>
                </fieldset>
+               <fieldset>
+                  <h5>Address</h5>
+                  <Field label={'Address'} required={true} error={errors?.address}>
+                     <textarea className='form-control' value={values.address} onChange={handleChange('address')} />
+                  </Field>
+               </fieldset>
                <fieldset className='d-flex gap-3'>
                   <button type='button' className='btn bg-gradient-primary' disabled={isSubmitting} onClick={handleSubmit}>Submit</button>
+                  {values?.id && (
                   <button type='button' className='btn btn-outline-secondary' disabled={isDeleting} onClick={deleteAction}>Delete</button>
+                  )}
                </fieldset>
             </div>
          )}
