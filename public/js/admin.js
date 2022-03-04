@@ -1,6 +1,2165 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ "./admin/node_modules/axios/index.js":
+/*!*******************************************!*\
+  !*** ./admin/node_modules/axios/index.js ***!
+  \*******************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+module.exports = __webpack_require__(/*! ./lib/axios */ "./admin/node_modules/axios/lib/axios.js");
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/adapters/xhr.js":
+/*!******************************************************!*\
+  !*** ./admin/node_modules/axios/lib/adapters/xhr.js ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+var settle = __webpack_require__(/*! ./../core/settle */ "./admin/node_modules/axios/lib/core/settle.js");
+var cookies = __webpack_require__(/*! ./../helpers/cookies */ "./admin/node_modules/axios/lib/helpers/cookies.js");
+var buildURL = __webpack_require__(/*! ./../helpers/buildURL */ "./admin/node_modules/axios/lib/helpers/buildURL.js");
+var buildFullPath = __webpack_require__(/*! ../core/buildFullPath */ "./admin/node_modules/axios/lib/core/buildFullPath.js");
+var parseHeaders = __webpack_require__(/*! ./../helpers/parseHeaders */ "./admin/node_modules/axios/lib/helpers/parseHeaders.js");
+var isURLSameOrigin = __webpack_require__(/*! ./../helpers/isURLSameOrigin */ "./admin/node_modules/axios/lib/helpers/isURLSameOrigin.js");
+var createError = __webpack_require__(/*! ../core/createError */ "./admin/node_modules/axios/lib/core/createError.js");
+var defaults = __webpack_require__(/*! ../defaults */ "./admin/node_modules/axios/lib/defaults.js");
+var Cancel = __webpack_require__(/*! ../cancel/Cancel */ "./admin/node_modules/axios/lib/cancel/Cancel.js");
+
+module.exports = function xhrAdapter(config) {
+  return new Promise(function dispatchXhrRequest(resolve, reject) {
+    var requestData = config.data;
+    var requestHeaders = config.headers;
+    var responseType = config.responseType;
+    var onCanceled;
+    function done() {
+      if (config.cancelToken) {
+        config.cancelToken.unsubscribe(onCanceled);
+      }
+
+      if (config.signal) {
+        config.signal.removeEventListener('abort', onCanceled);
+      }
+    }
+
+    if (utils.isFormData(requestData)) {
+      delete requestHeaders['Content-Type']; // Let the browser set it
+    }
+
+    var request = new XMLHttpRequest();
+
+    // HTTP basic authentication
+    if (config.auth) {
+      var username = config.auth.username || '';
+      var password = config.auth.password ? unescape(encodeURIComponent(config.auth.password)) : '';
+      requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
+    }
+
+    var fullPath = buildFullPath(config.baseURL, config.url);
+    request.open(config.method.toUpperCase(), buildURL(fullPath, config.params, config.paramsSerializer), true);
+
+    // Set the request timeout in MS
+    request.timeout = config.timeout;
+
+    function onloadend() {
+      if (!request) {
+        return;
+      }
+      // Prepare the response
+      var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
+      var responseData = !responseType || responseType === 'text' ||  responseType === 'json' ?
+        request.responseText : request.response;
+      var response = {
+        data: responseData,
+        status: request.status,
+        statusText: request.statusText,
+        headers: responseHeaders,
+        config: config,
+        request: request
+      };
+
+      settle(function _resolve(value) {
+        resolve(value);
+        done();
+      }, function _reject(err) {
+        reject(err);
+        done();
+      }, response);
+
+      // Clean up request
+      request = null;
+    }
+
+    if ('onloadend' in request) {
+      // Use onloadend if available
+      request.onloadend = onloadend;
+    } else {
+      // Listen for ready state to emulate onloadend
+      request.onreadystatechange = function handleLoad() {
+        if (!request || request.readyState !== 4) {
+          return;
+        }
+
+        // The request errored out and we didn't get a response, this will be
+        // handled by onerror instead
+        // With one exception: request that using file: protocol, most browsers
+        // will return status as 0 even though it's a successful request
+        if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
+          return;
+        }
+        // readystate handler is calling before onerror or ontimeout handlers,
+        // so we should call onloadend on the next 'tick'
+        setTimeout(onloadend);
+      };
+    }
+
+    // Handle browser request cancellation (as opposed to a manual cancellation)
+    request.onabort = function handleAbort() {
+      if (!request) {
+        return;
+      }
+
+      reject(createError('Request aborted', config, 'ECONNABORTED', request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle low level network errors
+    request.onerror = function handleError() {
+      // Real errors are hidden from us by the browser
+      // onerror should only fire if it's a network error
+      reject(createError('Network Error', config, null, request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle timeout
+    request.ontimeout = function handleTimeout() {
+      var timeoutErrorMessage = config.timeout ? 'timeout of ' + config.timeout + 'ms exceeded' : 'timeout exceeded';
+      var transitional = config.transitional || defaults.transitional;
+      if (config.timeoutErrorMessage) {
+        timeoutErrorMessage = config.timeoutErrorMessage;
+      }
+      reject(createError(
+        timeoutErrorMessage,
+        config,
+        transitional.clarifyTimeoutError ? 'ETIMEDOUT' : 'ECONNABORTED',
+        request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Add xsrf header
+    // This is only done if running in a standard browser environment.
+    // Specifically not if we're in a web worker, or react-native.
+    if (utils.isStandardBrowserEnv()) {
+      // Add xsrf header
+      var xsrfValue = (config.withCredentials || isURLSameOrigin(fullPath)) && config.xsrfCookieName ?
+        cookies.read(config.xsrfCookieName) :
+        undefined;
+
+      if (xsrfValue) {
+        requestHeaders[config.xsrfHeaderName] = xsrfValue;
+      }
+    }
+
+    // Add headers to the request
+    if ('setRequestHeader' in request) {
+      utils.forEach(requestHeaders, function setRequestHeader(val, key) {
+        if (typeof requestData === 'undefined' && key.toLowerCase() === 'content-type') {
+          // Remove Content-Type if data is undefined
+          delete requestHeaders[key];
+        } else {
+          // Otherwise add header to the request
+          request.setRequestHeader(key, val);
+        }
+      });
+    }
+
+    // Add withCredentials to request if needed
+    if (!utils.isUndefined(config.withCredentials)) {
+      request.withCredentials = !!config.withCredentials;
+    }
+
+    // Add responseType to request if needed
+    if (responseType && responseType !== 'json') {
+      request.responseType = config.responseType;
+    }
+
+    // Handle progress if needed
+    if (typeof config.onDownloadProgress === 'function') {
+      request.addEventListener('progress', config.onDownloadProgress);
+    }
+
+    // Not all browsers support upload events
+    if (typeof config.onUploadProgress === 'function' && request.upload) {
+      request.upload.addEventListener('progress', config.onUploadProgress);
+    }
+
+    if (config.cancelToken || config.signal) {
+      // Handle cancellation
+      // eslint-disable-next-line func-names
+      onCanceled = function(cancel) {
+        if (!request) {
+          return;
+        }
+        reject(!cancel || (cancel && cancel.type) ? new Cancel('canceled') : cancel);
+        request.abort();
+        request = null;
+      };
+
+      config.cancelToken && config.cancelToken.subscribe(onCanceled);
+      if (config.signal) {
+        config.signal.aborted ? onCanceled() : config.signal.addEventListener('abort', onCanceled);
+      }
+    }
+
+    if (!requestData) {
+      requestData = null;
+    }
+
+    // Send the request
+    request.send(requestData);
+  });
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/axios.js":
+/*!***********************************************!*\
+  !*** ./admin/node_modules/axios/lib/axios.js ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./utils */ "./admin/node_modules/axios/lib/utils.js");
+var bind = __webpack_require__(/*! ./helpers/bind */ "./admin/node_modules/axios/lib/helpers/bind.js");
+var Axios = __webpack_require__(/*! ./core/Axios */ "./admin/node_modules/axios/lib/core/Axios.js");
+var mergeConfig = __webpack_require__(/*! ./core/mergeConfig */ "./admin/node_modules/axios/lib/core/mergeConfig.js");
+var defaults = __webpack_require__(/*! ./defaults */ "./admin/node_modules/axios/lib/defaults.js");
+
+/**
+ * Create an instance of Axios
+ *
+ * @param {Object} defaultConfig The default config for the instance
+ * @return {Axios} A new instance of Axios
+ */
+function createInstance(defaultConfig) {
+  var context = new Axios(defaultConfig);
+  var instance = bind(Axios.prototype.request, context);
+
+  // Copy axios.prototype to instance
+  utils.extend(instance, Axios.prototype, context);
+
+  // Copy context to instance
+  utils.extend(instance, context);
+
+  // Factory for creating new instances
+  instance.create = function create(instanceConfig) {
+    return createInstance(mergeConfig(defaultConfig, instanceConfig));
+  };
+
+  return instance;
+}
+
+// Create the default instance to be exported
+var axios = createInstance(defaults);
+
+// Expose Axios class to allow class inheritance
+axios.Axios = Axios;
+
+// Expose Cancel & CancelToken
+axios.Cancel = __webpack_require__(/*! ./cancel/Cancel */ "./admin/node_modules/axios/lib/cancel/Cancel.js");
+axios.CancelToken = __webpack_require__(/*! ./cancel/CancelToken */ "./admin/node_modules/axios/lib/cancel/CancelToken.js");
+axios.isCancel = __webpack_require__(/*! ./cancel/isCancel */ "./admin/node_modules/axios/lib/cancel/isCancel.js");
+axios.VERSION = (__webpack_require__(/*! ./env/data */ "./admin/node_modules/axios/lib/env/data.js").version);
+
+// Expose all/spread
+axios.all = function all(promises) {
+  return Promise.all(promises);
+};
+axios.spread = __webpack_require__(/*! ./helpers/spread */ "./admin/node_modules/axios/lib/helpers/spread.js");
+
+// Expose isAxiosError
+axios.isAxiosError = __webpack_require__(/*! ./helpers/isAxiosError */ "./admin/node_modules/axios/lib/helpers/isAxiosError.js");
+
+module.exports = axios;
+
+// Allow use of default import syntax in TypeScript
+module.exports["default"] = axios;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/cancel/Cancel.js":
+/*!*******************************************************!*\
+  !*** ./admin/node_modules/axios/lib/cancel/Cancel.js ***!
+  \*******************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * A `Cancel` is an object that is thrown when an operation is canceled.
+ *
+ * @class
+ * @param {string=} message The message.
+ */
+function Cancel(message) {
+  this.message = message;
+}
+
+Cancel.prototype.toString = function toString() {
+  return 'Cancel' + (this.message ? ': ' + this.message : '');
+};
+
+Cancel.prototype.__CANCEL__ = true;
+
+module.exports = Cancel;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/cancel/CancelToken.js":
+/*!************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/cancel/CancelToken.js ***!
+  \************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var Cancel = __webpack_require__(/*! ./Cancel */ "./admin/node_modules/axios/lib/cancel/Cancel.js");
+
+/**
+ * A `CancelToken` is an object that can be used to request cancellation of an operation.
+ *
+ * @class
+ * @param {Function} executor The executor function.
+ */
+function CancelToken(executor) {
+  if (typeof executor !== 'function') {
+    throw new TypeError('executor must be a function.');
+  }
+
+  var resolvePromise;
+
+  this.promise = new Promise(function promiseExecutor(resolve) {
+    resolvePromise = resolve;
+  });
+
+  var token = this;
+
+  // eslint-disable-next-line func-names
+  this.promise.then(function(cancel) {
+    if (!token._listeners) return;
+
+    var i;
+    var l = token._listeners.length;
+
+    for (i = 0; i < l; i++) {
+      token._listeners[i](cancel);
+    }
+    token._listeners = null;
+  });
+
+  // eslint-disable-next-line func-names
+  this.promise.then = function(onfulfilled) {
+    var _resolve;
+    // eslint-disable-next-line func-names
+    var promise = new Promise(function(resolve) {
+      token.subscribe(resolve);
+      _resolve = resolve;
+    }).then(onfulfilled);
+
+    promise.cancel = function reject() {
+      token.unsubscribe(_resolve);
+    };
+
+    return promise;
+  };
+
+  executor(function cancel(message) {
+    if (token.reason) {
+      // Cancellation has already been requested
+      return;
+    }
+
+    token.reason = new Cancel(message);
+    resolvePromise(token.reason);
+  });
+}
+
+/**
+ * Throws a `Cancel` if cancellation has been requested.
+ */
+CancelToken.prototype.throwIfRequested = function throwIfRequested() {
+  if (this.reason) {
+    throw this.reason;
+  }
+};
+
+/**
+ * Subscribe to the cancel signal
+ */
+
+CancelToken.prototype.subscribe = function subscribe(listener) {
+  if (this.reason) {
+    listener(this.reason);
+    return;
+  }
+
+  if (this._listeners) {
+    this._listeners.push(listener);
+  } else {
+    this._listeners = [listener];
+  }
+};
+
+/**
+ * Unsubscribe from the cancel signal
+ */
+
+CancelToken.prototype.unsubscribe = function unsubscribe(listener) {
+  if (!this._listeners) {
+    return;
+  }
+  var index = this._listeners.indexOf(listener);
+  if (index !== -1) {
+    this._listeners.splice(index, 1);
+  }
+};
+
+/**
+ * Returns an object that contains a new `CancelToken` and a function that, when called,
+ * cancels the `CancelToken`.
+ */
+CancelToken.source = function source() {
+  var cancel;
+  var token = new CancelToken(function executor(c) {
+    cancel = c;
+  });
+  return {
+    token: token,
+    cancel: cancel
+  };
+};
+
+module.exports = CancelToken;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/cancel/isCancel.js":
+/*!*********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/cancel/isCancel.js ***!
+  \*********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function isCancel(value) {
+  return !!(value && value.__CANCEL__);
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/Axios.js":
+/*!****************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/Axios.js ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+var buildURL = __webpack_require__(/*! ../helpers/buildURL */ "./admin/node_modules/axios/lib/helpers/buildURL.js");
+var InterceptorManager = __webpack_require__(/*! ./InterceptorManager */ "./admin/node_modules/axios/lib/core/InterceptorManager.js");
+var dispatchRequest = __webpack_require__(/*! ./dispatchRequest */ "./admin/node_modules/axios/lib/core/dispatchRequest.js");
+var mergeConfig = __webpack_require__(/*! ./mergeConfig */ "./admin/node_modules/axios/lib/core/mergeConfig.js");
+var validator = __webpack_require__(/*! ../helpers/validator */ "./admin/node_modules/axios/lib/helpers/validator.js");
+
+var validators = validator.validators;
+/**
+ * Create a new instance of Axios
+ *
+ * @param {Object} instanceConfig The default config for the instance
+ */
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.interceptors = {
+    request: new InterceptorManager(),
+    response: new InterceptorManager()
+  };
+}
+
+/**
+ * Dispatch a request
+ *
+ * @param {Object} config The config specific for this request (merged with this.defaults)
+ */
+Axios.prototype.request = function request(configOrUrl, config) {
+  /*eslint no-param-reassign:0*/
+  // Allow for axios('example/url'[, config]) a la fetch API
+  if (typeof configOrUrl === 'string') {
+    config = config || {};
+    config.url = configOrUrl;
+  } else {
+    config = configOrUrl || {};
+  }
+
+  config = mergeConfig(this.defaults, config);
+
+  // Set config.method
+  if (config.method) {
+    config.method = config.method.toLowerCase();
+  } else if (this.defaults.method) {
+    config.method = this.defaults.method.toLowerCase();
+  } else {
+    config.method = 'get';
+  }
+
+  var transitional = config.transitional;
+
+  if (transitional !== undefined) {
+    validator.assertOptions(transitional, {
+      silentJSONParsing: validators.transitional(validators.boolean),
+      forcedJSONParsing: validators.transitional(validators.boolean),
+      clarifyTimeoutError: validators.transitional(validators.boolean)
+    }, false);
+  }
+
+  // filter out skipped interceptors
+  var requestInterceptorChain = [];
+  var synchronousRequestInterceptors = true;
+  this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+    if (typeof interceptor.runWhen === 'function' && interceptor.runWhen(config) === false) {
+      return;
+    }
+
+    synchronousRequestInterceptors = synchronousRequestInterceptors && interceptor.synchronous;
+
+    requestInterceptorChain.unshift(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  var responseInterceptorChain = [];
+  this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+    responseInterceptorChain.push(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  var promise;
+
+  if (!synchronousRequestInterceptors) {
+    var chain = [dispatchRequest, undefined];
+
+    Array.prototype.unshift.apply(chain, requestInterceptorChain);
+    chain = chain.concat(responseInterceptorChain);
+
+    promise = Promise.resolve(config);
+    while (chain.length) {
+      promise = promise.then(chain.shift(), chain.shift());
+    }
+
+    return promise;
+  }
+
+
+  var newConfig = config;
+  while (requestInterceptorChain.length) {
+    var onFulfilled = requestInterceptorChain.shift();
+    var onRejected = requestInterceptorChain.shift();
+    try {
+      newConfig = onFulfilled(newConfig);
+    } catch (error) {
+      onRejected(error);
+      break;
+    }
+  }
+
+  try {
+    promise = dispatchRequest(newConfig);
+  } catch (error) {
+    return Promise.reject(error);
+  }
+
+  while (responseInterceptorChain.length) {
+    promise = promise.then(responseInterceptorChain.shift(), responseInterceptorChain.shift());
+  }
+
+  return promise;
+};
+
+Axios.prototype.getUri = function getUri(config) {
+  config = mergeConfig(this.defaults, config);
+  return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
+};
+
+// Provide aliases for supported request methods
+utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, config) {
+    return this.request(mergeConfig(config || {}, {
+      method: method,
+      url: url,
+      data: (config || {}).data
+    }));
+  };
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, data, config) {
+    return this.request(mergeConfig(config || {}, {
+      method: method,
+      url: url,
+      data: data
+    }));
+  };
+});
+
+module.exports = Axios;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/InterceptorManager.js":
+/*!*****************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/InterceptorManager.js ***!
+  \*****************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+function InterceptorManager() {
+  this.handlers = [];
+}
+
+/**
+ * Add a new interceptor to the stack
+ *
+ * @param {Function} fulfilled The function to handle `then` for a `Promise`
+ * @param {Function} rejected The function to handle `reject` for a `Promise`
+ *
+ * @return {Number} An ID used to remove interceptor later
+ */
+InterceptorManager.prototype.use = function use(fulfilled, rejected, options) {
+  this.handlers.push({
+    fulfilled: fulfilled,
+    rejected: rejected,
+    synchronous: options ? options.synchronous : false,
+    runWhen: options ? options.runWhen : null
+  });
+  return this.handlers.length - 1;
+};
+
+/**
+ * Remove an interceptor from the stack
+ *
+ * @param {Number} id The ID that was returned by `use`
+ */
+InterceptorManager.prototype.eject = function eject(id) {
+  if (this.handlers[id]) {
+    this.handlers[id] = null;
+  }
+};
+
+/**
+ * Iterate over all the registered interceptors
+ *
+ * This method is particularly useful for skipping over any
+ * interceptors that may have become `null` calling `eject`.
+ *
+ * @param {Function} fn The function to call for each interceptor
+ */
+InterceptorManager.prototype.forEach = function forEach(fn) {
+  utils.forEach(this.handlers, function forEachHandler(h) {
+    if (h !== null) {
+      fn(h);
+    }
+  });
+};
+
+module.exports = InterceptorManager;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/buildFullPath.js":
+/*!************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/buildFullPath.js ***!
+  \************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var isAbsoluteURL = __webpack_require__(/*! ../helpers/isAbsoluteURL */ "./admin/node_modules/axios/lib/helpers/isAbsoluteURL.js");
+var combineURLs = __webpack_require__(/*! ../helpers/combineURLs */ "./admin/node_modules/axios/lib/helpers/combineURLs.js");
+
+/**
+ * Creates a new URL by combining the baseURL with the requestedURL,
+ * only when the requestedURL is not already an absolute URL.
+ * If the requestURL is absolute, this function returns the requestedURL untouched.
+ *
+ * @param {string} baseURL The base URL
+ * @param {string} requestedURL Absolute or relative URL to combine
+ * @returns {string} The combined full path
+ */
+module.exports = function buildFullPath(baseURL, requestedURL) {
+  if (baseURL && !isAbsoluteURL(requestedURL)) {
+    return combineURLs(baseURL, requestedURL);
+  }
+  return requestedURL;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/createError.js":
+/*!**********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/createError.js ***!
+  \**********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var enhanceError = __webpack_require__(/*! ./enhanceError */ "./admin/node_modules/axios/lib/core/enhanceError.js");
+
+/**
+ * Create an Error with the specified message, config, error code, request and response.
+ *
+ * @param {string} message The error message.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The created error.
+ */
+module.exports = function createError(message, config, code, request, response) {
+  var error = new Error(message);
+  return enhanceError(error, config, code, request, response);
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/dispatchRequest.js":
+/*!**************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/dispatchRequest.js ***!
+  \**************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+var transformData = __webpack_require__(/*! ./transformData */ "./admin/node_modules/axios/lib/core/transformData.js");
+var isCancel = __webpack_require__(/*! ../cancel/isCancel */ "./admin/node_modules/axios/lib/cancel/isCancel.js");
+var defaults = __webpack_require__(/*! ../defaults */ "./admin/node_modules/axios/lib/defaults.js");
+var Cancel = __webpack_require__(/*! ../cancel/Cancel */ "./admin/node_modules/axios/lib/cancel/Cancel.js");
+
+/**
+ * Throws a `Cancel` if cancellation has been requested.
+ */
+function throwIfCancellationRequested(config) {
+  if (config.cancelToken) {
+    config.cancelToken.throwIfRequested();
+  }
+
+  if (config.signal && config.signal.aborted) {
+    throw new Cancel('canceled');
+  }
+}
+
+/**
+ * Dispatch a request to the server using the configured adapter.
+ *
+ * @param {object} config The config that is to be used for the request
+ * @returns {Promise} The Promise to be fulfilled
+ */
+module.exports = function dispatchRequest(config) {
+  throwIfCancellationRequested(config);
+
+  // Ensure headers exist
+  config.headers = config.headers || {};
+
+  // Transform request data
+  config.data = transformData.call(
+    config,
+    config.data,
+    config.headers,
+    config.transformRequest
+  );
+
+  // Flatten headers
+  config.headers = utils.merge(
+    config.headers.common || {},
+    config.headers[config.method] || {},
+    config.headers
+  );
+
+  utils.forEach(
+    ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
+    function cleanHeaderConfig(method) {
+      delete config.headers[method];
+    }
+  );
+
+  var adapter = config.adapter || defaults.adapter;
+
+  return adapter(config).then(function onAdapterResolution(response) {
+    throwIfCancellationRequested(config);
+
+    // Transform response data
+    response.data = transformData.call(
+      config,
+      response.data,
+      response.headers,
+      config.transformResponse
+    );
+
+    return response;
+  }, function onAdapterRejection(reason) {
+    if (!isCancel(reason)) {
+      throwIfCancellationRequested(config);
+
+      // Transform response data
+      if (reason && reason.response) {
+        reason.response.data = transformData.call(
+          config,
+          reason.response.data,
+          reason.response.headers,
+          config.transformResponse
+        );
+      }
+    }
+
+    return Promise.reject(reason);
+  });
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/enhanceError.js":
+/*!***********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/enhanceError.js ***!
+  \***********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Update an Error with the specified config, error code, and response.
+ *
+ * @param {Error} error The error to update.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The error.
+ */
+module.exports = function enhanceError(error, config, code, request, response) {
+  error.config = config;
+  if (code) {
+    error.code = code;
+  }
+
+  error.request = request;
+  error.response = response;
+  error.isAxiosError = true;
+
+  error.toJSON = function toJSON() {
+    return {
+      // Standard
+      message: this.message,
+      name: this.name,
+      // Microsoft
+      description: this.description,
+      number: this.number,
+      // Mozilla
+      fileName: this.fileName,
+      lineNumber: this.lineNumber,
+      columnNumber: this.columnNumber,
+      stack: this.stack,
+      // Axios
+      config: this.config,
+      code: this.code,
+      status: this.response && this.response.status ? this.response.status : null
+    };
+  };
+  return error;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/mergeConfig.js":
+/*!**********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/mergeConfig.js ***!
+  \**********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+/**
+ * Config-specific merge-function which creates a new config-object
+ * by merging two configuration objects together.
+ *
+ * @param {Object} config1
+ * @param {Object} config2
+ * @returns {Object} New object resulting from merging config2 to config1
+ */
+module.exports = function mergeConfig(config1, config2) {
+  // eslint-disable-next-line no-param-reassign
+  config2 = config2 || {};
+  var config = {};
+
+  function getMergedValue(target, source) {
+    if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
+      return utils.merge(target, source);
+    } else if (utils.isPlainObject(source)) {
+      return utils.merge({}, source);
+    } else if (utils.isArray(source)) {
+      return source.slice();
+    }
+    return source;
+  }
+
+  // eslint-disable-next-line consistent-return
+  function mergeDeepProperties(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      return getMergedValue(config1[prop], config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      return getMergedValue(undefined, config1[prop]);
+    }
+  }
+
+  // eslint-disable-next-line consistent-return
+  function valueFromConfig2(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      return getMergedValue(undefined, config2[prop]);
+    }
+  }
+
+  // eslint-disable-next-line consistent-return
+  function defaultToConfig2(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      return getMergedValue(undefined, config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      return getMergedValue(undefined, config1[prop]);
+    }
+  }
+
+  // eslint-disable-next-line consistent-return
+  function mergeDirectKeys(prop) {
+    if (prop in config2) {
+      return getMergedValue(config1[prop], config2[prop]);
+    } else if (prop in config1) {
+      return getMergedValue(undefined, config1[prop]);
+    }
+  }
+
+  var mergeMap = {
+    'url': valueFromConfig2,
+    'method': valueFromConfig2,
+    'data': valueFromConfig2,
+    'baseURL': defaultToConfig2,
+    'transformRequest': defaultToConfig2,
+    'transformResponse': defaultToConfig2,
+    'paramsSerializer': defaultToConfig2,
+    'timeout': defaultToConfig2,
+    'timeoutMessage': defaultToConfig2,
+    'withCredentials': defaultToConfig2,
+    'adapter': defaultToConfig2,
+    'responseType': defaultToConfig2,
+    'xsrfCookieName': defaultToConfig2,
+    'xsrfHeaderName': defaultToConfig2,
+    'onUploadProgress': defaultToConfig2,
+    'onDownloadProgress': defaultToConfig2,
+    'decompress': defaultToConfig2,
+    'maxContentLength': defaultToConfig2,
+    'maxBodyLength': defaultToConfig2,
+    'transport': defaultToConfig2,
+    'httpAgent': defaultToConfig2,
+    'httpsAgent': defaultToConfig2,
+    'cancelToken': defaultToConfig2,
+    'socketPath': defaultToConfig2,
+    'responseEncoding': defaultToConfig2,
+    'validateStatus': mergeDirectKeys
+  };
+
+  utils.forEach(Object.keys(config1).concat(Object.keys(config2)), function computeConfigValue(prop) {
+    var merge = mergeMap[prop] || mergeDeepProperties;
+    var configValue = merge(prop);
+    (utils.isUndefined(configValue) && merge !== mergeDirectKeys) || (config[prop] = configValue);
+  });
+
+  return config;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/settle.js":
+/*!*****************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/settle.js ***!
+  \*****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var createError = __webpack_require__(/*! ./createError */ "./admin/node_modules/axios/lib/core/createError.js");
+
+/**
+ * Resolve or reject a Promise based on response status.
+ *
+ * @param {Function} resolve A function that resolves the promise.
+ * @param {Function} reject A function that rejects the promise.
+ * @param {object} response The response.
+ */
+module.exports = function settle(resolve, reject, response) {
+  var validateStatus = response.config.validateStatus;
+  if (!response.status || !validateStatus || validateStatus(response.status)) {
+    resolve(response);
+  } else {
+    reject(createError(
+      'Request failed with status code ' + response.status,
+      response.config,
+      null,
+      response.request,
+      response
+    ));
+  }
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/core/transformData.js":
+/*!************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/core/transformData.js ***!
+  \************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+var defaults = __webpack_require__(/*! ./../defaults */ "./admin/node_modules/axios/lib/defaults.js");
+
+/**
+ * Transform the data for a request or a response
+ *
+ * @param {Object|String} data The data to be transformed
+ * @param {Array} headers The headers for the request or response
+ * @param {Array|Function} fns A single function or Array of functions
+ * @returns {*} The resulting transformed data
+ */
+module.exports = function transformData(data, headers, fns) {
+  var context = this || defaults;
+  /*eslint no-param-reassign:0*/
+  utils.forEach(fns, function transform(fn) {
+    data = fn.call(context, data, headers);
+  });
+
+  return data;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/defaults.js":
+/*!**************************************************!*\
+  !*** ./admin/node_modules/axios/lib/defaults.js ***!
+  \**************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/* provided dependency */ var process = __webpack_require__(/*! process/browser.js */ "./node_modules/process/browser.js");
+
+
+var utils = __webpack_require__(/*! ./utils */ "./admin/node_modules/axios/lib/utils.js");
+var normalizeHeaderName = __webpack_require__(/*! ./helpers/normalizeHeaderName */ "./admin/node_modules/axios/lib/helpers/normalizeHeaderName.js");
+var enhanceError = __webpack_require__(/*! ./core/enhanceError */ "./admin/node_modules/axios/lib/core/enhanceError.js");
+
+var DEFAULT_CONTENT_TYPE = {
+  'Content-Type': 'application/x-www-form-urlencoded'
+};
+
+function setContentTypeIfUnset(headers, value) {
+  if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
+    headers['Content-Type'] = value;
+  }
+}
+
+function getDefaultAdapter() {
+  var adapter;
+  if (typeof XMLHttpRequest !== 'undefined') {
+    // For browsers use XHR adapter
+    adapter = __webpack_require__(/*! ./adapters/xhr */ "./admin/node_modules/axios/lib/adapters/xhr.js");
+  } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    // For node use HTTP adapter
+    adapter = __webpack_require__(/*! ./adapters/http */ "./admin/node_modules/axios/lib/adapters/xhr.js");
+  }
+  return adapter;
+}
+
+function stringifySafely(rawValue, parser, encoder) {
+  if (utils.isString(rawValue)) {
+    try {
+      (parser || JSON.parse)(rawValue);
+      return utils.trim(rawValue);
+    } catch (e) {
+      if (e.name !== 'SyntaxError') {
+        throw e;
+      }
+    }
+  }
+
+  return (encoder || JSON.stringify)(rawValue);
+}
+
+var defaults = {
+
+  transitional: {
+    silentJSONParsing: true,
+    forcedJSONParsing: true,
+    clarifyTimeoutError: false
+  },
+
+  adapter: getDefaultAdapter(),
+
+  transformRequest: [function transformRequest(data, headers) {
+    normalizeHeaderName(headers, 'Accept');
+    normalizeHeaderName(headers, 'Content-Type');
+
+    if (utils.isFormData(data) ||
+      utils.isArrayBuffer(data) ||
+      utils.isBuffer(data) ||
+      utils.isStream(data) ||
+      utils.isFile(data) ||
+      utils.isBlob(data)
+    ) {
+      return data;
+    }
+    if (utils.isArrayBufferView(data)) {
+      return data.buffer;
+    }
+    if (utils.isURLSearchParams(data)) {
+      setContentTypeIfUnset(headers, 'application/x-www-form-urlencoded;charset=utf-8');
+      return data.toString();
+    }
+    if (utils.isObject(data) || (headers && headers['Content-Type'] === 'application/json')) {
+      setContentTypeIfUnset(headers, 'application/json');
+      return stringifySafely(data);
+    }
+    return data;
+  }],
+
+  transformResponse: [function transformResponse(data) {
+    var transitional = this.transitional || defaults.transitional;
+    var silentJSONParsing = transitional && transitional.silentJSONParsing;
+    var forcedJSONParsing = transitional && transitional.forcedJSONParsing;
+    var strictJSONParsing = !silentJSONParsing && this.responseType === 'json';
+
+    if (strictJSONParsing || (forcedJSONParsing && utils.isString(data) && data.length)) {
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        if (strictJSONParsing) {
+          if (e.name === 'SyntaxError') {
+            throw enhanceError(e, this, 'E_JSON_PARSE');
+          }
+          throw e;
+        }
+      }
+    }
+
+    return data;
+  }],
+
+  /**
+   * A timeout in milliseconds to abort a request. If set to 0 (default) a
+   * timeout is not created.
+   */
+  timeout: 0,
+
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+
+  maxContentLength: -1,
+  maxBodyLength: -1,
+
+  validateStatus: function validateStatus(status) {
+    return status >= 200 && status < 300;
+  },
+
+  headers: {
+    common: {
+      'Accept': 'application/json, text/plain, */*'
+    }
+  }
+};
+
+utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
+  defaults.headers[method] = {};
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
+});
+
+module.exports = defaults;
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/env/data.js":
+/*!**************************************************!*\
+  !*** ./admin/node_modules/axios/lib/env/data.js ***!
+  \**************************************************/
+/***/ ((module) => {
+
+module.exports = {
+  "version": "0.26.0"
+};
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/bind.js":
+/*!******************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/bind.js ***!
+  \******************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function bind(fn, thisArg) {
+  return function wrap() {
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+    return fn.apply(thisArg, args);
+  };
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/buildURL.js":
+/*!**********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/buildURL.js ***!
+  \**********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+function encode(val) {
+  return encodeURIComponent(val).
+    replace(/%3A/gi, ':').
+    replace(/%24/g, '$').
+    replace(/%2C/gi, ',').
+    replace(/%20/g, '+').
+    replace(/%5B/gi, '[').
+    replace(/%5D/gi, ']');
+}
+
+/**
+ * Build a URL by appending params to the end
+ *
+ * @param {string} url The base of the url (e.g., http://www.google.com)
+ * @param {object} [params] The params to be appended
+ * @returns {string} The formatted url
+ */
+module.exports = function buildURL(url, params, paramsSerializer) {
+  /*eslint no-param-reassign:0*/
+  if (!params) {
+    return url;
+  }
+
+  var serializedParams;
+  if (paramsSerializer) {
+    serializedParams = paramsSerializer(params);
+  } else if (utils.isURLSearchParams(params)) {
+    serializedParams = params.toString();
+  } else {
+    var parts = [];
+
+    utils.forEach(params, function serialize(val, key) {
+      if (val === null || typeof val === 'undefined') {
+        return;
+      }
+
+      if (utils.isArray(val)) {
+        key = key + '[]';
+      } else {
+        val = [val];
+      }
+
+      utils.forEach(val, function parseValue(v) {
+        if (utils.isDate(v)) {
+          v = v.toISOString();
+        } else if (utils.isObject(v)) {
+          v = JSON.stringify(v);
+        }
+        parts.push(encode(key) + '=' + encode(v));
+      });
+    });
+
+    serializedParams = parts.join('&');
+  }
+
+  if (serializedParams) {
+    var hashmarkIndex = url.indexOf('#');
+    if (hashmarkIndex !== -1) {
+      url = url.slice(0, hashmarkIndex);
+    }
+
+    url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
+  }
+
+  return url;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/combineURLs.js":
+/*!*************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/combineURLs.js ***!
+  \*************************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Creates a new URL by combining the specified URLs
+ *
+ * @param {string} baseURL The base URL
+ * @param {string} relativeURL The relative URL
+ * @returns {string} The combined URL
+ */
+module.exports = function combineURLs(baseURL, relativeURL) {
+  return relativeURL
+    ? baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
+    : baseURL;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/cookies.js":
+/*!*********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/cookies.js ***!
+  \*********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs support document.cookie
+    (function standardBrowserEnv() {
+      return {
+        write: function write(name, value, expires, path, domain, secure) {
+          var cookie = [];
+          cookie.push(name + '=' + encodeURIComponent(value));
+
+          if (utils.isNumber(expires)) {
+            cookie.push('expires=' + new Date(expires).toGMTString());
+          }
+
+          if (utils.isString(path)) {
+            cookie.push('path=' + path);
+          }
+
+          if (utils.isString(domain)) {
+            cookie.push('domain=' + domain);
+          }
+
+          if (secure === true) {
+            cookie.push('secure');
+          }
+
+          document.cookie = cookie.join('; ');
+        },
+
+        read: function read(name) {
+          var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+          return (match ? decodeURIComponent(match[3]) : null);
+        },
+
+        remove: function remove(name) {
+          this.write(name, '', Date.now() - 86400000);
+        }
+      };
+    })() :
+
+  // Non standard browser env (web workers, react-native) lack needed support.
+    (function nonStandardBrowserEnv() {
+      return {
+        write: function write() {},
+        read: function read() { return null; },
+        remove: function remove() {}
+      };
+    })()
+);
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/isAbsoluteURL.js":
+/*!***************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/isAbsoluteURL.js ***!
+  \***************************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Determines whether the specified URL is absolute
+ *
+ * @param {string} url The URL to test
+ * @returns {boolean} True if the specified URL is absolute, otherwise false
+ */
+module.exports = function isAbsoluteURL(url) {
+  // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
+  // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
+  // by any combination of letters, digits, plus, period, or hyphen.
+  return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url);
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/isAxiosError.js":
+/*!**************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/isAxiosError.js ***!
+  \**************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+/**
+ * Determines whether the payload is an error thrown by Axios
+ *
+ * @param {*} payload The value to test
+ * @returns {boolean} True if the payload is an error thrown by Axios, otherwise false
+ */
+module.exports = function isAxiosError(payload) {
+  return utils.isObject(payload) && (payload.isAxiosError === true);
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/isURLSameOrigin.js":
+/*!*****************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/isURLSameOrigin.js ***!
+  \*****************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs have full support of the APIs needed to test
+  // whether the request URL is of the same origin as current location.
+    (function standardBrowserEnv() {
+      var msie = /(msie|trident)/i.test(navigator.userAgent);
+      var urlParsingNode = document.createElement('a');
+      var originURL;
+
+      /**
+    * Parse a URL to discover it's components
+    *
+    * @param {String} url The URL to be parsed
+    * @returns {Object}
+    */
+      function resolveURL(url) {
+        var href = url;
+
+        if (msie) {
+        // IE needs attribute set twice to normalize properties
+          urlParsingNode.setAttribute('href', href);
+          href = urlParsingNode.href;
+        }
+
+        urlParsingNode.setAttribute('href', href);
+
+        // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
+        return {
+          href: urlParsingNode.href,
+          protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
+          host: urlParsingNode.host,
+          search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
+          hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
+          hostname: urlParsingNode.hostname,
+          port: urlParsingNode.port,
+          pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
+            urlParsingNode.pathname :
+            '/' + urlParsingNode.pathname
+        };
+      }
+
+      originURL = resolveURL(window.location.href);
+
+      /**
+    * Determine if a URL shares the same origin as the current location
+    *
+    * @param {String} requestURL The URL to test
+    * @returns {boolean} True if URL shares the same origin, otherwise false
+    */
+      return function isURLSameOrigin(requestURL) {
+        var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
+        return (parsed.protocol === originURL.protocol &&
+            parsed.host === originURL.host);
+      };
+    })() :
+
+  // Non standard browser envs (web workers, react-native) lack needed support.
+    (function nonStandardBrowserEnv() {
+      return function isURLSameOrigin() {
+        return true;
+      };
+    })()
+);
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/normalizeHeaderName.js":
+/*!*********************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/normalizeHeaderName.js ***!
+  \*********************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+module.exports = function normalizeHeaderName(headers, normalizedName) {
+  utils.forEach(headers, function processHeader(value, name) {
+    if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
+      headers[normalizedName] = value;
+      delete headers[name];
+    }
+  });
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/parseHeaders.js":
+/*!**************************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/parseHeaders.js ***!
+  \**************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./admin/node_modules/axios/lib/utils.js");
+
+// Headers whose duplicates are ignored by node
+// c.f. https://nodejs.org/api/http.html#http_message_headers
+var ignoreDuplicateOf = [
+  'age', 'authorization', 'content-length', 'content-type', 'etag',
+  'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since',
+  'last-modified', 'location', 'max-forwards', 'proxy-authorization',
+  'referer', 'retry-after', 'user-agent'
+];
+
+/**
+ * Parse headers into an object
+ *
+ * ```
+ * Date: Wed, 27 Aug 2014 08:58:49 GMT
+ * Content-Type: application/json
+ * Connection: keep-alive
+ * Transfer-Encoding: chunked
+ * ```
+ *
+ * @param {String} headers Headers needing to be parsed
+ * @returns {Object} Headers parsed into an object
+ */
+module.exports = function parseHeaders(headers) {
+  var parsed = {};
+  var key;
+  var val;
+  var i;
+
+  if (!headers) { return parsed; }
+
+  utils.forEach(headers.split('\n'), function parser(line) {
+    i = line.indexOf(':');
+    key = utils.trim(line.substr(0, i)).toLowerCase();
+    val = utils.trim(line.substr(i + 1));
+
+    if (key) {
+      if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
+        return;
+      }
+      if (key === 'set-cookie') {
+        parsed[key] = (parsed[key] ? parsed[key] : []).concat([val]);
+      } else {
+        parsed[key] = parsed[key] ? parsed[key] + ', ' + val : val;
+      }
+    }
+  });
+
+  return parsed;
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/spread.js":
+/*!********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/spread.js ***!
+  \********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Syntactic sugar for invoking a function and expanding an array for arguments.
+ *
+ * Common use case would be to use `Function.prototype.apply`.
+ *
+ *  ```js
+ *  function f(x, y, z) {}
+ *  var args = [1, 2, 3];
+ *  f.apply(null, args);
+ *  ```
+ *
+ * With `spread` this example can be re-written.
+ *
+ *  ```js
+ *  spread(function(x, y, z) {})([1, 2, 3]);
+ *  ```
+ *
+ * @param {Function} callback
+ * @returns {Function}
+ */
+module.exports = function spread(callback) {
+  return function wrap(arr) {
+    return callback.apply(null, arr);
+  };
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/helpers/validator.js":
+/*!***********************************************************!*\
+  !*** ./admin/node_modules/axios/lib/helpers/validator.js ***!
+  \***********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var VERSION = (__webpack_require__(/*! ../env/data */ "./admin/node_modules/axios/lib/env/data.js").version);
+
+var validators = {};
+
+// eslint-disable-next-line func-names
+['object', 'boolean', 'number', 'function', 'string', 'symbol'].forEach(function(type, i) {
+  validators[type] = function validator(thing) {
+    return typeof thing === type || 'a' + (i < 1 ? 'n ' : ' ') + type;
+  };
+});
+
+var deprecatedWarnings = {};
+
+/**
+ * Transitional option validator
+ * @param {function|boolean?} validator - set to false if the transitional option has been removed
+ * @param {string?} version - deprecated version / removed since version
+ * @param {string?} message - some message with additional info
+ * @returns {function}
+ */
+validators.transitional = function transitional(validator, version, message) {
+  function formatMessage(opt, desc) {
+    return '[Axios v' + VERSION + '] Transitional option \'' + opt + '\'' + desc + (message ? '. ' + message : '');
+  }
+
+  // eslint-disable-next-line func-names
+  return function(value, opt, opts) {
+    if (validator === false) {
+      throw new Error(formatMessage(opt, ' has been removed' + (version ? ' in ' + version : '')));
+    }
+
+    if (version && !deprecatedWarnings[opt]) {
+      deprecatedWarnings[opt] = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        formatMessage(
+          opt,
+          ' has been deprecated since v' + version + ' and will be removed in the near future'
+        )
+      );
+    }
+
+    return validator ? validator(value, opt, opts) : true;
+  };
+};
+
+/**
+ * Assert object's properties type
+ * @param {object} options
+ * @param {object} schema
+ * @param {boolean?} allowUnknown
+ */
+
+function assertOptions(options, schema, allowUnknown) {
+  if (typeof options !== 'object') {
+    throw new TypeError('options must be an object');
+  }
+  var keys = Object.keys(options);
+  var i = keys.length;
+  while (i-- > 0) {
+    var opt = keys[i];
+    var validator = schema[opt];
+    if (validator) {
+      var value = options[opt];
+      var result = value === undefined || validator(value, opt, options);
+      if (result !== true) {
+        throw new TypeError('option ' + opt + ' must be ' + result);
+      }
+      continue;
+    }
+    if (allowUnknown !== true) {
+      throw Error('Unknown option ' + opt);
+    }
+  }
+}
+
+module.exports = {
+  assertOptions: assertOptions,
+  validators: validators
+};
+
+
+/***/ }),
+
+/***/ "./admin/node_modules/axios/lib/utils.js":
+/*!***********************************************!*\
+  !*** ./admin/node_modules/axios/lib/utils.js ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var bind = __webpack_require__(/*! ./helpers/bind */ "./admin/node_modules/axios/lib/helpers/bind.js");
+
+// utils is a library of generic helper functions non-specific to axios
+
+var toString = Object.prototype.toString;
+
+/**
+ * Determine if a value is an Array
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an Array, otherwise false
+ */
+function isArray(val) {
+  return Array.isArray(val);
+}
+
+/**
+ * Determine if a value is undefined
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if the value is undefined, otherwise false
+ */
+function isUndefined(val) {
+  return typeof val === 'undefined';
+}
+
+/**
+ * Determine if a value is a Buffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Buffer, otherwise false
+ */
+function isBuffer(val) {
+  return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor)
+    && typeof val.constructor.isBuffer === 'function' && val.constructor.isBuffer(val);
+}
+
+/**
+ * Determine if a value is an ArrayBuffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an ArrayBuffer, otherwise false
+ */
+function isArrayBuffer(val) {
+  return toString.call(val) === '[object ArrayBuffer]';
+}
+
+/**
+ * Determine if a value is a FormData
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an FormData, otherwise false
+ */
+function isFormData(val) {
+  return toString.call(val) === '[object FormData]';
+}
+
+/**
+ * Determine if a value is a view on an ArrayBuffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a view on an ArrayBuffer, otherwise false
+ */
+function isArrayBufferView(val) {
+  var result;
+  if ((typeof ArrayBuffer !== 'undefined') && (ArrayBuffer.isView)) {
+    result = ArrayBuffer.isView(val);
+  } else {
+    result = (val) && (val.buffer) && (isArrayBuffer(val.buffer));
+  }
+  return result;
+}
+
+/**
+ * Determine if a value is a String
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a String, otherwise false
+ */
+function isString(val) {
+  return typeof val === 'string';
+}
+
+/**
+ * Determine if a value is a Number
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Number, otherwise false
+ */
+function isNumber(val) {
+  return typeof val === 'number';
+}
+
+/**
+ * Determine if a value is an Object
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an Object, otherwise false
+ */
+function isObject(val) {
+  return val !== null && typeof val === 'object';
+}
+
+/**
+ * Determine if a value is a plain Object
+ *
+ * @param {Object} val The value to test
+ * @return {boolean} True if value is a plain Object, otherwise false
+ */
+function isPlainObject(val) {
+  if (toString.call(val) !== '[object Object]') {
+    return false;
+  }
+
+  var prototype = Object.getPrototypeOf(val);
+  return prototype === null || prototype === Object.prototype;
+}
+
+/**
+ * Determine if a value is a Date
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Date, otherwise false
+ */
+function isDate(val) {
+  return toString.call(val) === '[object Date]';
+}
+
+/**
+ * Determine if a value is a File
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a File, otherwise false
+ */
+function isFile(val) {
+  return toString.call(val) === '[object File]';
+}
+
+/**
+ * Determine if a value is a Blob
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Blob, otherwise false
+ */
+function isBlob(val) {
+  return toString.call(val) === '[object Blob]';
+}
+
+/**
+ * Determine if a value is a Function
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Function, otherwise false
+ */
+function isFunction(val) {
+  return toString.call(val) === '[object Function]';
+}
+
+/**
+ * Determine if a value is a Stream
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Stream, otherwise false
+ */
+function isStream(val) {
+  return isObject(val) && isFunction(val.pipe);
+}
+
+/**
+ * Determine if a value is a URLSearchParams object
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a URLSearchParams object, otherwise false
+ */
+function isURLSearchParams(val) {
+  return toString.call(val) === '[object URLSearchParams]';
+}
+
+/**
+ * Trim excess whitespace off the beginning and end of a string
+ *
+ * @param {String} str The String to trim
+ * @returns {String} The String freed of excess whitespace
+ */
+function trim(str) {
+  return str.trim ? str.trim() : str.replace(/^\s+|\s+$/g, '');
+}
+
+/**
+ * Determine if we're running in a standard browser environment
+ *
+ * This allows axios to run in a web worker, and react-native.
+ * Both environments support XMLHttpRequest, but not fully standard globals.
+ *
+ * web workers:
+ *  typeof window -> undefined
+ *  typeof document -> undefined
+ *
+ * react-native:
+ *  navigator.product -> 'ReactNative'
+ * nativescript
+ *  navigator.product -> 'NativeScript' or 'NS'
+ */
+function isStandardBrowserEnv() {
+  if (typeof navigator !== 'undefined' && (navigator.product === 'ReactNative' ||
+                                           navigator.product === 'NativeScript' ||
+                                           navigator.product === 'NS')) {
+    return false;
+  }
+  return (
+    typeof window !== 'undefined' &&
+    typeof document !== 'undefined'
+  );
+}
+
+/**
+ * Iterate over an Array or an Object invoking a function for each item.
+ *
+ * If `obj` is an Array callback will be called passing
+ * the value, index, and complete array for each item.
+ *
+ * If 'obj' is an Object callback will be called passing
+ * the value, key, and complete object for each property.
+ *
+ * @param {Object|Array} obj The object to iterate
+ * @param {Function} fn The callback to invoke for each item
+ */
+function forEach(obj, fn) {
+  // Don't bother if no value provided
+  if (obj === null || typeof obj === 'undefined') {
+    return;
+  }
+
+  // Force an array if not already something iterable
+  if (typeof obj !== 'object') {
+    /*eslint no-param-reassign:0*/
+    obj = [obj];
+  }
+
+  if (isArray(obj)) {
+    // Iterate over array values
+    for (var i = 0, l = obj.length; i < l; i++) {
+      fn.call(null, obj[i], i, obj);
+    }
+  } else {
+    // Iterate over object keys
+    for (var key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        fn.call(null, obj[key], key, obj);
+      }
+    }
+  }
+}
+
+/**
+ * Accepts varargs expecting each argument to be an object, then
+ * immutably merges the properties of each object and returns result.
+ *
+ * When multiple objects contain the same key the later object in
+ * the arguments list will take precedence.
+ *
+ * Example:
+ *
+ * ```js
+ * var result = merge({foo: 123}, {foo: 456});
+ * console.log(result.foo); // outputs 456
+ * ```
+ *
+ * @param {Object} obj1 Object to merge
+ * @returns {Object} Result of all merge properties
+ */
+function merge(/* obj1, obj2, obj3, ... */) {
+  var result = {};
+  function assignValue(val, key) {
+    if (isPlainObject(result[key]) && isPlainObject(val)) {
+      result[key] = merge(result[key], val);
+    } else if (isPlainObject(val)) {
+      result[key] = merge({}, val);
+    } else if (isArray(val)) {
+      result[key] = val.slice();
+    } else {
+      result[key] = val;
+    }
+  }
+
+  for (var i = 0, l = arguments.length; i < l; i++) {
+    forEach(arguments[i], assignValue);
+  }
+  return result;
+}
+
+/**
+ * Extends object a by mutably adding to it the properties of object b.
+ *
+ * @param {Object} a The object to be extended
+ * @param {Object} b The object to copy properties from
+ * @param {Object} thisArg The object to bind function to
+ * @return {Object} The resulting value of object a
+ */
+function extend(a, b, thisArg) {
+  forEach(b, function assignValue(val, key) {
+    if (thisArg && typeof val === 'function') {
+      a[key] = bind(val, thisArg);
+    } else {
+      a[key] = val;
+    }
+  });
+  return a;
+}
+
+/**
+ * Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
+ *
+ * @param {string} content with BOM
+ * @return {string} content value without BOM
+ */
+function stripBOM(content) {
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  return content;
+}
+
+module.exports = {
+  isArray: isArray,
+  isArrayBuffer: isArrayBuffer,
+  isBuffer: isBuffer,
+  isFormData: isFormData,
+  isArrayBufferView: isArrayBufferView,
+  isString: isString,
+  isNumber: isNumber,
+  isObject: isObject,
+  isPlainObject: isPlainObject,
+  isUndefined: isUndefined,
+  isDate: isDate,
+  isFile: isFile,
+  isBlob: isBlob,
+  isFunction: isFunction,
+  isStream: isStream,
+  isURLSearchParams: isURLSearchParams,
+  isStandardBrowserEnv: isStandardBrowserEnv,
+  forEach: forEach,
+  merge: merge,
+  extend: extend,
+  trim: trim,
+  stripBOM: stripBOM
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/regenerator/index.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/@babel/runtime/regenerator/index.js ***!
+  \**********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+module.exports = __webpack_require__(/*! regenerator-runtime */ "./node_modules/regenerator-runtime/runtime.js");
+
+
+/***/ }),
+
 /***/ "./node_modules/axios/index.js":
 /*!*************************************!*\
   !*** ./node_modules/axios/index.js ***!
@@ -2156,23 +4315,249 @@ module.exports = {
 
 /***/ }),
 
-/***/ "./resources/js/admin/index.js":
+/***/ "./admin/assets/App.jsx":
+/*!******************************!*\
+  !*** ./admin/assets/App.jsx ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ App)
+/* harmony export */ });
+Object(function webpackMissingModule() { var e = new Error("Cannot find module './services/Router'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+/* harmony import */ var react_query__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-query */ "./node_modules/react-query/es/index.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./utils */ "./admin/assets/utils/index.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+
+
+
+
+
+function App() {
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment, {
+    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(react_query__WEBPACK_IMPORTED_MODULE_1__.QueryClientProvider, {
+      client: _utils__WEBPACK_IMPORTED_MODULE_2__.queryClient,
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(Object(function webpackMissingModule() { var e = new Error("Cannot find module './services/Router'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {})
+    })
+  });
+}
+
+/***/ }),
+
+/***/ "./admin/assets/config/index.js":
+/*!**************************************!*\
+  !*** ./admin/assets/config/index.js ***!
+  \**************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "SERVER_URL": () => (/* binding */ SERVER_URL)
+/* harmony export */ });
+var SERVER_URL = '/';
+
+/***/ }),
+
+/***/ "./admin/assets/main.js":
+/*!******************************!*\
+  !*** ./admin/assets/main.js ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "mount": () => (/* binding */ mount)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+/* harmony import */ var _static_css_soft_ui_dashboard_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./static/css/soft-ui-dashboard.css */ "./admin/assets/static/css/soft-ui-dashboard.css");
+/* harmony import */ var _styles_main_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./styles/main.css */ "./admin/assets/styles/main.css");
+/* harmony import */ var _App__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./App */ "./admin/assets/App.jsx");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+
+
+
+
+
+
+function mount() {
+  var rootElement = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'root';
+  react_dom__WEBPACK_IMPORTED_MODULE_1__.render( /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)(_App__WEBPACK_IMPORTED_MODULE_4__["default"], {}), document.getElementById(rootElement));
+}
+
+/***/ }),
+
+/***/ "./admin/assets/utils/index.js":
 /*!*************************************!*\
-  !*** ./resources/js/admin/index.js ***!
+  !*** ./admin/assets/utils/index.js ***!
   \*************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
-/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "API_URL": () => (/* binding */ API_URL),
+/* harmony export */   "baseURL": () => (/* binding */ baseURL),
+/* harmony export */   "getClientHeaders": () => (/* binding */ getClientHeaders),
+/* harmony export */   "http": () => (/* binding */ http),
+/* harmony export */   "queryCache": () => (/* binding */ queryCache),
+/* harmony export */   "queryClient": () => (/* binding */ queryClient)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/regenerator */ "./node_modules/@babel/runtime/regenerator/index.js");
+/* harmony import */ var _babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! axios */ "./admin/node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var react_query__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react-query */ "./node_modules/react-query/es/index.js");
+/* harmony import */ var _config__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../config */ "./admin/assets/config/index.js");
+
+
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 
 
-react_dom__WEBPACK_IMPORTED_MODULE_1__.render( /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("div", {
-  children: "Helo admin"
-}), document.getElementById('root'));
+
+var API_URL = "".concat(_config__WEBPACK_IMPORTED_MODULE_3__.SERVER_URL, "/api");
+var baseURL = _config__WEBPACK_IMPORTED_MODULE_3__.SERVER_URL;
+function getClientHeaders() {
+  var headersCombined = {
+    'Accept': 'application/json',
+    'Accept-Language': 'en'
+  };
+  return headersCombined;
+}
+var headers = getClientHeaders();
+var http = axios__WEBPACK_IMPORTED_MODULE_1___default().create({
+  baseURL: baseURL,
+  headers: _objectSpread({}, headers)
+});
+
+var defaultQueryFn = /*#__PURE__*/function () {
+  var _ref2 = _asyncToGenerator( /*#__PURE__*/_babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0___default().mark(function _callee(_ref) {
+    var queryKey, path, searchParams, _yield$http$get, data;
+
+    return _babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0___default().wrap(function _callee$(_context) {
+      while (1) {
+        switch (_context.prev = _context.next) {
+          case 0:
+            queryKey = _ref.queryKey;
+            path = queryKey[0];
+            searchParams = '';
+
+            if (queryKey[1]) {
+              if (queryKey[1] instanceof URLSearchParams) {
+                searchParams = queryKey[1];
+                searchParams = "?" + searchParams.toString();
+              } else {
+                searchParams = "/" + queryKey[1];
+              }
+            }
+
+            _context.next = 6;
+            return http.get(path + searchParams);
+
+          case 6:
+            _yield$http$get = _context.sent;
+            data = _yield$http$get.data;
+            return _context.abrupt("return", data);
+
+          case 9:
+          case "end":
+            return _context.stop();
+        }
+      }
+    }, _callee);
+  }));
+
+  return function defaultQueryFn(_x) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
+var defaultMutationFn = /*#__PURE__*/function () {
+  var _ref3 = _asyncToGenerator( /*#__PURE__*/_babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0___default().mark(function _callee2(payload) {
+    return _babel_runtime_regenerator__WEBPACK_IMPORTED_MODULE_0___default().wrap(function _callee2$(_context2) {
+      while (1) {
+        switch (_context2.prev = _context2.next) {
+          case 0:
+            _context2.next = 2;
+            return http.post();
+
+          case 2:
+            return _context2.abrupt("return", _context2.sent);
+
+          case 3:
+          case "end":
+            return _context2.stop();
+        }
+      }
+    }, _callee2);
+  }));
+
+  return function defaultMutationFn(_x2) {
+    return _ref3.apply(this, arguments);
+  };
+}();
+
+var queryClient = new react_query__WEBPACK_IMPORTED_MODULE_2__.QueryClient({
+  defaultOptions: {
+    // mutations: {
+    //    // mutationFn: defaultMutationFn
+    // },
+    queries: {
+      queryFn: defaultQueryFn // select:
+
+    }
+  }
+});
+var queryCache = new react_query__WEBPACK_IMPORTED_MODULE_2__.QueryCache({});
+
+/***/ }),
+
+/***/ "./admin/index.js":
+/*!************************!*\
+  !*** ./admin/index.js ***!
+  \************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "App": () => (/* reexport safe */ _assets_App__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */ });
+/* harmony import */ var _assets_App__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./assets/App */ "./admin/assets/App.jsx");
+/* harmony import */ var _assets_main__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./assets/main */ "./admin/assets/main.js");
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  (0,_assets_main__WEBPACK_IMPORTED_MODULE_1__.mount)();
+});
+
+/***/ }),
+
+/***/ "./resources/js/admin.js":
+/*!*******************************!*\
+  !*** ./resources/js/admin.js ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var admin__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! admin */ "./admin/index.js");
+__webpack_require__(/*! ./bootstrap */ "./resources/js/bootstrap.js");
+
+
 
 /***/ }),
 
@@ -2204,6 +4589,322 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 //     cluster: process.env.MIX_PUSHER_APP_CLUSTER,
 //     forceTLS: true
 // });
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-icons.css":
+/*!*****************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-icons.css ***!
+  \*****************************************************************************************************************************/
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../../node_modules/css-loader/dist/runtime/getUrl.js */ "./node_modules/css-loader/dist/runtime/getUrl.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _fonts_nucleo_icons_eot__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../fonts/nucleo-icons.eot */ "./admin/assets/static/fonts/nucleo-icons.eot");
+/* harmony import */ var _fonts_nucleo_icons_woff2__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../fonts/nucleo-icons.woff2 */ "./admin/assets/static/fonts/nucleo-icons.woff2");
+/* harmony import */ var _fonts_nucleo_icons_woff__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../fonts/nucleo-icons.woff */ "./admin/assets/static/fonts/nucleo-icons.woff");
+/* harmony import */ var _fonts_nucleo_icons_ttf__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../fonts/nucleo-icons.ttf */ "./admin/assets/static/fonts/nucleo-icons.ttf");
+/* harmony import */ var _fonts_nucleo_icons_svg__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../fonts/nucleo-icons.svg */ "./admin/assets/static/fonts/nucleo-icons.svg");
+// Imports
+
+
+
+
+
+
+
+var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
+var ___CSS_LOADER_URL_REPLACEMENT_0___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default()(_fonts_nucleo_icons_eot__WEBPACK_IMPORTED_MODULE_2__["default"]);
+var ___CSS_LOADER_URL_REPLACEMENT_1___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default()(_fonts_nucleo_icons_woff2__WEBPACK_IMPORTED_MODULE_3__["default"]);
+var ___CSS_LOADER_URL_REPLACEMENT_2___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default()(_fonts_nucleo_icons_woff__WEBPACK_IMPORTED_MODULE_4__["default"]);
+var ___CSS_LOADER_URL_REPLACEMENT_3___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default()(_fonts_nucleo_icons_ttf__WEBPACK_IMPORTED_MODULE_5__["default"]);
+var ___CSS_LOADER_URL_REPLACEMENT_4___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_1___default()(_fonts_nucleo_icons_svg__WEBPACK_IMPORTED_MODULE_6__["default"]);
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, "/*--------------------------------\n\nhermes-dashboard-icons Web Font - built using nucleoapp.com\nLicense - nucleoapp.com/license/\n\n-------------------------------- */\n@font-face {\n  font-family: 'NucleoIcons';\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + ");\n  src: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + ") format('embedded-opentype'), url(" + ___CSS_LOADER_URL_REPLACEMENT_1___ + ") format('woff2'), url(" + ___CSS_LOADER_URL_REPLACEMENT_2___ + ") format('woff'), url(" + ___CSS_LOADER_URL_REPLACEMENT_3___ + ") format('truetype'), url(" + ___CSS_LOADER_URL_REPLACEMENT_4___ + ") format('svg');\n  font-weight: normal;\n  font-style: normal;\n}\n\n/*------------------------\n    base class definition\n-------------------------*/\n.ni {\n  display: inline-block;\n  font: normal normal normal 14px/1 NucleoIcons;\n  font-size: inherit;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n/*------------------------\n  change icon size\n-------------------------*/\n.ni-lg {\n  font-size: 1.33333333em;\n  line-height: 0.75em;\n  vertical-align: -15%;\n}\n\n.ni-2x {\n  font-size: 2em;\n}\n\n.ni-3x {\n  font-size: 3em;\n}\n\n.ni-4x {\n  font-size: 4em;\n}\n\n.ni-5x {\n  font-size: 5em;\n}\n\n/*----------------------------------\n  add a square/circle background\n-----------------------------------*/\n.ni.square,\n.ni.circle {\n  padding: 0.33333333em;\n  vertical-align: -16%;\n  background-color: #eee;\n}\n\n.ni.circle {\n  border-radius: 50%;\n}\n\n/*------------------------\n  list icons\n-------------------------*/\n.ni-ul {\n  padding-left: 0;\n  margin-left: 2.14285714em;\n  list-style-type: none;\n}\n\n.ni-ul>li {\n  position: relative;\n}\n\n.ni-ul>li>.ni {\n  position: absolute;\n  left: -1.57142857em;\n  top: 0.14285714em;\n  text-align: center;\n}\n\n.ni-ul>li>.ni.lg {\n  top: 0;\n  left: -1.35714286em;\n}\n\n.ni-ul>li>.ni.circle,\n.ni-ul>li>.ni.square {\n  top: -0.19047619em;\n  left: -1.9047619em;\n}\n\n/*------------------------\n  spinning icons\n-------------------------*/\n.ni.spin {\n  -webkit-animation: nc-spin 2s infinite linear;\n  -moz-animation: nc-spin 2s infinite linear;\n  animation: nc-spin 2s infinite linear;\n}\n\n@-webkit-keyframes nc-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n  }\n\n  100% {\n    -webkit-transform: rotate(360deg);\n  }\n}\n\n@-moz-keyframes nc-spin {\n  0% {\n    -moz-transform: rotate(0deg);\n  }\n\n  100% {\n    -moz-transform: rotate(360deg);\n  }\n}\n\n@keyframes nc-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    -moz-transform: rotate(0deg);\n    -ms-transform: rotate(0deg);\n    -o-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n\n  100% {\n    -webkit-transform: rotate(360deg);\n    -moz-transform: rotate(360deg);\n    -ms-transform: rotate(360deg);\n    -o-transform: rotate(360deg);\n    transform: rotate(360deg);\n  }\n}\n\n/*------------------------\n  rotated/flipped icons\n-------------------------*/\n.ni.rotate-90 {\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);\n  -webkit-transform: rotate(90deg);\n  -moz-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  -o-transform: rotate(90deg);\n  transform: rotate(90deg);\n}\n\n.ni.rotate-180 {\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n  -webkit-transform: rotate(180deg);\n  -moz-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  -o-transform: rotate(180deg);\n  transform: rotate(180deg);\n}\n\n.ni.rotate-270 {\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);\n  -webkit-transform: rotate(270deg);\n  -moz-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  -o-transform: rotate(270deg);\n  transform: rotate(270deg);\n}\n\n.ni.flip-y {\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=0);\n  -webkit-transform: scale(-1, 1);\n  -moz-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  -o-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n\n.ni.flip-x {\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n  -webkit-transform: scale(1, -1);\n  -moz-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  -o-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n\n/*------------------------\n    font icons\n-------------------------*/\n\n.ni-active-40::before {\n  content: \"\\ea02\";\n}\n\n.ni-air-baloon::before {\n  content: \"\\ea03\";\n}\n\n.ni-album-2::before {\n  content: \"\\ea04\";\n}\n\n.ni-align-center::before {\n  content: \"\\ea05\";\n}\n\n.ni-align-left-2::before {\n  content: \"\\ea06\";\n}\n\n.ni-ambulance::before {\n  content: \"\\ea07\";\n}\n\n.ni-app::before {\n  content: \"\\ea08\";\n}\n\n.ni-archive-2::before {\n  content: \"\\ea09\";\n}\n\n.ni-atom::before {\n  content: \"\\ea0a\";\n}\n\n.ni-badge::before {\n  content: \"\\ea0b\";\n}\n\n.ni-bag-17::before {\n  content: \"\\ea0c\";\n}\n\n.ni-basket::before {\n  content: \"\\ea0d\";\n}\n\n.ni-bell-55::before {\n  content: \"\\ea0e\";\n}\n\n.ni-bold-down::before {\n  content: \"\\ea0f\";\n}\n\n.ni-bold-left::before {\n  content: \"\\ea10\";\n}\n\n.ni-bold-right::before {\n  content: \"\\ea11\";\n}\n\n.ni-bold-up::before {\n  content: \"\\ea12\";\n}\n\n.ni-bold::before {\n  content: \"\\ea13\";\n}\n\n.ni-book-bookmark::before {\n  content: \"\\ea14\";\n}\n\n.ni-books::before {\n  content: \"\\ea15\";\n}\n\n.ni-box-2::before {\n  content: \"\\ea16\";\n}\n\n.ni-briefcase-24::before {\n  content: \"\\ea17\";\n}\n\n.ni-building::before {\n  content: \"\\ea18\";\n}\n\n.ni-bulb-61::before {\n  content: \"\\ea19\";\n}\n\n.ni-bullet-list-67::before {\n  content: \"\\ea1a\";\n}\n\n.ni-bus-front-12::before {\n  content: \"\\ea1b\";\n}\n\n.ni-button-pause::before {\n  content: \"\\ea1c\";\n}\n\n.ni-button-play::before {\n  content: \"\\ea1d\";\n}\n\n.ni-button-power::before {\n  content: \"\\ea1e\";\n}\n\n.ni-calendar-grid-58::before {\n  content: \"\\ea1f\";\n}\n\n.ni-camera-compact::before {\n  content: \"\\ea20\";\n}\n\n.ni-caps-small::before {\n  content: \"\\ea21\";\n}\n\n.ni-cart::before {\n  content: \"\\ea22\";\n}\n\n.ni-chart-bar-32::before {\n  content: \"\\ea23\";\n}\n\n.ni-chart-pie-35::before {\n  content: \"\\ea24\";\n}\n\n.ni-chat-round::before {\n  content: \"\\ea25\";\n}\n\n.ni-check-bold::before {\n  content: \"\\ea26\";\n}\n\n.ni-circle-08::before {\n  content: \"\\ea27\";\n}\n\n.ni-cloud-download-95::before {\n  content: \"\\ea28\";\n}\n\n.ni-cloud-upload-96::before {\n  content: \"\\ea29\";\n}\n\n.ni-compass-04::before {\n  content: \"\\ea2a\";\n}\n\n.ni-controller::before {\n  content: \"\\ea2b\";\n}\n\n.ni-credit-card::before {\n  content: \"\\ea2c\";\n}\n\n.ni-curved-next::before {\n  content: \"\\ea2d\";\n}\n\n.ni-delivery-fast::before {\n  content: \"\\ea2e\";\n}\n\n.ni-diamond::before {\n  content: \"\\ea2f\";\n}\n\n.ni-email-83::before {\n  content: \"\\ea30\";\n}\n\n.ni-fat-add::before {\n  content: \"\\ea31\";\n}\n\n.ni-fat-delete::before {\n  content: \"\\ea32\";\n}\n\n.ni-fat-remove::before {\n  content: \"\\ea33\";\n}\n\n.ni-favourite-28::before {\n  content: \"\\ea34\";\n}\n\n.ni-folder-17::before {\n  content: \"\\ea35\";\n}\n\n.ni-glasses-2::before {\n  content: \"\\ea36\";\n}\n\n.ni-hat-3::before {\n  content: \"\\ea37\";\n}\n\n.ni-headphones::before {\n  content: \"\\ea38\";\n}\n\n.ni-html5::before {\n  content: \"\\ea39\";\n}\n\n.ni-istanbul::before {\n  content: \"\\ea3a\";\n}\n\n.ni-key-25::before {\n  content: \"\\ea3b\";\n}\n\n.ni-laptop::before {\n  content: \"\\ea3c\";\n}\n\n.ni-like-2::before {\n  content: \"\\ea3d\";\n}\n\n.ni-lock-circle-open::before {\n  content: \"\\ea3e\";\n}\n\n.ni-map-big::before {\n  content: \"\\ea3f\";\n}\n\n.ni-mobile-button::before {\n  content: \"\\ea40\";\n}\n\n.ni-money-coins::before {\n  content: \"\\ea41\";\n}\n\n.ni-note-03::before {\n  content: \"\\ea42\";\n}\n\n.ni-notification-70::before {\n  content: \"\\ea43\";\n}\n\n.ni-palette::before {\n  content: \"\\ea44\";\n}\n\n.ni-paper-diploma::before {\n  content: \"\\ea45\";\n}\n\n.ni-pin-3::before {\n  content: \"\\ea46\";\n}\n\n.ni-planet::before {\n  content: \"\\ea47\";\n}\n\n.ni-ruler-pencil::before {\n  content: \"\\ea48\";\n}\n\n.ni-satisfied::before {\n  content: \"\\ea49\";\n}\n\n.ni-scissors::before {\n  content: \"\\ea4a\";\n}\n\n.ni-send::before {\n  content: \"\\ea4b\";\n}\n\n.ni-settings-gear-65::before {\n  content: \"\\ea4c\";\n}\n\n.ni-settings::before {\n  content: \"\\ea4d\";\n}\n\n.ni-single-02::before {\n  content: \"\\ea4e\";\n}\n\n.ni-single-copy-04::before {\n  content: \"\\ea4f\";\n}\n\n.ni-sound-wave::before {\n  content: \"\\ea50\";\n}\n\n.ni-spaceship::before {\n  content: \"\\ea51\";\n}\n\n.ni-square-pin::before {\n  content: \"\\ea52\";\n}\n\n.ni-support-16::before {\n  content: \"\\ea53\";\n}\n\n.ni-tablet-button::before {\n  content: \"\\ea54\";\n}\n\n.ni-tag::before {\n  content: \"\\ea55\";\n}\n\n.ni-tie-bow::before {\n  content: \"\\ea56\";\n}\n\n.ni-time-alarm::before {\n  content: \"\\ea57\";\n}\n\n.ni-trophy::before {\n  content: \"\\ea58\";\n}\n\n.ni-tv-2::before {\n  content: \"\\ea59\";\n}\n\n.ni-umbrella-13::before {\n  content: \"\\ea5a\";\n}\n\n.ni-user-run::before {\n  content: \"\\ea5b\";\n}\n\n.ni-vector::before {\n  content: \"\\ea5c\";\n}\n\n.ni-watch-time::before {\n  content: \"\\ea5d\";\n}\n\n.ni-world::before {\n  content: \"\\ea5e\";\n}\n\n.ni-zoom-split-in::before {\n  content: \"\\ea5f\";\n}\n\n.ni-collection::before {\n  content: \"\\ea60\";\n}\n\n.ni-image::before {\n  content: \"\\ea61\";\n}\n\n.ni-shop::before {\n  content: \"\\ea62\";\n}\n\n.ni-ungroup::before {\n  content: \"\\ea63\";\n}\n\n.ni-world-2::before {\n  content: \"\\ea64\";\n}\n\n.ni-ui-04::before {\n  content: \"\\ea65\";\n}\n\n\n/* all icon font classes list here */", ""]);
+// Exports
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
+
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-svg.css":
+/*!***************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-svg.css ***!
+  \***************************************************************************************************************************/
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
+// Imports
+
+var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, "/* Generated using nucleoapp.com */\n/* --------------------------------\n\nIcon colors\n\n-------------------------------- */\n\n.icon {\n  display: inline-block;\n  /* icon primary color */\n  color: #111111;\n  height: 1em;\n  width: 1em;\n}\n\n.icon use {\n  /* icon secondary color - fill */\n  fill: #7ea6f6;\n}\n\n.icon.icon-outline use {\n  /* icon secondary color - stroke */\n  stroke: #7ea6f6;\n}\n\n/* --------------------------------\n\nChange icon size\n\n-------------------------------- */\n\n.icon-xs {\n  height: 0.5em;\n  width: 0.5em;\n}\n\n.icon-sm {\n  height: 0.8em;\n  width: 0.8em;\n}\n\n.icon-lg {\n  height: 1.6em;\n  width: 1.6em;\n}\n\n.icon-xl {\n  height: 2em;\n  width: 2em;\n}\n\n/* -------------------------------- \n\nAlign icon and text \n\n-------------------------------- */\n\n.icon-text-aligner {\n  /* add this class to parent element that contains icon + text */\n  display: flex;\n  align-items: center;\n}\n\n.icon-text-aligner .icon {\n  color: inherit;\n  margin-right: 0.4em;\n}\n\n.icon-text-aligner .icon use {\n  color: inherit;\n  fill: currentColor;\n}\n\n.icon-text-aligner .icon.icon-outline use {\n  stroke: currentColor;\n}\n\n/* -------------------------------- \n\nIcon reset values - used to enable color customizations\n\n-------------------------------- */\n\n.icon {\n  fill: currentColor;\n  stroke: none;\n}\n\n.icon.icon-outline {\n  fill: none;\n  stroke: currentColor;\n}\n\n.icon use {\n  stroke: none;\n}\n\n.icon.icon-outline use {\n  fill: none;\n}\n\n/* -------------------------------- \n\nStroke effects - Nucleo outline icons\n\n- 16px icons -> up to 1px stroke (16px outline icons do not support stroke changes)\n- 24px, 32px icons -> up to 2px stroke\n- 48px, 64px icons -> up to 4px stroke\n\n-------------------------------- */\n\n.icon-outline.icon-stroke-1 {\n  stroke-width: 1px;\n}\n\n.icon-outline.icon-stroke-2 {\n  stroke-width: 2px;\n}\n\n.icon-outline.icon-stroke-3 {\n  stroke-width: 3px;\n}\n\n.icon-outline.icon-stroke-4 {\n  stroke-width: 4px;\n}\n\n.icon-outline.icon-stroke-1 use,\n.icon-outline.icon-stroke-3 use {\n  -webkit-transform: translateX(0.5px) translateY(0.5px);\n  -moz-transform: translateX(0.5px) translateY(0.5px);\n  -ms-transform: translateX(0.5px) translateY(0.5px);\n  -o-transform: translateX(0.5px) translateY(0.5px);\n  transform: translateX(0.5px) translateY(0.5px);\n}", ""]);
+// Exports
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
+
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/static/css/soft-ui-dashboard.css":
+/*!*****************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/static/css/soft-ui-dashboard.css ***!
+  \*****************************************************************************************************************************************************************************************************************/
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
+// Imports
+
+var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, "/*!\n * Bootstrap v5.0.2 (https://getbootstrap.com/)\n * Copyright 2011-2021 The Bootstrap Authors\n * Copyright 2011-2021 Twitter, Inc.\n * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)\n */\n:root {\n  --bs-blue: #63B3ED;\n  --bs-indigo: #596CFF;\n  --bs-purple: #6f42c1;\n  --bs-pink: #d63384;\n  --bs-red: #F56565;\n  --bs-orange: #fd7e14;\n  --bs-yellow: #FBD38D;\n  --bs-green: #81E6D9;\n  --bs-teal: #20c997;\n  --bs-cyan: #0dcaf0;\n  --bs-white: #fff;\n  --bs-gray: #6c757d;\n  --bs-gray-dark: #343a40;\n  --bs-primary: #cb0c9f;\n  --bs-secondary: #8392AB;\n  --bs-success: #82d616;\n  --bs-info: #17c1e8;\n  --bs-warning: #fbcf33;\n  --bs-danger: #ea0606;\n  --bs-light: #e9ecef;\n  --bs-dark: #344767;\n  --bs-white: #fff;\n  --bs-font-sans-serif: Open Sans;\n  --bs-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace;\n  --bs-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));\n}\n\n*,\n*::before,\n*::after {\n  box-sizing: border-box;\n}\n\n@media (prefers-reduced-motion: no-preference) {\n  :root {\n    scroll-behavior: smooth;\n  }\n}\n\nbody {\n  margin: 0;\n  font-family: var(--bs-font-sans-serif);\n  font-size: 1rem;\n  font-weight: 400;\n  line-height: 1.5;\n  color: #67748e;\n  background-color: #fff;\n  -webkit-text-size-adjust: 100%;\n  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);\n}\n\nhr {\n  margin: 1rem 0;\n  color: inherit;\n  background-color: currentColor;\n  border: 0;\n  opacity: 0.25;\n}\n\nhr:not([size]) {\n  height: 1px;\n}\n\nh1,\n.h1,\nh2,\n.h2,\nh3,\n.h3,\nh4,\n.h4,\nh5,\n.h5,\nh6,\n.h6 {\n  margin-top: 0;\n  margin-bottom: 0.5rem;\n  font-weight: 400;\n  line-height: 1.2;\n  color: #344767;\n}\n\nh1,\n.h1 {\n  font-size: calc(1.425rem + 2.1vw);\n}\n\n@media (min-width: 1200px) {\n\n  h1,\n  .h1 {\n    font-size: 3rem;\n  }\n}\n\nh2,\n.h2 {\n  font-size: calc(1.35rem + 1.2vw);\n}\n\n@media (min-width: 1200px) {\n\n  h2,\n  .h2 {\n    font-size: 2.25rem;\n  }\n}\n\nh3,\n.h3 {\n  font-size: calc(1.3125rem + 0.75vw);\n}\n\n@media (min-width: 1200px) {\n\n  h3,\n  .h3 {\n    font-size: 1.875rem;\n  }\n}\n\nh4,\n.h4 {\n  font-size: calc(1.275rem + 0.3vw);\n}\n\n@media (min-width: 1200px) {\n\n  h4,\n  .h4 {\n    font-size: 1.5rem;\n  }\n}\n\nh5,\n.h5 {\n  font-size: 1.25rem;\n}\n\nh6,\n.h6 {\n  font-size: 1rem;\n}\n\np {\n  margin-top: 0;\n  margin-bottom: 1rem;\n}\n\nabbr[title],\nabbr[data-bs-original-title] {\n  -webkit-text-decoration: underline dotted;\n          text-decoration: underline dotted;\n  cursor: help;\n  -webkit-text-decoration-skip-ink: none;\n          text-decoration-skip-ink: none;\n}\n\naddress {\n  margin-bottom: 1rem;\n  font-style: normal;\n  line-height: inherit;\n}\n\nol,\nul {\n  padding-left: 2rem;\n}\n\nol,\nul,\ndl {\n  margin-top: 0;\n  margin-bottom: 1rem;\n}\n\nol ol,\nul ul,\nol ul,\nul ol {\n  margin-bottom: 0;\n}\n\ndt {\n  font-weight: 600;\n}\n\ndd {\n  margin-bottom: .5rem;\n  margin-left: 0;\n}\n\nblockquote {\n  margin: 0 0 1rem;\n}\n\nb,\nstrong {\n  font-weight: 700;\n}\n\nsmall,\n.small {\n  font-size: 0.875em;\n}\n\nmark,\n.mark {\n  padding: 0.2em;\n  background-color: #fcf8e3;\n}\n\nsub,\nsup {\n  position: relative;\n  font-size: 0.75em;\n  line-height: 0;\n  vertical-align: baseline;\n}\n\nsub {\n  bottom: -.25em;\n}\n\nsup {\n  top: -.5em;\n}\n\na {\n  color: #cb0c9f;\n  text-decoration: none;\n}\n\na:hover {\n  color: #830866;\n  text-decoration: none;\n}\n\na:not([href]):not([class]),\na:not([href]):not([class]):hover {\n  color: inherit;\n  text-decoration: none;\n}\n\npre,\ncode,\nkbd,\nsamp {\n  font-family: var(--bs-font-monospace);\n  font-size: 1em;\n  direction: ltr\n    /* rtl:ignore */\n  ;\n  unicode-bidi: bidi-override;\n}\n\npre {\n  display: block;\n  margin-top: 0;\n  margin-bottom: 1rem;\n  overflow: auto;\n  font-size: 0.875em;\n}\n\npre code {\n  font-size: inherit;\n  color: inherit;\n  word-break: normal;\n}\n\ncode {\n  font-size: 0.875em;\n  color: #d63384;\n  word-wrap: break-word;\n}\n\na>code {\n  color: inherit;\n}\n\nkbd {\n  padding: 0.2rem 0.4rem;\n  font-size: 0.875em;\n  color: #fff;\n  background-color: #212529;\n  border-radius: 0.25rem;\n}\n\nkbd kbd {\n  padding: 0;\n  font-size: 1em;\n  font-weight: 600;\n}\n\nfigure {\n  margin: 0 0 1rem;\n}\n\nimg,\nsvg {\n  vertical-align: middle;\n}\n\ntable {\n  caption-side: bottom;\n  border-collapse: collapse;\n}\n\ncaption {\n  padding-top: 0.5rem;\n  padding-bottom: 0.5rem;\n  color: #6c757d;\n  text-align: left;\n}\n\nth {\n  text-align: inherit;\n  text-align: -webkit-match-parent;\n}\n\nthead,\ntbody,\ntfoot,\ntr,\ntd,\nth {\n  border-color: inherit;\n  border-style: solid;\n  border-width: 0;\n}\n\nlabel {\n  display: inline-block;\n}\n\nbutton {\n  border-radius: 0;\n}\n\nbutton:focus:not(:focus-visible) {\n  outline: 0;\n}\n\ninput,\nbutton,\nselect,\noptgroup,\ntextarea {\n  margin: 0;\n  font-family: inherit;\n  font-size: inherit;\n  line-height: inherit;\n}\n\nbutton,\nselect {\n  text-transform: none;\n}\n\n[role=\"button\"] {\n  cursor: pointer;\n}\n\nselect {\n  word-wrap: normal;\n}\n\nselect:disabled {\n  opacity: 1;\n}\n\n[list]::-webkit-calendar-picker-indicator {\n  display: none;\n}\n\nbutton,\n[type=\"button\"],\n[type=\"reset\"],\n[type=\"submit\"] {\n  -webkit-appearance: button;\n}\n\nbutton:not(:disabled),\n[type=\"button\"]:not(:disabled),\n[type=\"reset\"]:not(:disabled),\n[type=\"submit\"]:not(:disabled) {\n  cursor: pointer;\n}\n\n::-moz-focus-inner {\n  padding: 0;\n  border-style: none;\n}\n\ntextarea {\n  resize: vertical;\n}\n\nfieldset {\n  min-width: 0;\n  padding: 0;\n  margin: 0;\n  border: 0;\n}\n\nlegend {\n  float: left;\n  width: 100%;\n  padding: 0;\n  margin-bottom: 0.5rem;\n  font-size: calc(1.275rem + 0.3vw);\n  line-height: inherit;\n}\n\n@media (min-width: 1200px) {\n  legend {\n    font-size: 1.5rem;\n  }\n}\n\nlegend+* {\n  clear: left;\n}\n\n::-webkit-datetime-edit-fields-wrapper,\n::-webkit-datetime-edit-text,\n::-webkit-datetime-edit-minute,\n::-webkit-datetime-edit-hour-field,\n::-webkit-datetime-edit-day-field,\n::-webkit-datetime-edit-month-field,\n::-webkit-datetime-edit-year-field {\n  padding: 0;\n}\n\n::-webkit-inner-spin-button {\n  height: auto;\n}\n\n[type=\"search\"] {\n  outline-offset: -2px;\n  -webkit-appearance: textfield;\n}\n\n/* rtl:raw:\n[type=\"tel\"],\n[type=\"url\"],\n[type=\"email\"],\n[type=\"number\"] {\n  direction: ltr;\n}\n*/\n::-webkit-search-decoration {\n  -webkit-appearance: none;\n}\n\n::-webkit-color-swatch-wrapper {\n  padding: 0;\n}\n\n::-webkit-file-upload-button {\n  font: inherit;\n}\n\n::file-selector-button {\n  font: inherit;\n}\n\n::-webkit-file-upload-button {\n  font: inherit;\n  -webkit-appearance: button;\n}\n\noutput {\n  display: inline-block;\n}\n\niframe {\n  border: 0;\n}\n\nsummary {\n  display: list-item;\n  cursor: pointer;\n}\n\nprogress {\n  vertical-align: baseline;\n}\n\n[hidden] {\n  display: none !important;\n}\n\n.lead {\n  font-size: 1.25rem;\n  font-weight: 400;\n}\n\n.display-1 {\n  font-size: calc(1.625rem + 4.5vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-1 {\n    font-size: 5rem;\n  }\n}\n\n.display-2 {\n  font-size: calc(1.575rem + 3.9vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-2 {\n    font-size: 4.5rem;\n  }\n}\n\n.display-3 {\n  font-size: calc(1.525rem + 3.3vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-3 {\n    font-size: 4rem;\n  }\n}\n\n.display-4 {\n  font-size: calc(1.475rem + 2.7vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-4 {\n    font-size: 3.5rem;\n  }\n}\n\n.display-5 {\n  font-size: calc(1.425rem + 2.1vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-5 {\n    font-size: 3rem;\n  }\n}\n\n.display-6 {\n  font-size: calc(1.375rem + 1.5vw);\n  font-weight: 300;\n  line-height: 1.2;\n}\n\n@media (min-width: 1200px) {\n  .display-6 {\n    font-size: 2.5rem;\n  }\n}\n\n.list-unstyled {\n  padding-left: 0;\n  list-style: none;\n}\n\n.list-inline {\n  padding-left: 0;\n  list-style: none;\n}\n\n.list-inline-item {\n  display: inline-block;\n}\n\n.list-inline-item:not(:last-child) {\n  margin-right: 0.5rem;\n}\n\n.initialism {\n  font-size: 0.875em;\n  text-transform: uppercase;\n}\n\n.blockquote {\n  margin-bottom: 1rem;\n  font-size: 1.25rem;\n}\n\n.blockquote> :last-child {\n  margin-bottom: 0;\n}\n\n.blockquote-footer {\n  margin-top: -1rem;\n  margin-bottom: 1rem;\n  font-size: 0.875em;\n  color: #6c757d;\n}\n\n.blockquote-footer::before {\n  content: \"\\2014\\00A0\";\n}\n\n.img-fluid {\n  max-width: 100%;\n  height: auto;\n}\n\n.img-thumbnail {\n  padding: 0.25rem;\n  background-color: #fff;\n  border: 1px solid #dee2e6;\n  border-radius: 0.5rem;\n  max-width: 100%;\n  height: auto;\n}\n\n.figure {\n  display: inline-block;\n}\n\n.figure-img {\n  margin-bottom: 0.5rem;\n  line-height: 1;\n}\n\n.figure-caption {\n  font-size: 0.875em;\n  color: #6c757d;\n}\n\n.container,\n.container-fluid,\n.container-sm,\n.container-md,\n.container-lg,\n.container-xl,\n.container-xxl {\n  width: 100%;\n  padding-right: var(--bs-gutter-x, 1.5rem);\n  padding-left: var(--bs-gutter-x, 1.5rem);\n  margin-right: auto;\n  margin-left: auto;\n}\n\n@media (min-width: 576px) {\n\n  .container,\n  .container-sm {\n    max-width: 540px;\n  }\n}\n\n@media (min-width: 768px) {\n\n  .container,\n  .container-sm,\n  .container-md {\n    max-width: 720px;\n  }\n}\n\n@media (min-width: 992px) {\n\n  .container,\n  .container-sm,\n  .container-md,\n  .container-lg {\n    max-width: 960px;\n  }\n}\n\n@media (min-width: 1200px) {\n\n  .container,\n  .container-sm,\n  .container-md,\n  .container-lg,\n  .container-xl {\n    max-width: 1140px;\n  }\n}\n\n@media (min-width: 1400px) {\n\n  .container,\n  .container-sm,\n  .container-md,\n  .container-lg,\n  .container-xl,\n  .container-xxl {\n    max-width: 1320px;\n  }\n}\n\n.row {\n  --bs-gutter-x: 1.5rem;\n  --bs-gutter-y: 0;\n  display: flex;\n  flex-wrap: wrap;\n  margin-top: calc(var(--bs-gutter-y) * -1);\n  margin-right: calc(var(--bs-gutter-x) * -.5);\n  margin-left: calc(var(--bs-gutter-x) * -.5);\n}\n\n.row>* {\n  flex-shrink: 0;\n  width: 100%;\n  max-width: 100%;\n  padding-right: calc(var(--bs-gutter-x) * .5);\n  padding-left: calc(var(--bs-gutter-x) * .5);\n  margin-top: var(--bs-gutter-y);\n}\n\n.col {\n  flex: 1 0 0%;\n}\n\n.row-cols-auto>* {\n  flex: 0 0 auto;\n  width: auto;\n}\n\n.row-cols-1>* {\n  flex: 0 0 auto;\n  width: 100%;\n}\n\n.row-cols-2>* {\n  flex: 0 0 auto;\n  width: 50%;\n}\n\n.row-cols-3>* {\n  flex: 0 0 auto;\n  width: 33.333333%;\n}\n\n.row-cols-4>* {\n  flex: 0 0 auto;\n  width: 25%;\n}\n\n.row-cols-5>* {\n  flex: 0 0 auto;\n  width: 20%;\n}\n\n.row-cols-6>* {\n  flex: 0 0 auto;\n  width: 16.666667%;\n}\n\n@media (min-width: 576px) {\n  .col-sm {\n    flex: 1 0 0%;\n  }\n\n  .row-cols-sm-auto>* {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .row-cols-sm-1>* {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .row-cols-sm-2>* {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .row-cols-sm-3>* {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .row-cols-sm-4>* {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .row-cols-sm-5>* {\n    flex: 0 0 auto;\n    width: 20%;\n  }\n\n  .row-cols-sm-6>* {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n}\n\n@media (min-width: 768px) {\n  .col-md {\n    flex: 1 0 0%;\n  }\n\n  .row-cols-md-auto>* {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .row-cols-md-1>* {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .row-cols-md-2>* {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .row-cols-md-3>* {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .row-cols-md-4>* {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .row-cols-md-5>* {\n    flex: 0 0 auto;\n    width: 20%;\n  }\n\n  .row-cols-md-6>* {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n}\n\n@media (min-width: 992px) {\n  .col-lg {\n    flex: 1 0 0%;\n  }\n\n  .row-cols-lg-auto>* {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .row-cols-lg-1>* {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .row-cols-lg-2>* {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .row-cols-lg-3>* {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .row-cols-lg-4>* {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .row-cols-lg-5>* {\n    flex: 0 0 auto;\n    width: 20%;\n  }\n\n  .row-cols-lg-6>* {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n}\n\n@media (min-width: 1200px) {\n  .col-xl {\n    flex: 1 0 0%;\n  }\n\n  .row-cols-xl-auto>* {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .row-cols-xl-1>* {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .row-cols-xl-2>* {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .row-cols-xl-3>* {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .row-cols-xl-4>* {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .row-cols-xl-5>* {\n    flex: 0 0 auto;\n    width: 20%;\n  }\n\n  .row-cols-xl-6>* {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n}\n\n@media (min-width: 1400px) {\n  .col-xxl {\n    flex: 1 0 0%;\n  }\n\n  .row-cols-xxl-auto>* {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .row-cols-xxl-1>* {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .row-cols-xxl-2>* {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .row-cols-xxl-3>* {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .row-cols-xxl-4>* {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .row-cols-xxl-5>* {\n    flex: 0 0 auto;\n    width: 20%;\n  }\n\n  .row-cols-xxl-6>* {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n}\n\n.col-auto {\n  flex: 0 0 auto;\n  width: auto;\n}\n\n.col-1 {\n  flex: 0 0 auto;\n  width: 8.333333%;\n}\n\n.col-2 {\n  flex: 0 0 auto;\n  width: 16.666667%;\n}\n\n.col-3 {\n  flex: 0 0 auto;\n  width: 25%;\n}\n\n.col-4 {\n  flex: 0 0 auto;\n  width: 33.333333%;\n}\n\n.col-5 {\n  flex: 0 0 auto;\n  width: 41.666667%;\n}\n\n.col-6 {\n  flex: 0 0 auto;\n  width: 50%;\n}\n\n.col-7 {\n  flex: 0 0 auto;\n  width: 58.333333%;\n}\n\n.col-8 {\n  flex: 0 0 auto;\n  width: 66.666667%;\n}\n\n.col-9 {\n  flex: 0 0 auto;\n  width: 75%;\n}\n\n.col-10 {\n  flex: 0 0 auto;\n  width: 83.333333%;\n}\n\n.col-11 {\n  flex: 0 0 auto;\n  width: 91.666667%;\n}\n\n.col-12 {\n  flex: 0 0 auto;\n  width: 100%;\n}\n\n.offset-1 {\n  margin-left: 8.333333%;\n}\n\n.offset-2 {\n  margin-left: 16.666667%;\n}\n\n.offset-3 {\n  margin-left: 25%;\n}\n\n.offset-4 {\n  margin-left: 33.333333%;\n}\n\n.offset-5 {\n  margin-left: 41.666667%;\n}\n\n.offset-6 {\n  margin-left: 50%;\n}\n\n.offset-7 {\n  margin-left: 58.333333%;\n}\n\n.offset-8 {\n  margin-left: 66.666667%;\n}\n\n.offset-9 {\n  margin-left: 75%;\n}\n\n.offset-10 {\n  margin-left: 83.333333%;\n}\n\n.offset-11 {\n  margin-left: 91.666667%;\n}\n\n.g-0,\n.gx-0 {\n  --bs-gutter-x: 0;\n}\n\n.g-0,\n.gy-0 {\n  --bs-gutter-y: 0;\n}\n\n.g-1,\n.gx-1 {\n  --bs-gutter-x: 0.25rem;\n}\n\n.g-1,\n.gy-1 {\n  --bs-gutter-y: 0.25rem;\n}\n\n.g-2,\n.gx-2 {\n  --bs-gutter-x: 0.5rem;\n}\n\n.g-2,\n.gy-2 {\n  --bs-gutter-y: 0.5rem;\n}\n\n.g-3,\n.gx-3 {\n  --bs-gutter-x: 1rem;\n}\n\n.g-3,\n.gy-3 {\n  --bs-gutter-y: 1rem;\n}\n\n.g-4,\n.gx-4 {\n  --bs-gutter-x: 1.5rem;\n}\n\n.g-4,\n.gy-4 {\n  --bs-gutter-y: 1.5rem;\n}\n\n.g-5,\n.gx-5 {\n  --bs-gutter-x: 3rem;\n}\n\n.g-5,\n.gy-5 {\n  --bs-gutter-y: 3rem;\n}\n\n.g-6,\n.gx-6 {\n  --bs-gutter-x: 4rem;\n}\n\n.g-6,\n.gy-6 {\n  --bs-gutter-y: 4rem;\n}\n\n.g-7,\n.gx-7 {\n  --bs-gutter-x: 6rem;\n}\n\n.g-7,\n.gy-7 {\n  --bs-gutter-y: 6rem;\n}\n\n.g-8,\n.gx-8 {\n  --bs-gutter-x: 8rem;\n}\n\n.g-8,\n.gy-8 {\n  --bs-gutter-y: 8rem;\n}\n\n.g-9,\n.gx-9 {\n  --bs-gutter-x: 10rem;\n}\n\n.g-9,\n.gy-9 {\n  --bs-gutter-y: 10rem;\n}\n\n.g-10,\n.gx-10 {\n  --bs-gutter-x: 12rem;\n}\n\n.g-10,\n.gy-10 {\n  --bs-gutter-y: 12rem;\n}\n\n.g-11,\n.gx-11 {\n  --bs-gutter-x: 14rem;\n}\n\n.g-11,\n.gy-11 {\n  --bs-gutter-y: 14rem;\n}\n\n.g-12,\n.gx-12 {\n  --bs-gutter-x: 16rem;\n}\n\n.g-12,\n.gy-12 {\n  --bs-gutter-y: 16rem;\n}\n\n@media (min-width: 576px) {\n  .col-sm-auto {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .col-sm-1 {\n    flex: 0 0 auto;\n    width: 8.333333%;\n  }\n\n  .col-sm-2 {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n\n  .col-sm-3 {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .col-sm-4 {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .col-sm-5 {\n    flex: 0 0 auto;\n    width: 41.666667%;\n  }\n\n  .col-sm-6 {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .col-sm-7 {\n    flex: 0 0 auto;\n    width: 58.333333%;\n  }\n\n  .col-sm-8 {\n    flex: 0 0 auto;\n    width: 66.666667%;\n  }\n\n  .col-sm-9 {\n    flex: 0 0 auto;\n    width: 75%;\n  }\n\n  .col-sm-10 {\n    flex: 0 0 auto;\n    width: 83.333333%;\n  }\n\n  .col-sm-11 {\n    flex: 0 0 auto;\n    width: 91.666667%;\n  }\n\n  .col-sm-12 {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .offset-sm-0 {\n    margin-left: 0;\n  }\n\n  .offset-sm-1 {\n    margin-left: 8.333333%;\n  }\n\n  .offset-sm-2 {\n    margin-left: 16.666667%;\n  }\n\n  .offset-sm-3 {\n    margin-left: 25%;\n  }\n\n  .offset-sm-4 {\n    margin-left: 33.333333%;\n  }\n\n  .offset-sm-5 {\n    margin-left: 41.666667%;\n  }\n\n  .offset-sm-6 {\n    margin-left: 50%;\n  }\n\n  .offset-sm-7 {\n    margin-left: 58.333333%;\n  }\n\n  .offset-sm-8 {\n    margin-left: 66.666667%;\n  }\n\n  .offset-sm-9 {\n    margin-left: 75%;\n  }\n\n  .offset-sm-10 {\n    margin-left: 83.333333%;\n  }\n\n  .offset-sm-11 {\n    margin-left: 91.666667%;\n  }\n\n  .g-sm-0,\n  .gx-sm-0 {\n    --bs-gutter-x: 0;\n  }\n\n  .g-sm-0,\n  .gy-sm-0 {\n    --bs-gutter-y: 0;\n  }\n\n  .g-sm-1,\n  .gx-sm-1 {\n    --bs-gutter-x: 0.25rem;\n  }\n\n  .g-sm-1,\n  .gy-sm-1 {\n    --bs-gutter-y: 0.25rem;\n  }\n\n  .g-sm-2,\n  .gx-sm-2 {\n    --bs-gutter-x: 0.5rem;\n  }\n\n  .g-sm-2,\n  .gy-sm-2 {\n    --bs-gutter-y: 0.5rem;\n  }\n\n  .g-sm-3,\n  .gx-sm-3 {\n    --bs-gutter-x: 1rem;\n  }\n\n  .g-sm-3,\n  .gy-sm-3 {\n    --bs-gutter-y: 1rem;\n  }\n\n  .g-sm-4,\n  .gx-sm-4 {\n    --bs-gutter-x: 1.5rem;\n  }\n\n  .g-sm-4,\n  .gy-sm-4 {\n    --bs-gutter-y: 1.5rem;\n  }\n\n  .g-sm-5,\n  .gx-sm-5 {\n    --bs-gutter-x: 3rem;\n  }\n\n  .g-sm-5,\n  .gy-sm-5 {\n    --bs-gutter-y: 3rem;\n  }\n\n  .g-sm-6,\n  .gx-sm-6 {\n    --bs-gutter-x: 4rem;\n  }\n\n  .g-sm-6,\n  .gy-sm-6 {\n    --bs-gutter-y: 4rem;\n  }\n\n  .g-sm-7,\n  .gx-sm-7 {\n    --bs-gutter-x: 6rem;\n  }\n\n  .g-sm-7,\n  .gy-sm-7 {\n    --bs-gutter-y: 6rem;\n  }\n\n  .g-sm-8,\n  .gx-sm-8 {\n    --bs-gutter-x: 8rem;\n  }\n\n  .g-sm-8,\n  .gy-sm-8 {\n    --bs-gutter-y: 8rem;\n  }\n\n  .g-sm-9,\n  .gx-sm-9 {\n    --bs-gutter-x: 10rem;\n  }\n\n  .g-sm-9,\n  .gy-sm-9 {\n    --bs-gutter-y: 10rem;\n  }\n\n  .g-sm-10,\n  .gx-sm-10 {\n    --bs-gutter-x: 12rem;\n  }\n\n  .g-sm-10,\n  .gy-sm-10 {\n    --bs-gutter-y: 12rem;\n  }\n\n  .g-sm-11,\n  .gx-sm-11 {\n    --bs-gutter-x: 14rem;\n  }\n\n  .g-sm-11,\n  .gy-sm-11 {\n    --bs-gutter-y: 14rem;\n  }\n\n  .g-sm-12,\n  .gx-sm-12 {\n    --bs-gutter-x: 16rem;\n  }\n\n  .g-sm-12,\n  .gy-sm-12 {\n    --bs-gutter-y: 16rem;\n  }\n}\n\n@media (min-width: 768px) {\n  .col-md-auto {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .col-md-1 {\n    flex: 0 0 auto;\n    width: 8.333333%;\n  }\n\n  .col-md-2 {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n\n  .col-md-3 {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .col-md-4 {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .col-md-5 {\n    flex: 0 0 auto;\n    width: 41.666667%;\n  }\n\n  .col-md-6 {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .col-md-7 {\n    flex: 0 0 auto;\n    width: 58.333333%;\n  }\n\n  .col-md-8 {\n    flex: 0 0 auto;\n    width: 66.666667%;\n  }\n\n  .col-md-9 {\n    flex: 0 0 auto;\n    width: 75%;\n  }\n\n  .col-md-10 {\n    flex: 0 0 auto;\n    width: 83.333333%;\n  }\n\n  .col-md-11 {\n    flex: 0 0 auto;\n    width: 91.666667%;\n  }\n\n  .col-md-12 {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .offset-md-0 {\n    margin-left: 0;\n  }\n\n  .offset-md-1 {\n    margin-left: 8.333333%;\n  }\n\n  .offset-md-2 {\n    margin-left: 16.666667%;\n  }\n\n  .offset-md-3 {\n    margin-left: 25%;\n  }\n\n  .offset-md-4 {\n    margin-left: 33.333333%;\n  }\n\n  .offset-md-5 {\n    margin-left: 41.666667%;\n  }\n\n  .offset-md-6 {\n    margin-left: 50%;\n  }\n\n  .offset-md-7 {\n    margin-left: 58.333333%;\n  }\n\n  .offset-md-8 {\n    margin-left: 66.666667%;\n  }\n\n  .offset-md-9 {\n    margin-left: 75%;\n  }\n\n  .offset-md-10 {\n    margin-left: 83.333333%;\n  }\n\n  .offset-md-11 {\n    margin-left: 91.666667%;\n  }\n\n  .g-md-0,\n  .gx-md-0 {\n    --bs-gutter-x: 0;\n  }\n\n  .g-md-0,\n  .gy-md-0 {\n    --bs-gutter-y: 0;\n  }\n\n  .g-md-1,\n  .gx-md-1 {\n    --bs-gutter-x: 0.25rem;\n  }\n\n  .g-md-1,\n  .gy-md-1 {\n    --bs-gutter-y: 0.25rem;\n  }\n\n  .g-md-2,\n  .gx-md-2 {\n    --bs-gutter-x: 0.5rem;\n  }\n\n  .g-md-2,\n  .gy-md-2 {\n    --bs-gutter-y: 0.5rem;\n  }\n\n  .g-md-3,\n  .gx-md-3 {\n    --bs-gutter-x: 1rem;\n  }\n\n  .g-md-3,\n  .gy-md-3 {\n    --bs-gutter-y: 1rem;\n  }\n\n  .g-md-4,\n  .gx-md-4 {\n    --bs-gutter-x: 1.5rem;\n  }\n\n  .g-md-4,\n  .gy-md-4 {\n    --bs-gutter-y: 1.5rem;\n  }\n\n  .g-md-5,\n  .gx-md-5 {\n    --bs-gutter-x: 3rem;\n  }\n\n  .g-md-5,\n  .gy-md-5 {\n    --bs-gutter-y: 3rem;\n  }\n\n  .g-md-6,\n  .gx-md-6 {\n    --bs-gutter-x: 4rem;\n  }\n\n  .g-md-6,\n  .gy-md-6 {\n    --bs-gutter-y: 4rem;\n  }\n\n  .g-md-7,\n  .gx-md-7 {\n    --bs-gutter-x: 6rem;\n  }\n\n  .g-md-7,\n  .gy-md-7 {\n    --bs-gutter-y: 6rem;\n  }\n\n  .g-md-8,\n  .gx-md-8 {\n    --bs-gutter-x: 8rem;\n  }\n\n  .g-md-8,\n  .gy-md-8 {\n    --bs-gutter-y: 8rem;\n  }\n\n  .g-md-9,\n  .gx-md-9 {\n    --bs-gutter-x: 10rem;\n  }\n\n  .g-md-9,\n  .gy-md-9 {\n    --bs-gutter-y: 10rem;\n  }\n\n  .g-md-10,\n  .gx-md-10 {\n    --bs-gutter-x: 12rem;\n  }\n\n  .g-md-10,\n  .gy-md-10 {\n    --bs-gutter-y: 12rem;\n  }\n\n  .g-md-11,\n  .gx-md-11 {\n    --bs-gutter-x: 14rem;\n  }\n\n  .g-md-11,\n  .gy-md-11 {\n    --bs-gutter-y: 14rem;\n  }\n\n  .g-md-12,\n  .gx-md-12 {\n    --bs-gutter-x: 16rem;\n  }\n\n  .g-md-12,\n  .gy-md-12 {\n    --bs-gutter-y: 16rem;\n  }\n}\n\n@media (min-width: 992px) {\n  .col-lg-auto {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .col-lg-1 {\n    flex: 0 0 auto;\n    width: 8.333333%;\n  }\n\n  .col-lg-2 {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n\n  .col-lg-3 {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .col-lg-4 {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .col-lg-5 {\n    flex: 0 0 auto;\n    width: 41.666667%;\n  }\n\n  .col-lg-6 {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .col-lg-7 {\n    flex: 0 0 auto;\n    width: 58.333333%;\n  }\n\n  .col-lg-8 {\n    flex: 0 0 auto;\n    width: 66.666667%;\n  }\n\n  .col-lg-9 {\n    flex: 0 0 auto;\n    width: 75%;\n  }\n\n  .col-lg-10 {\n    flex: 0 0 auto;\n    width: 83.333333%;\n  }\n\n  .col-lg-11 {\n    flex: 0 0 auto;\n    width: 91.666667%;\n  }\n\n  .col-lg-12 {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .offset-lg-0 {\n    margin-left: 0;\n  }\n\n  .offset-lg-1 {\n    margin-left: 8.333333%;\n  }\n\n  .offset-lg-2 {\n    margin-left: 16.666667%;\n  }\n\n  .offset-lg-3 {\n    margin-left: 25%;\n  }\n\n  .offset-lg-4 {\n    margin-left: 33.333333%;\n  }\n\n  .offset-lg-5 {\n    margin-left: 41.666667%;\n  }\n\n  .offset-lg-6 {\n    margin-left: 50%;\n  }\n\n  .offset-lg-7 {\n    margin-left: 58.333333%;\n  }\n\n  .offset-lg-8 {\n    margin-left: 66.666667%;\n  }\n\n  .offset-lg-9 {\n    margin-left: 75%;\n  }\n\n  .offset-lg-10 {\n    margin-left: 83.333333%;\n  }\n\n  .offset-lg-11 {\n    margin-left: 91.666667%;\n  }\n\n  .g-lg-0,\n  .gx-lg-0 {\n    --bs-gutter-x: 0;\n  }\n\n  .g-lg-0,\n  .gy-lg-0 {\n    --bs-gutter-y: 0;\n  }\n\n  .g-lg-1,\n  .gx-lg-1 {\n    --bs-gutter-x: 0.25rem;\n  }\n\n  .g-lg-1,\n  .gy-lg-1 {\n    --bs-gutter-y: 0.25rem;\n  }\n\n  .g-lg-2,\n  .gx-lg-2 {\n    --bs-gutter-x: 0.5rem;\n  }\n\n  .g-lg-2,\n  .gy-lg-2 {\n    --bs-gutter-y: 0.5rem;\n  }\n\n  .g-lg-3,\n  .gx-lg-3 {\n    --bs-gutter-x: 1rem;\n  }\n\n  .g-lg-3,\n  .gy-lg-3 {\n    --bs-gutter-y: 1rem;\n  }\n\n  .g-lg-4,\n  .gx-lg-4 {\n    --bs-gutter-x: 1.5rem;\n  }\n\n  .g-lg-4,\n  .gy-lg-4 {\n    --bs-gutter-y: 1.5rem;\n  }\n\n  .g-lg-5,\n  .gx-lg-5 {\n    --bs-gutter-x: 3rem;\n  }\n\n  .g-lg-5,\n  .gy-lg-5 {\n    --bs-gutter-y: 3rem;\n  }\n\n  .g-lg-6,\n  .gx-lg-6 {\n    --bs-gutter-x: 4rem;\n  }\n\n  .g-lg-6,\n  .gy-lg-6 {\n    --bs-gutter-y: 4rem;\n  }\n\n  .g-lg-7,\n  .gx-lg-7 {\n    --bs-gutter-x: 6rem;\n  }\n\n  .g-lg-7,\n  .gy-lg-7 {\n    --bs-gutter-y: 6rem;\n  }\n\n  .g-lg-8,\n  .gx-lg-8 {\n    --bs-gutter-x: 8rem;\n  }\n\n  .g-lg-8,\n  .gy-lg-8 {\n    --bs-gutter-y: 8rem;\n  }\n\n  .g-lg-9,\n  .gx-lg-9 {\n    --bs-gutter-x: 10rem;\n  }\n\n  .g-lg-9,\n  .gy-lg-9 {\n    --bs-gutter-y: 10rem;\n  }\n\n  .g-lg-10,\n  .gx-lg-10 {\n    --bs-gutter-x: 12rem;\n  }\n\n  .g-lg-10,\n  .gy-lg-10 {\n    --bs-gutter-y: 12rem;\n  }\n\n  .g-lg-11,\n  .gx-lg-11 {\n    --bs-gutter-x: 14rem;\n  }\n\n  .g-lg-11,\n  .gy-lg-11 {\n    --bs-gutter-y: 14rem;\n  }\n\n  .g-lg-12,\n  .gx-lg-12 {\n    --bs-gutter-x: 16rem;\n  }\n\n  .g-lg-12,\n  .gy-lg-12 {\n    --bs-gutter-y: 16rem;\n  }\n}\n\n@media (min-width: 1200px) {\n  .col-xl-auto {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .col-xl-1 {\n    flex: 0 0 auto;\n    width: 8.333333%;\n  }\n\n  .col-xl-2 {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n\n  .col-xl-3 {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .col-xl-4 {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .col-xl-5 {\n    flex: 0 0 auto;\n    width: 41.666667%;\n  }\n\n  .col-xl-6 {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .col-xl-7 {\n    flex: 0 0 auto;\n    width: 58.333333%;\n  }\n\n  .col-xl-8 {\n    flex: 0 0 auto;\n    width: 66.666667%;\n  }\n\n  .col-xl-9 {\n    flex: 0 0 auto;\n    width: 75%;\n  }\n\n  .col-xl-10 {\n    flex: 0 0 auto;\n    width: 83.333333%;\n  }\n\n  .col-xl-11 {\n    flex: 0 0 auto;\n    width: 91.666667%;\n  }\n\n  .col-xl-12 {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .offset-xl-0 {\n    margin-left: 0;\n  }\n\n  .offset-xl-1 {\n    margin-left: 8.333333%;\n  }\n\n  .offset-xl-2 {\n    margin-left: 16.666667%;\n  }\n\n  .offset-xl-3 {\n    margin-left: 25%;\n  }\n\n  .offset-xl-4 {\n    margin-left: 33.333333%;\n  }\n\n  .offset-xl-5 {\n    margin-left: 41.666667%;\n  }\n\n  .offset-xl-6 {\n    margin-left: 50%;\n  }\n\n  .offset-xl-7 {\n    margin-left: 58.333333%;\n  }\n\n  .offset-xl-8 {\n    margin-left: 66.666667%;\n  }\n\n  .offset-xl-9 {\n    margin-left: 75%;\n  }\n\n  .offset-xl-10 {\n    margin-left: 83.333333%;\n  }\n\n  .offset-xl-11 {\n    margin-left: 91.666667%;\n  }\n\n  .g-xl-0,\n  .gx-xl-0 {\n    --bs-gutter-x: 0;\n  }\n\n  .g-xl-0,\n  .gy-xl-0 {\n    --bs-gutter-y: 0;\n  }\n\n  .g-xl-1,\n  .gx-xl-1 {\n    --bs-gutter-x: 0.25rem;\n  }\n\n  .g-xl-1,\n  .gy-xl-1 {\n    --bs-gutter-y: 0.25rem;\n  }\n\n  .g-xl-2,\n  .gx-xl-2 {\n    --bs-gutter-x: 0.5rem;\n  }\n\n  .g-xl-2,\n  .gy-xl-2 {\n    --bs-gutter-y: 0.5rem;\n  }\n\n  .g-xl-3,\n  .gx-xl-3 {\n    --bs-gutter-x: 1rem;\n  }\n\n  .g-xl-3,\n  .gy-xl-3 {\n    --bs-gutter-y: 1rem;\n  }\n\n  .g-xl-4,\n  .gx-xl-4 {\n    --bs-gutter-x: 1.5rem;\n  }\n\n  .g-xl-4,\n  .gy-xl-4 {\n    --bs-gutter-y: 1.5rem;\n  }\n\n  .g-xl-5,\n  .gx-xl-5 {\n    --bs-gutter-x: 3rem;\n  }\n\n  .g-xl-5,\n  .gy-xl-5 {\n    --bs-gutter-y: 3rem;\n  }\n\n  .g-xl-6,\n  .gx-xl-6 {\n    --bs-gutter-x: 4rem;\n  }\n\n  .g-xl-6,\n  .gy-xl-6 {\n    --bs-gutter-y: 4rem;\n  }\n\n  .g-xl-7,\n  .gx-xl-7 {\n    --bs-gutter-x: 6rem;\n  }\n\n  .g-xl-7,\n  .gy-xl-7 {\n    --bs-gutter-y: 6rem;\n  }\n\n  .g-xl-8,\n  .gx-xl-8 {\n    --bs-gutter-x: 8rem;\n  }\n\n  .g-xl-8,\n  .gy-xl-8 {\n    --bs-gutter-y: 8rem;\n  }\n\n  .g-xl-9,\n  .gx-xl-9 {\n    --bs-gutter-x: 10rem;\n  }\n\n  .g-xl-9,\n  .gy-xl-9 {\n    --bs-gutter-y: 10rem;\n  }\n\n  .g-xl-10,\n  .gx-xl-10 {\n    --bs-gutter-x: 12rem;\n  }\n\n  .g-xl-10,\n  .gy-xl-10 {\n    --bs-gutter-y: 12rem;\n  }\n\n  .g-xl-11,\n  .gx-xl-11 {\n    --bs-gutter-x: 14rem;\n  }\n\n  .g-xl-11,\n  .gy-xl-11 {\n    --bs-gutter-y: 14rem;\n  }\n\n  .g-xl-12,\n  .gx-xl-12 {\n    --bs-gutter-x: 16rem;\n  }\n\n  .g-xl-12,\n  .gy-xl-12 {\n    --bs-gutter-y: 16rem;\n  }\n}\n\n@media (min-width: 1400px) {\n  .col-xxl-auto {\n    flex: 0 0 auto;\n    width: auto;\n  }\n\n  .col-xxl-1 {\n    flex: 0 0 auto;\n    width: 8.333333%;\n  }\n\n  .col-xxl-2 {\n    flex: 0 0 auto;\n    width: 16.666667%;\n  }\n\n  .col-xxl-3 {\n    flex: 0 0 auto;\n    width: 25%;\n  }\n\n  .col-xxl-4 {\n    flex: 0 0 auto;\n    width: 33.333333%;\n  }\n\n  .col-xxl-5 {\n    flex: 0 0 auto;\n    width: 41.666667%;\n  }\n\n  .col-xxl-6 {\n    flex: 0 0 auto;\n    width: 50%;\n  }\n\n  .col-xxl-7 {\n    flex: 0 0 auto;\n    width: 58.333333%;\n  }\n\n  .col-xxl-8 {\n    flex: 0 0 auto;\n    width: 66.666667%;\n  }\n\n  .col-xxl-9 {\n    flex: 0 0 auto;\n    width: 75%;\n  }\n\n  .col-xxl-10 {\n    flex: 0 0 auto;\n    width: 83.333333%;\n  }\n\n  .col-xxl-11 {\n    flex: 0 0 auto;\n    width: 91.666667%;\n  }\n\n  .col-xxl-12 {\n    flex: 0 0 auto;\n    width: 100%;\n  }\n\n  .offset-xxl-0 {\n    margin-left: 0;\n  }\n\n  .offset-xxl-1 {\n    margin-left: 8.333333%;\n  }\n\n  .offset-xxl-2 {\n    margin-left: 16.666667%;\n  }\n\n  .offset-xxl-3 {\n    margin-left: 25%;\n  }\n\n  .offset-xxl-4 {\n    margin-left: 33.333333%;\n  }\n\n  .offset-xxl-5 {\n    margin-left: 41.666667%;\n  }\n\n  .offset-xxl-6 {\n    margin-left: 50%;\n  }\n\n  .offset-xxl-7 {\n    margin-left: 58.333333%;\n  }\n\n  .offset-xxl-8 {\n    margin-left: 66.666667%;\n  }\n\n  .offset-xxl-9 {\n    margin-left: 75%;\n  }\n\n  .offset-xxl-10 {\n    margin-left: 83.333333%;\n  }\n\n  .offset-xxl-11 {\n    margin-left: 91.666667%;\n  }\n\n  .g-xxl-0,\n  .gx-xxl-0 {\n    --bs-gutter-x: 0;\n  }\n\n  .g-xxl-0,\n  .gy-xxl-0 {\n    --bs-gutter-y: 0;\n  }\n\n  .g-xxl-1,\n  .gx-xxl-1 {\n    --bs-gutter-x: 0.25rem;\n  }\n\n  .g-xxl-1,\n  .gy-xxl-1 {\n    --bs-gutter-y: 0.25rem;\n  }\n\n  .g-xxl-2,\n  .gx-xxl-2 {\n    --bs-gutter-x: 0.5rem;\n  }\n\n  .g-xxl-2,\n  .gy-xxl-2 {\n    --bs-gutter-y: 0.5rem;\n  }\n\n  .g-xxl-3,\n  .gx-xxl-3 {\n    --bs-gutter-x: 1rem;\n  }\n\n  .g-xxl-3,\n  .gy-xxl-3 {\n    --bs-gutter-y: 1rem;\n  }\n\n  .g-xxl-4,\n  .gx-xxl-4 {\n    --bs-gutter-x: 1.5rem;\n  }\n\n  .g-xxl-4,\n  .gy-xxl-4 {\n    --bs-gutter-y: 1.5rem;\n  }\n\n  .g-xxl-5,\n  .gx-xxl-5 {\n    --bs-gutter-x: 3rem;\n  }\n\n  .g-xxl-5,\n  .gy-xxl-5 {\n    --bs-gutter-y: 3rem;\n  }\n\n  .g-xxl-6,\n  .gx-xxl-6 {\n    --bs-gutter-x: 4rem;\n  }\n\n  .g-xxl-6,\n  .gy-xxl-6 {\n    --bs-gutter-y: 4rem;\n  }\n\n  .g-xxl-7,\n  .gx-xxl-7 {\n    --bs-gutter-x: 6rem;\n  }\n\n  .g-xxl-7,\n  .gy-xxl-7 {\n    --bs-gutter-y: 6rem;\n  }\n\n  .g-xxl-8,\n  .gx-xxl-8 {\n    --bs-gutter-x: 8rem;\n  }\n\n  .g-xxl-8,\n  .gy-xxl-8 {\n    --bs-gutter-y: 8rem;\n  }\n\n  .g-xxl-9,\n  .gx-xxl-9 {\n    --bs-gutter-x: 10rem;\n  }\n\n  .g-xxl-9,\n  .gy-xxl-9 {\n    --bs-gutter-y: 10rem;\n  }\n\n  .g-xxl-10,\n  .gx-xxl-10 {\n    --bs-gutter-x: 12rem;\n  }\n\n  .g-xxl-10,\n  .gy-xxl-10 {\n    --bs-gutter-y: 12rem;\n  }\n\n  .g-xxl-11,\n  .gx-xxl-11 {\n    --bs-gutter-x: 14rem;\n  }\n\n  .g-xxl-11,\n  .gy-xxl-11 {\n    --bs-gutter-y: 14rem;\n  }\n\n  .g-xxl-12,\n  .gx-xxl-12 {\n    --bs-gutter-x: 16rem;\n  }\n\n  .g-xxl-12,\n  .gy-xxl-12 {\n    --bs-gutter-y: 16rem;\n  }\n}\n\n.table {\n  --bs-table-bg: transparent;\n  --bs-table-accent-bg: transparent;\n  --bs-table-striped-color: #67748e;\n  --bs-table-striped-bg: rgba(0, 0, 0, 0.05);\n  --bs-table-active-color: #67748e;\n  --bs-table-active-bg: rgba(0, 0, 0, 0.1);\n  --bs-table-hover-color: #67748e;\n  --bs-table-hover-bg: rgba(0, 0, 0, 0.075);\n  width: 100%;\n  margin-bottom: 1rem;\n  color: #67748e;\n  vertical-align: top;\n  border-color: #e9ecef;\n}\n\n.table> :not(caption)>*>* {\n  padding: 0.5rem 0.5rem;\n  background-color: var(--bs-table-bg);\n  border-bottom-width: 1px;\n  box-shadow: inset 0 0 0 9999px var(--bs-table-accent-bg);\n}\n\n.table>tbody {\n  vertical-align: inherit;\n}\n\n.table>thead {\n  vertical-align: bottom;\n}\n\n.table> :not(:last-child)> :last-child>* {\n  border-bottom-color: currentColor;\n}\n\n.caption-top {\n  caption-side: top;\n}\n\n.table-sm> :not(caption)>*>* {\n  padding: 0.25rem 0.25rem;\n}\n\n.table-bordered> :not(caption)>* {\n  border-width: 1px 0;\n}\n\n.table-bordered> :not(caption)>*>* {\n  border-width: 0 1px;\n}\n\n.table-borderless> :not(caption)>*>* {\n  border-bottom-width: 0;\n}\n\n.table-striped>tbody>tr:nth-of-type(odd) {\n  --bs-table-accent-bg: var(--bs-table-striped-bg);\n  color: var(--bs-table-striped-color);\n}\n\n.table-active {\n  --bs-table-accent-bg: var(--bs-table-active-bg);\n  color: var(--bs-table-active-color);\n}\n\n.table-hover>tbody>tr:hover {\n  --bs-table-accent-bg: var(--bs-table-hover-bg);\n  color: var(--bs-table-hover-color);\n}\n\n.table-primary {\n  --bs-table-bg: #f5ceec;\n  --bs-table-striped-bg: #e9c4e0;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #ddb9d4;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #e3bfda;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #ddb9d4;\n}\n\n.table-secondary {\n  --bs-table-bg: #e6e9ee;\n  --bs-table-striped-bg: #dbdde2;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #cfd2d6;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #d5d8dc;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #cfd2d6;\n}\n\n.table-success {\n  --bs-table-bg: #e6f7d0;\n  --bs-table-striped-bg: #dbebc6;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #cfdebb;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #d5e4c0;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #cfdebb;\n}\n\n.table-info {\n  --bs-table-bg: #d1f3fa;\n  --bs-table-striped-bg: #c7e7ee;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #bcdbe1;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #c1e1e7;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #bcdbe1;\n}\n\n.table-warning {\n  --bs-table-bg: #fef5d6;\n  --bs-table-striped-bg: #f1e9cb;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #e5ddc1;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #ebe3c6;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #e5ddc1;\n}\n\n.table-danger {\n  --bs-table-bg: #fbcdcd;\n  --bs-table-striped-bg: #eec3c3;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #e2b9b9;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #e8bebe;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #e2b9b9;\n}\n\n.table-light {\n  --bs-table-bg: #e9ecef;\n  --bs-table-striped-bg: #dde0e3;\n  --bs-table-striped-color: #000;\n  --bs-table-active-bg: #d2d4d7;\n  --bs-table-active-color: #000;\n  --bs-table-hover-bg: #d8dadd;\n  --bs-table-hover-color: #000;\n  color: #000;\n  border-color: #d2d4d7;\n}\n\n.table-dark {\n  --bs-table-bg: #344767;\n  --bs-table-striped-bg: #3e506f;\n  --bs-table-striped-color: #fff;\n  --bs-table-active-bg: #485976;\n  --bs-table-active-color: #fff;\n  --bs-table-hover-bg: #435572;\n  --bs-table-hover-color: #fff;\n  color: #fff;\n  border-color: #485976;\n}\n\n.table-responsive {\n  overflow-x: auto;\n  -webkit-overflow-scrolling: touch;\n}\n\n@media (max-width: 575.98px) {\n  .table-responsive-sm {\n    overflow-x: auto;\n    -webkit-overflow-scrolling: touch;\n  }\n}\n\n@media (max-width: 767.98px) {\n  .table-responsive-md {\n    overflow-x: auto;\n    -webkit-overflow-scrolling: touch;\n  }\n}\n\n@media (max-width: 991.98px) {\n  .table-responsive-lg {\n    overflow-x: auto;\n    -webkit-overflow-scrolling: touch;\n  }\n}\n\n@media (max-width: 1199.98px) {\n  .table-responsive-xl {\n    overflow-x: auto;\n    -webkit-overflow-scrolling: touch;\n  }\n}\n\n@media (max-width: 1399.98px) {\n  .table-responsive-xxl {\n    overflow-x: auto;\n    -webkit-overflow-scrolling: touch;\n  }\n}\n\n.form-label {\n  margin-bottom: 0.5rem;\n  font-size: 0.75rem;\n  font-weight: 700;\n  color: #344767;\n}\n\n.col-form-label {\n  padding-top: calc(0.5rem + 1px);\n  padding-bottom: calc(0.5rem + 1px);\n  margin-bottom: 0;\n  font-size: inherit;\n  font-weight: 700;\n  line-height: 1.4rem;\n  color: #344767;\n}\n\n.col-form-label-lg {\n  padding-top: calc(0.75rem + 1px);\n  padding-bottom: calc(0.75rem + 1px);\n  font-size: 0.875rem;\n}\n\n.col-form-label-sm {\n  padding-top: calc(0.25rem + 1px);\n  padding-bottom: calc(0.25rem + 1px);\n  font-size: 0.75rem;\n}\n\n.form-text {\n  margin-top: 0.25rem;\n  font-size: 0.875em;\n  color: #6c757d;\n}\n\n.form-control {\n  display: block;\n  width: 100%;\n  padding: 0.5rem 0.75rem;\n  font-size: 0.875rem;\n  font-weight: 400;\n  line-height: 1.4rem;\n  color: #495057;\n  background-color: #fff;\n  background-clip: padding-box;\n  border: 1px solid #d2d6da;\n  -webkit-appearance: none;\n     -moz-appearance: none;\n          appearance: none;\n  border-radius: 0.5rem;\n  transition: box-shadow 0.15s ease, border-color 0.15s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-control {\n    transition: none;\n  }\n}\n\n.form-control[type=\"file\"] {\n  overflow: hidden;\n}\n\n.form-control[type=\"file\"]:not(:disabled):not([readonly]) {\n  cursor: pointer;\n}\n\n.form-control:focus {\n  color: #495057;\n  background-color: #fff;\n  border-color: #e293d3;\n  outline: 0;\n  box-shadow: 0 0 0 2px #e9aede;\n}\n\n.form-control::-webkit-date-and-time-value {\n  height: 1.4rem;\n}\n\n.form-control::-moz-placeholder {\n  color: #adb5bd;\n  opacity: 1;\n}\n\n.form-control:-ms-input-placeholder {\n  color: #adb5bd;\n  opacity: 1;\n}\n\n.form-control::placeholder {\n  color: #adb5bd;\n  opacity: 1;\n}\n\n.form-control:disabled,\n.form-control[readonly] {\n  background-color: #e9ecef;\n  opacity: 1;\n}\n\n.form-control::-webkit-file-upload-button {\n  padding: 0.5rem 0.75rem;\n  margin: -0.5rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n  color: #495057;\n  background-color: #fff;\n  pointer-events: none;\n  border-color: inherit;\n  border-style: solid;\n  border-width: 0;\n  border-inline-end-width: 1px;\n  border-radius: 0;\n  -webkit-transition: all 0.15s ease-in;\n  transition: all 0.15s ease-in;\n}\n\n.form-control::file-selector-button {\n  padding: 0.5rem 0.75rem;\n  margin: -0.5rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n  color: #495057;\n  background-color: #fff;\n  pointer-events: none;\n  border-color: inherit;\n  border-style: solid;\n  border-width: 0;\n  border-inline-end-width: 1px;\n  border-radius: 0;\n  transition: all 0.15s ease-in;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-control::-webkit-file-upload-button {\n    -webkit-transition: none;\n    transition: none;\n  }\n  .form-control::file-selector-button {\n    transition: none;\n  }\n}\n\n.form-control:hover:not(:disabled):not([readonly])::-webkit-file-upload-button {\n  background-color: #f2f2f2;\n}\n\n.form-control:hover:not(:disabled):not([readonly])::file-selector-button {\n  background-color: #f2f2f2;\n}\n\n.form-control::-webkit-file-upload-button {\n  padding: 0.5rem 0.75rem;\n  margin: -0.5rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n  color: #495057;\n  background-color: #fff;\n  pointer-events: none;\n  border-color: inherit;\n  border-style: solid;\n  border-width: 0;\n  border-inline-end-width: 1px;\n  border-radius: 0;\n  -webkit-transition: all 0.15s ease-in;\n  transition: all 0.15s ease-in;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-control::-webkit-file-upload-button {\n    -webkit-transition: none;\n    transition: none;\n  }\n}\n\n.form-control:hover:not(:disabled):not([readonly])::-webkit-file-upload-button {\n  background-color: #f2f2f2;\n}\n\n.form-control-plaintext {\n  display: block;\n  width: 100%;\n  padding: 0.5rem 0;\n  margin-bottom: 0;\n  line-height: 1.4rem;\n  color: #344767;\n  background-color: transparent;\n  border: solid transparent;\n  border-width: 1px 0;\n}\n\n.form-control-plaintext.form-control-sm,\n.form-control-plaintext.form-control-lg {\n  padding-right: 0;\n  padding-left: 0;\n}\n\n.form-control-sm {\n  min-height: unset;\n  padding: 0.25rem 0.75rem;\n  font-size: 0.75rem;\n  border-radius: 0.5rem;\n}\n\n.form-control-sm::-webkit-file-upload-button {\n  padding: 0.25rem 0.75rem;\n  margin: -0.25rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\n.form-control-sm::file-selector-button {\n  padding: 0.25rem 0.75rem;\n  margin: -0.25rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\n.form-control-sm::-webkit-file-upload-button {\n  padding: 0.25rem 0.75rem;\n  margin: -0.25rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\n.form-control-lg {\n  min-height: unset;\n  padding: 0.75rem 0.75rem;\n  font-size: 0.875rem;\n  border-radius: 0.5rem;\n}\n\n.form-control-lg::-webkit-file-upload-button {\n  padding: 0.75rem 0.75rem;\n  margin: -0.75rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\n.form-control-lg::file-selector-button {\n  padding: 0.75rem 0.75rem;\n  margin: -0.75rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\n.form-control-lg::-webkit-file-upload-button {\n  padding: 0.75rem 0.75rem;\n  margin: -0.75rem -0.75rem;\n  -webkit-margin-end: 0.75rem;\n          margin-inline-end: 0.75rem;\n}\n\ntextarea.form-control {\n  min-height: unset;\n}\n\ntextarea.form-control-sm {\n  min-height: unset;\n}\n\ntextarea.form-control-lg {\n  min-height: unset;\n}\n\n.form-control-color {\n  max-width: 3rem;\n  height: auto;\n  padding: 0.5rem;\n}\n\n.form-control-color:not(:disabled):not([readonly]) {\n  cursor: pointer;\n}\n\n.form-control-color::-moz-color-swatch {\n  height: 1.4rem;\n  border-radius: 0.5rem;\n}\n\n.form-control-color::-webkit-color-swatch {\n  height: 1.4rem;\n  border-radius: 0.5rem;\n}\n\n.form-select {\n  display: block;\n  width: 100%;\n  padding: 0.5rem 1rem 0.5rem 0.75rem;\n  -moz-padding-start: calc(0.75rem - 3px);\n  font-size: 0.875rem;\n  font-weight: 400;\n  line-height: 1.4rem;\n  color: #495057;\n  background-color: #fff;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e\");\n  background-repeat: no-repeat;\n  background-position: right 0.75rem center;\n  background-size: 16px 12px;\n  border: 1px solid #d2d6da;\n  border-radius: 0.5rem;\n  transition: box-shadow 0.15s ease, border-color 0.15s ease;\n  -webkit-appearance: none;\n     -moz-appearance: none;\n          appearance: none;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-select {\n    transition: none;\n  }\n}\n\n.form-select:focus {\n  border-color: #e293d3;\n  outline: 0;\n  box-shadow: 0 0 0 2px #e9aede;\n}\n\n.form-select[multiple],\n.form-select[size]:not([size=\"1\"]) {\n  padding-right: 0.75rem;\n  background-image: none;\n}\n\n.form-select:disabled {\n  color: #6c757d;\n  background-color: #e9ecef;\n}\n\n.form-select:-moz-focusring {\n  color: transparent;\n  text-shadow: 0 0 0 #495057;\n}\n\n.form-select-sm {\n  padding-top: 0.25rem;\n  padding-bottom: 0.25rem;\n  padding-left: 0.75rem;\n  font-size: 0.75rem;\n}\n\n.form-select-lg {\n  padding-top: 0.75rem;\n  padding-bottom: 0.75rem;\n  padding-left: 0.75rem;\n  font-size: 0.875rem;\n}\n\n.form-check {\n  display: block;\n  min-height: 1.5rem;\n  padding-left: 1.73em;\n  margin-bottom: 0.125rem;\n}\n\n.form-check .form-check-input {\n  float: left;\n  margin-left: -1.73em;\n}\n\n.form-check-input {\n  width: 1.23em;\n  height: 1.23em;\n  margin-top: 0.135em;\n  vertical-align: top;\n  background-color: #fff;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: contain;\n  border: none;\n  -webkit-appearance: none;\n     -moz-appearance: none;\n          appearance: none;\n  -webkit-print-color-adjust: exact;\n          color-adjust: exact;\n  transition: background-color 0.25s ease, border-color 0.25s ease, background-position 0.15s ease-in-out, opacity 0.15s ease-out, box-shadow 0.15s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-check-input {\n    transition: none;\n  }\n}\n\n.form-check-input[type=\"checkbox\"] {\n  border-radius: 0.35rem;\n}\n\n.form-check-input[type=\"radio\"] {\n  border-radius: 50%;\n}\n\n.form-check-input:active {\n  filter: brightness(99%);\n}\n\n.form-check-input:focus {\n  border-color: none;\n  outline: 0;\n  box-shadow: none;\n}\n\n.form-check-input:checked {\n  background-color: transparent;\n  border-color: transparent;\n}\n\n.form-check-input:checked[type=\"checkbox\"] {\n  background-image: linear-gradient(310deg, #141727 0%, #3A416F 100%);\n}\n\n.form-check-input:checked[type=\"radio\"] {\n  background-image: linear-gradient(310deg, #141727 0%, #3A416F 100%);\n}\n\n.form-check-input[type=\"checkbox\"]:indeterminate {\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10h8'/%3e%3c/svg%3e\");\n}\n\n.form-check-input:disabled {\n  pointer-events: none;\n  filter: none;\n  opacity: 0.5;\n}\n\n.form-check-input[disabled]~.form-check-label,\n.form-check-input:disabled~.form-check-label {\n  opacity: 0.5;\n}\n\n.form-switch {\n  padding-left: 3rem;\n}\n\n.form-switch .form-check-input {\n  width: 2.5rem;\n  margin-left: -3rem;\n  background-image: none;\n  background-position: left center;\n  border-radius: 2.5rem;\n  transition: background-color 0.25s ease, border-color 0.25s ease, background-position 0.15s ease-in-out, opacity 0.15s ease-out, box-shadow 0.15s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-switch .form-check-input {\n    transition: none;\n  }\n}\n\n.form-switch .form-check-input:focus {\n  background-image: none;\n}\n\n.form-switch .form-check-input:checked {\n  background-position: right center;\n  background-image: none;\n}\n\n.form-check-inline {\n  display: inline-block;\n  margin-right: 1rem;\n}\n\n.btn-check {\n  position: absolute;\n  clip: rect(0, 0, 0, 0);\n  pointer-events: none;\n}\n\n.btn-check[disabled]+.btn,\n.btn-check:disabled+.btn {\n  pointer-events: none;\n  filter: none;\n  opacity: 0.65;\n}\n\n.form-range {\n  width: 100%;\n  height: calc(1rem + 4px);\n  padding: 0;\n  background-color: transparent;\n  -webkit-appearance: none;\n     -moz-appearance: none;\n          appearance: none;\n}\n\n.form-range:focus {\n  outline: 0;\n}\n\n.form-range:focus::-webkit-slider-thumb {\n  box-shadow: 0 0 0 1px #fff, 0 0 0 2px #e9aede;\n}\n\n.form-range:focus::-moz-range-thumb {\n  box-shadow: 0 0 0 1px #fff, 0 0 0 2px #e9aede;\n}\n\n.form-range::-moz-focus-outer {\n  border: 0;\n}\n\n.form-range::-webkit-slider-thumb {\n  width: 1rem;\n  height: 1rem;\n  margin-top: -0.25rem;\n  background-color: #cb0c9f;\n  border: 0;\n  border-radius: 1rem;\n  -webkit-transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;\n  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;\n  -webkit-appearance: none;\n          appearance: none;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-range::-webkit-slider-thumb {\n    -webkit-transition: none;\n    transition: none;\n  }\n}\n\n.form-range::-webkit-slider-thumb:active {\n  background-color: #f891e1;\n}\n\n.form-range::-webkit-slider-runnable-track {\n  width: 100%;\n  height: 0.5rem;\n  color: transparent;\n  cursor: pointer;\n  background-color: #dee2e6;\n  border-color: transparent;\n  border-radius: 1rem;\n}\n\n.form-range::-moz-range-thumb {\n  width: 1rem;\n  height: 1rem;\n  background-color: #cb0c9f;\n  border: 0;\n  border-radius: 1rem;\n  -moz-transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;\n  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;\n  -moz-appearance: none;\n       appearance: none;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-range::-moz-range-thumb {\n    -moz-transition: none;\n    transition: none;\n  }\n}\n\n.form-range::-moz-range-thumb:active {\n  background-color: #f891e1;\n}\n\n.form-range::-moz-range-track {\n  width: 100%;\n  height: 0.5rem;\n  color: transparent;\n  cursor: pointer;\n  background-color: #dee2e6;\n  border-color: transparent;\n  border-radius: 1rem;\n}\n\n.form-range:disabled {\n  pointer-events: none;\n}\n\n.form-range:disabled::-webkit-slider-thumb {\n  background-color: #adb5bd;\n}\n\n.form-range:disabled::-moz-range-thumb {\n  background-color: #adb5bd;\n}\n\n.form-floating {\n  position: relative;\n}\n\n.form-floating>.form-control,\n.form-floating>.form-select {\n  height: calc(3.5rem + 2px);\n  line-height: 1.25;\n}\n\n.form-floating>label {\n  position: absolute;\n  top: 0;\n  left: 0;\n  height: 100%;\n  padding: 1rem 0.75rem;\n  pointer-events: none;\n  border: 1px solid transparent;\n  transform-origin: 0 0;\n  transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .form-floating>label {\n    transition: none;\n  }\n}\n\n.form-floating>.form-control {\n  padding: 1rem 0.75rem;\n}\n\n.form-floating>.form-control::-moz-placeholder {\n  color: transparent;\n}\n\n.form-floating>.form-control:-ms-input-placeholder {\n  color: transparent;\n}\n\n.form-floating>.form-control::placeholder {\n  color: transparent;\n}\n\n.form-floating>.form-control:not(:-moz-placeholder-shown) {\n  padding-top: 1.625rem;\n  padding-bottom: 0.625rem;\n}\n\n.form-floating>.form-control:not(:-ms-input-placeholder) {\n  padding-top: 1.625rem;\n  padding-bottom: 0.625rem;\n}\n\n.form-floating>.form-control:focus,\n.form-floating>.form-control:not(:placeholder-shown) {\n  padding-top: 1.625rem;\n  padding-bottom: 0.625rem;\n}\n\n.form-floating>.form-control:-webkit-autofill {\n  padding-top: 1.625rem;\n  padding-bottom: 0.625rem;\n}\n\n.form-floating>.form-select {\n  padding-top: 1.625rem;\n  padding-bottom: 0.625rem;\n}\n\n.form-floating>.form-control:not(:-moz-placeholder-shown)~label {\n  opacity: 0.65;\n  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);\n}\n\n.form-floating>.form-control:not(:-ms-input-placeholder)~label {\n  opacity: 0.65;\n  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);\n}\n\n.form-floating>.form-control:focus~label,\n.form-floating>.form-control:not(:placeholder-shown)~label,\n.form-floating>.form-select~label {\n  opacity: 0.65;\n  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);\n}\n\n.form-floating>.form-control:-webkit-autofill~label {\n  opacity: 0.65;\n  transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);\n}\n\n.input-group {\n  position: relative;\n  display: flex;\n  flex-wrap: wrap;\n  align-items: stretch;\n  width: 100%;\n}\n\n.input-group>.form-control,\n.input-group>.form-select {\n  position: relative;\n  flex: 1 1 auto;\n  width: 1%;\n  min-width: 0;\n}\n\n.input-group>.form-control:focus,\n.input-group>.form-select:focus {\n  z-index: 3;\n}\n\n.input-group .btn {\n  position: relative;\n  z-index: 2;\n}\n\n.input-group .btn:focus {\n  z-index: 3;\n}\n\n.input-group-text {\n  display: flex;\n  align-items: center;\n  padding: 0.5rem 0.75rem;\n  font-size: 0.875rem;\n  font-weight: 400;\n  line-height: 1.4rem;\n  color: #344767;\n  text-align: center;\n  white-space: nowrap;\n  background-color: #fff;\n  border: 1px solid #d2d6da;\n  border-radius: 0.5rem;\n}\n\n.input-group-lg>.form-control,\n.input-group-lg>.form-select,\n.input-group-lg>.input-group-text,\n.input-group-lg>.btn {\n  padding: 0.75rem 0.75rem;\n  font-size: 0.875rem;\n  border-radius: 0.5rem;\n}\n\n.input-group-sm>.form-control,\n.input-group-sm>.form-select,\n.input-group-sm>.input-group-text,\n.input-group-sm>.btn {\n  padding: 0.25rem 0.75rem;\n  font-size: 0.75rem;\n  border-radius: 0.5rem;\n}\n\n.input-group-lg>.form-select,\n.input-group-sm>.form-select {\n  padding-right: 1.75rem;\n}\n\n.input-group:not(.has-validation)> :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu),\n.input-group:not(.has-validation)>.dropdown-toggle:nth-last-child(n + 3) {\n  border-top-right-radius: 0;\n  border-bottom-right-radius: 0;\n}\n\n.input-group.has-validation> :nth-last-child(n + 3):not(.dropdown-toggle):not(.dropdown-menu),\n.input-group.has-validation>.dropdown-toggle:nth-last-child(n + 4) {\n  border-top-right-radius: 0;\n  border-bottom-right-radius: 0;\n}\n\n.input-group> :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {\n  margin-left: -1px;\n  border-top-left-radius: 0;\n  border-bottom-left-radius: 0;\n}\n\n.valid-feedback {\n  display: none;\n  width: 100%;\n  margin-top: 0.25rem;\n  font-size: 0.875em;\n  color: #66d432;\n}\n\n.valid-tooltip {\n  position: absolute;\n  top: 100%;\n  z-index: 5;\n  display: none;\n  max-width: 100%;\n  padding: 0.25rem 0.5rem;\n  margin-top: .1rem;\n  font-size: 0.875rem;\n  color: #000;\n  background-color: rgba(102, 212, 50, 0.9);\n  border-radius: 0.5rem;\n}\n\n.was-validated :valid~.valid-feedback,\n.was-validated :valid~.valid-tooltip,\n.is-valid~.valid-feedback,\n.is-valid~.valid-tooltip {\n  display: block;\n}\n\n.was-validated .form-control:valid,\n.form-control.is-valid {\n  border-color: #66d432;\n  padding-right: unset;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3e%3cpath fill='%2366d432' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e\");\n  background-repeat: no-repeat;\n  background-position: right 0.75rem center;\n  background-size: 1rem 1rem;\n}\n\n.was-validated .form-control:valid:focus,\n.form-control.is-valid:focus {\n  border-color: #66d432;\n  box-shadow: 0 0 0 2px rgba(102, 212, 50, 0.25);\n}\n\n.was-validated textarea.form-control:valid,\ntextarea.form-control.is-valid {\n  padding-right: unset;\n  background-position: top 0.75rem right 0.75rem;\n}\n\n.was-validated .form-select:valid,\n.form-select.is-valid {\n  border-color: #66d432;\n}\n\n.was-validated .form-select:valid:not([multiple]):not([size]),\n.was-validated .form-select:valid:not([multiple])[size=\"1\"],\n.form-select.is-valid:not([multiple]):not([size]),\n.form-select.is-valid:not([multiple])[size=\"1\"] {\n  padding-right: 2.875rem;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e\"), url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3e%3cpath fill='%2366d432' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e\");\n  background-position: right 0.75rem center, center right 1.75rem;\n  background-size: 16px 12px, 1rem 1rem;\n}\n\n.was-validated .form-select:valid:focus,\n.form-select.is-valid:focus {\n  border-color: #66d432;\n  box-shadow: 0 0 0 2px rgba(102, 212, 50, 0.25);\n}\n\n.was-validated .form-check-input:valid,\n.form-check-input.is-valid {\n  border-color: #66d432;\n}\n\n.was-validated .form-check-input:valid:checked,\n.form-check-input.is-valid:checked {\n  background-color: #66d432;\n}\n\n.was-validated .form-check-input:valid:focus,\n.form-check-input.is-valid:focus {\n  box-shadow: 0 0 0 2px rgba(102, 212, 50, 0.25);\n}\n\n.was-validated .form-check-input:valid~.form-check-label,\n.form-check-input.is-valid~.form-check-label {\n  color: #66d432;\n}\n\n.form-check-inline .form-check-input~.valid-feedback {\n  margin-left: .5em;\n}\n\n.was-validated .input-group .form-control:valid,\n.input-group .form-control.is-valid,\n.was-validated .input-group .form-select:valid,\n.input-group .form-select.is-valid {\n  z-index: 1;\n}\n\n.was-validated .input-group .form-control:valid:focus,\n.input-group .form-control.is-valid:focus,\n.was-validated .input-group .form-select:valid:focus,\n.input-group .form-select.is-valid:focus {\n  z-index: 3;\n}\n\n.invalid-feedback {\n  display: none;\n  width: 100%;\n  margin-top: 0.25rem;\n  font-size: 0.875em;\n  color: #fd5c70;\n}\n\n.invalid-tooltip {\n  position: absolute;\n  top: 100%;\n  z-index: 5;\n  display: none;\n  max-width: 100%;\n  padding: 0.25rem 0.5rem;\n  margin-top: .1rem;\n  font-size: 0.875rem;\n  color: #000;\n  background-color: rgba(253, 92, 112, 0.9);\n  border-radius: 0.5rem;\n}\n\n.was-validated :invalid~.invalid-feedback,\n.was-validated :invalid~.invalid-tooltip,\n.is-invalid~.invalid-feedback,\n.is-invalid~.invalid-tooltip {\n  display: block;\n}\n\n.was-validated .form-control:invalid,\n.form-control.is-invalid {\n  border-color: #fd5c70;\n  padding-right: unset;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23fd5c70' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23fd5c70' stroke='none'/%3e%3c/svg%3e\");\n  background-repeat: no-repeat;\n  background-position: right 0.75rem center;\n  background-size: 1rem 1rem;\n}\n\n.was-validated .form-control:invalid:focus,\n.form-control.is-invalid:focus {\n  border-color: #fd5c70;\n  box-shadow: 0 0 0 2px rgba(253, 92, 112, 0.25);\n}\n\n.was-validated textarea.form-control:invalid,\ntextarea.form-control.is-invalid {\n  padding-right: unset;\n  background-position: top 0.75rem right 0.75rem;\n}\n\n.was-validated .form-select:invalid,\n.form-select.is-invalid {\n  border-color: #fd5c70;\n}\n\n.was-validated .form-select:invalid:not([multiple]):not([size]),\n.was-validated .form-select:invalid:not([multiple])[size=\"1\"],\n.form-select.is-invalid:not([multiple]):not([size]),\n.form-select.is-invalid:not([multiple])[size=\"1\"] {\n  padding-right: 2.875rem;\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e\"), url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23fd5c70' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23fd5c70' stroke='none'/%3e%3c/svg%3e\");\n  background-position: right 0.75rem center, center right 1.75rem;\n  background-size: 16px 12px, 1rem 1rem;\n}\n\n.was-validated .form-select:invalid:focus,\n.form-select.is-invalid:focus {\n  border-color: #fd5c70;\n  box-shadow: 0 0 0 2px rgba(253, 92, 112, 0.25);\n}\n\n.was-validated .form-check-input:invalid,\n.form-check-input.is-invalid {\n  border-color: #fd5c70;\n}\n\n.was-validated .form-check-input:invalid:checked,\n.form-check-input.is-invalid:checked {\n  background-color: #fd5c70;\n}\n\n.was-validated .form-check-input:invalid:focus,\n.form-check-input.is-invalid:focus {\n  box-shadow: 0 0 0 2px rgba(253, 92, 112, 0.25);\n}\n\n.was-validated .form-check-input:invalid~.form-check-label,\n.form-check-input.is-invalid~.form-check-label {\n  color: #fd5c70;\n}\n\n.form-check-inline .form-check-input~.invalid-feedback {\n  margin-left: .5em;\n}\n\n.was-validated .input-group .form-control:invalid,\n.input-group .form-control.is-invalid,\n.was-validated .input-group .form-select:invalid,\n.input-group .form-select.is-invalid {\n  z-index: 2;\n}\n\n.was-validated .input-group .form-control:invalid:focus,\n.input-group .form-control.is-invalid:focus,\n.was-validated .input-group .form-select:invalid:focus,\n.input-group .form-select.is-invalid:focus {\n  z-index: 3;\n}\n\n.btn {\n  display: inline-block;\n  font-weight: 700;\n  line-height: 1.4;\n  color: #67748e;\n  text-align: center;\n  vertical-align: middle;\n  cursor: pointer;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n      -ms-user-select: none;\n          user-select: none;\n  background-color: transparent;\n  border: 1px solid transparent;\n  padding: 0.75rem 1.5rem;\n  font-size: 0.75rem;\n  border-radius: 0.5rem;\n  transition: all 0.15s ease-in;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .btn {\n    transition: none;\n  }\n}\n\n.btn:hover {\n  color: #67748e;\n}\n\n.btn-check:focus+.btn,\n.btn:focus {\n  outline: 0;\n  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.09), 0 2px 3px -1px rgba(0, 0, 0, 0.07);\n}\n\n.btn:disabled,\n.btn.disabled,\nfieldset:disabled .btn {\n  pointer-events: none;\n  opacity: 0.65;\n}\n\n.btn-primary {\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-primary:hover {\n  color: #fff;\n  background-color: #ad0a87;\n  border-color: #a20a7f;\n}\n\n.btn-check:focus+.btn-primary,\n.btn-primary:focus {\n  color: #fff;\n  background-color: #ad0a87;\n  border-color: #a20a7f;\n  box-shadow: 0 0 0 0.2rem rgba(211, 48, 173, 0.5);\n}\n\n.btn-check:checked+.btn-primary,\n.btn-check:active+.btn-primary,\n.btn-primary:active,\n.btn-primary.active,\n.show>.btn-primary.dropdown-toggle {\n  color: #fff;\n  background-color: #a20a7f;\n  border-color: #980977;\n}\n\n.btn-check:checked+.btn-primary:focus,\n.btn-check:active+.btn-primary:focus,\n.btn-primary:active:focus,\n.btn-primary.active:focus,\n.show>.btn-primary.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(211, 48, 173, 0.5);\n}\n\n.btn-primary:disabled,\n.btn-primary.disabled {\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-secondary {\n  color: #000;\n  background-color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-secondary:hover {\n  color: #000;\n  background-color: #96a2b8;\n  border-color: #8f9db3;\n}\n\n.btn-check:focus+.btn-secondary,\n.btn-secondary:focus {\n  color: #000;\n  background-color: #96a2b8;\n  border-color: #8f9db3;\n  box-shadow: 0 0 0 0.2rem rgba(111, 124, 145, 0.5);\n}\n\n.btn-check:checked+.btn-secondary,\n.btn-check:active+.btn-secondary,\n.btn-secondary:active,\n.btn-secondary.active,\n.show>.btn-secondary.dropdown-toggle {\n  color: #000;\n  background-color: #9ca8bc;\n  border-color: #8f9db3;\n}\n\n.btn-check:checked+.btn-secondary:focus,\n.btn-check:active+.btn-secondary:focus,\n.btn-secondary:active:focus,\n.btn-secondary.active:focus,\n.show>.btn-secondary.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(111, 124, 145, 0.5);\n}\n\n.btn-secondary:disabled,\n.btn-secondary.disabled {\n  color: #000;\n  background-color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-success {\n  color: #000;\n  background-color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-success:hover {\n  color: #000;\n  background-color: #95dc39;\n  border-color: #8fda2d;\n}\n\n.btn-check:focus+.btn-success,\n.btn-success:focus {\n  color: #000;\n  background-color: #95dc39;\n  border-color: #8fda2d;\n  box-shadow: 0 0 0 0.2rem rgba(111, 182, 19, 0.5);\n}\n\n.btn-check:checked+.btn-success,\n.btn-check:active+.btn-success,\n.btn-success:active,\n.btn-success.active,\n.show>.btn-success.dropdown-toggle {\n  color: #000;\n  background-color: #9bde45;\n  border-color: #8fda2d;\n}\n\n.btn-check:checked+.btn-success:focus,\n.btn-check:active+.btn-success:focus,\n.btn-success:active:focus,\n.btn-success.active:focus,\n.show>.btn-success.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(111, 182, 19, 0.5);\n}\n\n.btn-success:disabled,\n.btn-success.disabled {\n  color: #000;\n  background-color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-info {\n  color: #000;\n  background-color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-info:hover {\n  color: #000;\n  background-color: #3acaeb;\n  border-color: #2ec7ea;\n}\n\n.btn-check:focus+.btn-info,\n.btn-info:focus {\n  color: #000;\n  background-color: #3acaeb;\n  border-color: #2ec7ea;\n  box-shadow: 0 0 0 0.2rem rgba(20, 164, 197, 0.5);\n}\n\n.btn-check:checked+.btn-info,\n.btn-check:active+.btn-info,\n.btn-info:active,\n.btn-info.active,\n.show>.btn-info.dropdown-toggle {\n  color: #000;\n  background-color: #45cded;\n  border-color: #2ec7ea;\n}\n\n.btn-check:checked+.btn-info:focus,\n.btn-check:active+.btn-info:focus,\n.btn-info:active:focus,\n.btn-info.active:focus,\n.show>.btn-info.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(20, 164, 197, 0.5);\n}\n\n.btn-info:disabled,\n.btn-info.disabled {\n  color: #000;\n  background-color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-warning {\n  color: #000;\n  background-color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-warning:hover {\n  color: #000;\n  background-color: #fcd652;\n  border-color: #fbd447;\n}\n\n.btn-check:focus+.btn-warning,\n.btn-warning:focus {\n  color: #000;\n  background-color: #fcd652;\n  border-color: #fbd447;\n  box-shadow: 0 0 0 0.2rem rgba(213, 176, 43, 0.5);\n}\n\n.btn-check:checked+.btn-warning,\n.btn-check:active+.btn-warning,\n.btn-warning:active,\n.btn-warning.active,\n.show>.btn-warning.dropdown-toggle {\n  color: #000;\n  background-color: #fcd95c;\n  border-color: #fbd447;\n}\n\n.btn-check:checked+.btn-warning:focus,\n.btn-check:active+.btn-warning:focus,\n.btn-warning:active:focus,\n.btn-warning.active:focus,\n.show>.btn-warning.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(213, 176, 43, 0.5);\n}\n\n.btn-warning:disabled,\n.btn-warning.disabled {\n  color: #000;\n  background-color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-danger {\n  color: #fff;\n  background-color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-danger:hover {\n  color: #fff;\n  background-color: #c70505;\n  border-color: #bb0505;\n}\n\n.btn-check:focus+.btn-danger,\n.btn-danger:focus {\n  color: #fff;\n  background-color: #c70505;\n  border-color: #bb0505;\n  box-shadow: 0 0 0 0.2rem rgba(237, 43, 43, 0.5);\n}\n\n.btn-check:checked+.btn-danger,\n.btn-check:active+.btn-danger,\n.btn-danger:active,\n.btn-danger.active,\n.show>.btn-danger.dropdown-toggle {\n  color: #fff;\n  background-color: #bb0505;\n  border-color: #b00505;\n}\n\n.btn-check:checked+.btn-danger:focus,\n.btn-check:active+.btn-danger:focus,\n.btn-danger:active:focus,\n.btn-danger.active:focus,\n.show>.btn-danger.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(237, 43, 43, 0.5);\n}\n\n.btn-danger:disabled,\n.btn-danger.disabled {\n  color: #fff;\n  background-color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-light {\n  color: #000;\n  background-color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-light:hover {\n  color: #000;\n  background-color: #eceff1;\n  border-color: #ebeef1;\n}\n\n.btn-check:focus+.btn-light,\n.btn-light:focus {\n  color: #000;\n  background-color: #eceff1;\n  border-color: #ebeef1;\n  box-shadow: 0 0 0 0.2rem rgba(198, 201, 203, 0.5);\n}\n\n.btn-check:checked+.btn-light,\n.btn-check:active+.btn-light,\n.btn-light:active,\n.btn-light.active,\n.show>.btn-light.dropdown-toggle {\n  color: #000;\n  background-color: #edf0f2;\n  border-color: #ebeef1;\n}\n\n.btn-check:checked+.btn-light:focus,\n.btn-check:active+.btn-light:focus,\n.btn-light:active:focus,\n.btn-light.active:focus,\n.show>.btn-light.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(198, 201, 203, 0.5);\n}\n\n.btn-light:disabled,\n.btn-light.disabled {\n  color: #000;\n  background-color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-dark {\n  color: #fff;\n  background-color: #344767;\n  border-color: #344767;\n}\n\n.btn-dark:hover {\n  color: #fff;\n  background-color: #2c3c58;\n  border-color: #2a3952;\n}\n\n.btn-check:focus+.btn-dark,\n.btn-dark:focus {\n  color: #fff;\n  background-color: #2c3c58;\n  border-color: #2a3952;\n  box-shadow: 0 0 0 0.2rem rgba(82, 99, 126, 0.5);\n}\n\n.btn-check:checked+.btn-dark,\n.btn-check:active+.btn-dark,\n.btn-dark:active,\n.btn-dark.active,\n.show>.btn-dark.dropdown-toggle {\n  color: #fff;\n  background-color: #2a3952;\n  border-color: #27354d;\n}\n\n.btn-check:checked+.btn-dark:focus,\n.btn-check:active+.btn-dark:focus,\n.btn-dark:active:focus,\n.btn-dark.active:focus,\n.show>.btn-dark.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(82, 99, 126, 0.5);\n}\n\n.btn-dark:disabled,\n.btn-dark.disabled {\n  color: #fff;\n  background-color: #344767;\n  border-color: #344767;\n}\n\n.btn-white {\n  color: #000;\n  background-color: #fff;\n  border-color: #fff;\n}\n\n.btn-white:hover {\n  color: #000;\n  background-color: white;\n  border-color: white;\n}\n\n.btn-check:focus+.btn-white,\n.btn-white:focus {\n  color: #000;\n  background-color: white;\n  border-color: white;\n  box-shadow: 0 0 0 0.2rem rgba(217, 217, 217, 0.5);\n}\n\n.btn-check:checked+.btn-white,\n.btn-check:active+.btn-white,\n.btn-white:active,\n.btn-white.active,\n.show>.btn-white.dropdown-toggle {\n  color: #000;\n  background-color: white;\n  border-color: white;\n}\n\n.btn-check:checked+.btn-white:focus,\n.btn-check:active+.btn-white:focus,\n.btn-white:active:focus,\n.btn-white.active:focus,\n.show>.btn-white.dropdown-toggle:focus {\n  box-shadow: 0 0 0 0.2rem rgba(217, 217, 217, 0.5);\n}\n\n.btn-white:disabled,\n.btn-white.disabled {\n  color: #000;\n  background-color: #fff;\n  border-color: #fff;\n}\n\n.btn-outline-primary {\n  color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-outline-primary:hover {\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-check:focus+.btn-outline-primary,\n.btn-outline-primary:focus {\n  box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.5);\n}\n\n.btn-check:checked+.btn-outline-primary,\n.btn-check:active+.btn-outline-primary,\n.btn-outline-primary:active,\n.btn-outline-primary.active,\n.btn-outline-primary.dropdown-toggle.show {\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-check:checked+.btn-outline-primary:focus,\n.btn-check:active+.btn-outline-primary:focus,\n.btn-outline-primary:active:focus,\n.btn-outline-primary.active:focus,\n.btn-outline-primary.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.5);\n}\n\n.btn-outline-primary:disabled,\n.btn-outline-primary.disabled {\n  color: #cb0c9f;\n  background-color: transparent;\n}\n\n.btn-outline-secondary {\n  color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-outline-secondary:hover {\n  color: #000;\n  background-color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-check:focus+.btn-outline-secondary,\n.btn-outline-secondary:focus {\n  box-shadow: 0 0 0 0.2rem rgba(131, 146, 171, 0.5);\n}\n\n.btn-check:checked+.btn-outline-secondary,\n.btn-check:active+.btn-outline-secondary,\n.btn-outline-secondary:active,\n.btn-outline-secondary.active,\n.btn-outline-secondary.dropdown-toggle.show {\n  color: #000;\n  background-color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-check:checked+.btn-outline-secondary:focus,\n.btn-check:active+.btn-outline-secondary:focus,\n.btn-outline-secondary:active:focus,\n.btn-outline-secondary.active:focus,\n.btn-outline-secondary.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(131, 146, 171, 0.5);\n}\n\n.btn-outline-secondary:disabled,\n.btn-outline-secondary.disabled {\n  color: #8392AB;\n  background-color: transparent;\n}\n\n.btn-outline-success {\n  color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-outline-success:hover {\n  color: #000;\n  background-color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-check:focus+.btn-outline-success,\n.btn-outline-success:focus {\n  box-shadow: 0 0 0 0.2rem rgba(130, 214, 22, 0.5);\n}\n\n.btn-check:checked+.btn-outline-success,\n.btn-check:active+.btn-outline-success,\n.btn-outline-success:active,\n.btn-outline-success.active,\n.btn-outline-success.dropdown-toggle.show {\n  color: #000;\n  background-color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-check:checked+.btn-outline-success:focus,\n.btn-check:active+.btn-outline-success:focus,\n.btn-outline-success:active:focus,\n.btn-outline-success.active:focus,\n.btn-outline-success.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(130, 214, 22, 0.5);\n}\n\n.btn-outline-success:disabled,\n.btn-outline-success.disabled {\n  color: #82d616;\n  background-color: transparent;\n}\n\n.btn-outline-info {\n  color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-outline-info:hover {\n  color: #000;\n  background-color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-check:focus+.btn-outline-info,\n.btn-outline-info:focus {\n  box-shadow: 0 0 0 0.2rem rgba(23, 193, 232, 0.5);\n}\n\n.btn-check:checked+.btn-outline-info,\n.btn-check:active+.btn-outline-info,\n.btn-outline-info:active,\n.btn-outline-info.active,\n.btn-outline-info.dropdown-toggle.show {\n  color: #000;\n  background-color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-check:checked+.btn-outline-info:focus,\n.btn-check:active+.btn-outline-info:focus,\n.btn-outline-info:active:focus,\n.btn-outline-info.active:focus,\n.btn-outline-info.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(23, 193, 232, 0.5);\n}\n\n.btn-outline-info:disabled,\n.btn-outline-info.disabled {\n  color: #17c1e8;\n  background-color: transparent;\n}\n\n.btn-outline-warning {\n  color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-outline-warning:hover {\n  color: #000;\n  background-color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-check:focus+.btn-outline-warning,\n.btn-outline-warning:focus {\n  box-shadow: 0 0 0 0.2rem rgba(251, 207, 51, 0.5);\n}\n\n.btn-check:checked+.btn-outline-warning,\n.btn-check:active+.btn-outline-warning,\n.btn-outline-warning:active,\n.btn-outline-warning.active,\n.btn-outline-warning.dropdown-toggle.show {\n  color: #000;\n  background-color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-check:checked+.btn-outline-warning:focus,\n.btn-check:active+.btn-outline-warning:focus,\n.btn-outline-warning:active:focus,\n.btn-outline-warning.active:focus,\n.btn-outline-warning.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(251, 207, 51, 0.5);\n}\n\n.btn-outline-warning:disabled,\n.btn-outline-warning.disabled {\n  color: #fbcf33;\n  background-color: transparent;\n}\n\n.btn-outline-danger {\n  color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-outline-danger:hover {\n  color: #fff;\n  background-color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-check:focus+.btn-outline-danger,\n.btn-outline-danger:focus {\n  box-shadow: 0 0 0 0.2rem rgba(234, 6, 6, 0.5);\n}\n\n.btn-check:checked+.btn-outline-danger,\n.btn-check:active+.btn-outline-danger,\n.btn-outline-danger:active,\n.btn-outline-danger.active,\n.btn-outline-danger.dropdown-toggle.show {\n  color: #fff;\n  background-color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-check:checked+.btn-outline-danger:focus,\n.btn-check:active+.btn-outline-danger:focus,\n.btn-outline-danger:active:focus,\n.btn-outline-danger.active:focus,\n.btn-outline-danger.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(234, 6, 6, 0.5);\n}\n\n.btn-outline-danger:disabled,\n.btn-outline-danger.disabled {\n  color: #ea0606;\n  background-color: transparent;\n}\n\n.btn-outline-light {\n  color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-outline-light:hover {\n  color: #000;\n  background-color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-check:focus+.btn-outline-light,\n.btn-outline-light:focus {\n  box-shadow: 0 0 0 0.2rem rgba(233, 236, 239, 0.5);\n}\n\n.btn-check:checked+.btn-outline-light,\n.btn-check:active+.btn-outline-light,\n.btn-outline-light:active,\n.btn-outline-light.active,\n.btn-outline-light.dropdown-toggle.show {\n  color: #000;\n  background-color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-check:checked+.btn-outline-light:focus,\n.btn-check:active+.btn-outline-light:focus,\n.btn-outline-light:active:focus,\n.btn-outline-light.active:focus,\n.btn-outline-light.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(233, 236, 239, 0.5);\n}\n\n.btn-outline-light:disabled,\n.btn-outline-light.disabled {\n  color: #e9ecef;\n  background-color: transparent;\n}\n\n.btn-outline-dark {\n  color: #344767;\n  border-color: #344767;\n}\n\n.btn-outline-dark:hover {\n  color: #fff;\n  background-color: #344767;\n  border-color: #344767;\n}\n\n.btn-check:focus+.btn-outline-dark,\n.btn-outline-dark:focus {\n  box-shadow: 0 0 0 0.2rem rgba(52, 71, 103, 0.5);\n}\n\n.btn-check:checked+.btn-outline-dark,\n.btn-check:active+.btn-outline-dark,\n.btn-outline-dark:active,\n.btn-outline-dark.active,\n.btn-outline-dark.dropdown-toggle.show {\n  color: #fff;\n  background-color: #344767;\n  border-color: #344767;\n}\n\n.btn-check:checked+.btn-outline-dark:focus,\n.btn-check:active+.btn-outline-dark:focus,\n.btn-outline-dark:active:focus,\n.btn-outline-dark.active:focus,\n.btn-outline-dark.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(52, 71, 103, 0.5);\n}\n\n.btn-outline-dark:disabled,\n.btn-outline-dark.disabled {\n  color: #344767;\n  background-color: transparent;\n}\n\n.btn-outline-white {\n  color: #fff;\n  border-color: #fff;\n}\n\n.btn-outline-white:hover {\n  color: #000;\n  background-color: #fff;\n  border-color: #fff;\n}\n\n.btn-check:focus+.btn-outline-white,\n.btn-outline-white:focus {\n  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.5);\n}\n\n.btn-check:checked+.btn-outline-white,\n.btn-check:active+.btn-outline-white,\n.btn-outline-white:active,\n.btn-outline-white.active,\n.btn-outline-white.dropdown-toggle.show {\n  color: #000;\n  background-color: #fff;\n  border-color: #fff;\n}\n\n.btn-check:checked+.btn-outline-white:focus,\n.btn-check:active+.btn-outline-white:focus,\n.btn-outline-white:active:focus,\n.btn-outline-white.active:focus,\n.btn-outline-white.dropdown-toggle.show:focus {\n  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.5);\n}\n\n.btn-outline-white:disabled,\n.btn-outline-white.disabled {\n  color: #fff;\n  background-color: transparent;\n}\n\n.btn-link {\n  font-weight: 400;\n  color: #cb0c9f;\n  text-decoration: none;\n}\n\n.btn-link:hover {\n  color: #830866;\n  text-decoration: none;\n}\n\n.btn-link:focus {\n  text-decoration: none;\n}\n\n.btn-link:disabled,\n.btn-link.disabled {\n  color: #6c757d;\n}\n\n.btn-lg,\n.btn-group-lg>.btn {\n  padding: 0.875rem 4rem;\n  font-size: 0.875rem;\n  border-radius: 0.5rem;\n}\n\n.btn-sm,\n.btn-group-sm>.btn {\n  padding: 0.5rem 2rem;\n  font-size: 0.75rem;\n  border-radius: 0.5rem;\n}\n\n.fade {\n  transition: opacity 0.15s linear;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .fade {\n    transition: none;\n  }\n}\n\n.fade:not(.show) {\n  opacity: 0;\n}\n\n.collapse:not(.show) {\n  display: none;\n}\n\n.collapsing {\n  height: 0;\n  overflow: hidden;\n  transition: height 0.35s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .collapsing {\n    transition: none;\n  }\n}\n\n.dropup,\n.dropend,\n.dropdown,\n.dropstart {\n  position: relative;\n}\n\n.dropdown-toggle {\n  white-space: nowrap;\n}\n\n.dropdown-toggle::after {\n  display: inline-block;\n  margin-left: 0.255em;\n  vertical-align: 0.255em;\n  content: \"\";\n  border-top: 0.3em solid;\n  border-right: 0.3em solid transparent;\n  border-bottom: 0;\n  border-left: 0.3em solid transparent;\n}\n\n.dropdown-toggle:empty::after {\n  margin-left: 0;\n}\n\n.dropdown-menu {\n  position: absolute;\n  z-index: 1000;\n  display: none;\n  min-width: 11rem;\n  padding: 0.5rem 0;\n  margin: 0;\n  font-size: 0.875rem;\n  color: #67748e;\n  text-align: left;\n  list-style: none;\n  background-color: #fff;\n  background-clip: padding-box;\n  border: 0 solid transparent;\n  border-radius: 0.5rem;\n}\n\n.dropdown-menu[data-bs-popper] {\n  top: 100%;\n  left: 0;\n  margin-top: 1.625rem;\n}\n\n.dropdown-menu-start {\n  --bs-position: start;\n}\n\n.dropdown-menu-start[data-bs-popper] {\n  right: auto;\n  left: 0;\n}\n\n.dropdown-menu-end {\n  --bs-position: end;\n}\n\n.dropdown-menu-end[data-bs-popper] {\n  right: 0;\n  left: auto;\n}\n\n@media (min-width: 576px) {\n  .dropdown-menu-sm-start {\n    --bs-position: start;\n  }\n\n  .dropdown-menu-sm-start[data-bs-popper] {\n    right: auto;\n    left: 0;\n  }\n\n  .dropdown-menu-sm-end {\n    --bs-position: end;\n  }\n\n  .dropdown-menu-sm-end[data-bs-popper] {\n    right: 0;\n    left: auto;\n  }\n}\n\n@media (min-width: 768px) {\n  .dropdown-menu-md-start {\n    --bs-position: start;\n  }\n\n  .dropdown-menu-md-start[data-bs-popper] {\n    right: auto;\n    left: 0;\n  }\n\n  .dropdown-menu-md-end {\n    --bs-position: end;\n  }\n\n  .dropdown-menu-md-end[data-bs-popper] {\n    right: 0;\n    left: auto;\n  }\n}\n\n@media (min-width: 992px) {\n  .dropdown-menu-lg-start {\n    --bs-position: start;\n  }\n\n  .dropdown-menu-lg-start[data-bs-popper] {\n    right: auto;\n    left: 0;\n  }\n\n  .dropdown-menu-lg-end {\n    --bs-position: end;\n  }\n\n  .dropdown-menu-lg-end[data-bs-popper] {\n    right: 0;\n    left: auto;\n  }\n}\n\n@media (min-width: 1200px) {\n  .dropdown-menu-xl-start {\n    --bs-position: start;\n  }\n\n  .dropdown-menu-xl-start[data-bs-popper] {\n    right: auto;\n    left: 0;\n  }\n\n  .dropdown-menu-xl-end {\n    --bs-position: end;\n  }\n\n  .dropdown-menu-xl-end[data-bs-popper] {\n    right: 0;\n    left: auto;\n  }\n}\n\n@media (min-width: 1400px) {\n  .dropdown-menu-xxl-start {\n    --bs-position: start;\n  }\n\n  .dropdown-menu-xxl-start[data-bs-popper] {\n    right: auto;\n    left: 0;\n  }\n\n  .dropdown-menu-xxl-end {\n    --bs-position: end;\n  }\n\n  .dropdown-menu-xxl-end[data-bs-popper] {\n    right: 0;\n    left: auto;\n  }\n}\n\n.dropup .dropdown-menu[data-bs-popper] {\n  top: auto;\n  bottom: 100%;\n  margin-top: 0;\n  margin-bottom: 1.625rem;\n}\n\n.dropup .dropdown-toggle::after {\n  display: inline-block;\n  margin-left: 0.255em;\n  vertical-align: 0.255em;\n  content: \"\";\n  border-top: 0;\n  border-right: 0.3em solid transparent;\n  border-bottom: 0.3em solid;\n  border-left: 0.3em solid transparent;\n}\n\n.dropup .dropdown-toggle:empty::after {\n  margin-left: 0;\n}\n\n.dropend .dropdown-menu[data-bs-popper] {\n  top: 0;\n  right: auto;\n  left: 100%;\n  margin-top: 0;\n  margin-left: 1.625rem;\n}\n\n.dropend .dropdown-toggle::after {\n  display: inline-block;\n  margin-left: 0.255em;\n  vertical-align: 0.255em;\n  content: \"\";\n  border-top: 0.3em solid transparent;\n  border-right: 0;\n  border-bottom: 0.3em solid transparent;\n  border-left: 0.3em solid;\n}\n\n.dropend .dropdown-toggle:empty::after {\n  margin-left: 0;\n}\n\n.dropend .dropdown-toggle::after {\n  vertical-align: 0;\n}\n\n.dropstart .dropdown-menu[data-bs-popper] {\n  top: 0;\n  right: 100%;\n  left: auto;\n  margin-top: 0;\n  margin-right: 1.625rem;\n}\n\n.dropstart .dropdown-toggle::after {\n  display: inline-block;\n  margin-left: 0.255em;\n  vertical-align: 0.255em;\n  content: \"\";\n}\n\n.dropstart .dropdown-toggle::after {\n  display: none;\n}\n\n.dropstart .dropdown-toggle::before {\n  display: inline-block;\n  margin-right: 0.255em;\n  vertical-align: 0.255em;\n  content: \"\";\n  border-top: 0.3em solid transparent;\n  border-right: 0.3em solid;\n  border-bottom: 0.3em solid transparent;\n}\n\n.dropstart .dropdown-toggle:empty::after {\n  margin-left: 0;\n}\n\n.dropstart .dropdown-toggle::before {\n  vertical-align: 0;\n}\n\n.dropdown-divider {\n  height: 0;\n  margin: 0.5rem 0;\n  overflow: hidden;\n  border-top: 1px solid transparent;\n}\n\n.dropdown-item {\n  display: block;\n  width: 100%;\n  padding: 0.3rem 1rem;\n  clear: both;\n  font-weight: 400;\n  color: #67748e;\n  text-align: inherit;\n  white-space: nowrap;\n  background-color: transparent;\n  border: 0;\n}\n\n.dropdown-item:hover,\n.dropdown-item:focus {\n  color: #344767;\n  background-color: #e9ecef;\n}\n\n.dropdown-item.active,\n.dropdown-item:active {\n  color: #67748e;\n  text-decoration: none;\n  background-color: transparent;\n}\n\n.dropdown-item.disabled,\n.dropdown-item:disabled {\n  color: #6c757d;\n  pointer-events: none;\n  background-color: transparent;\n}\n\n.dropdown-menu.show {\n  display: block;\n}\n\n.dropdown-header {\n  display: block;\n  padding: 0.5rem 1rem;\n  margin-bottom: 0;\n  font-size: 0.875rem;\n  color: #6c757d;\n  white-space: nowrap;\n}\n\n.dropdown-item-text {\n  display: block;\n  padding: 0.3rem 1rem;\n  color: #67748e;\n}\n\n.dropdown-menu-dark {\n  color: #dee2e6;\n  background-color: #343a40;\n  border-color: transparent;\n}\n\n.dropdown-menu-dark .dropdown-item {\n  color: #dee2e6;\n}\n\n.dropdown-menu-dark .dropdown-item:hover,\n.dropdown-menu-dark .dropdown-item:focus {\n  color: #fff;\n  background-color: rgba(255, 255, 255, 0.15);\n}\n\n.dropdown-menu-dark .dropdown-item.active,\n.dropdown-menu-dark .dropdown-item:active {\n  color: #67748e;\n  background-color: transparent;\n}\n\n.dropdown-menu-dark .dropdown-item.disabled,\n.dropdown-menu-dark .dropdown-item:disabled {\n  color: #adb5bd;\n}\n\n.dropdown-menu-dark .dropdown-divider {\n  border-color: transparent;\n}\n\n.dropdown-menu-dark .dropdown-item-text {\n  color: #dee2e6;\n}\n\n.dropdown-menu-dark .dropdown-header {\n  color: #adb5bd;\n}\n\n.btn-group,\n.btn-group-vertical {\n  position: relative;\n  display: inline-flex;\n  vertical-align: middle;\n}\n\n.btn-group>.btn,\n.btn-group-vertical>.btn {\n  position: relative;\n  flex: 1 1 auto;\n}\n\n.btn-group>.btn-check:checked+.btn,\n.btn-group>.btn-check:focus+.btn,\n.btn-group>.btn:hover,\n.btn-group>.btn:focus,\n.btn-group>.btn:active,\n.btn-group>.btn.active,\n.btn-group-vertical>.btn-check:checked+.btn,\n.btn-group-vertical>.btn-check:focus+.btn,\n.btn-group-vertical>.btn:hover,\n.btn-group-vertical>.btn:focus,\n.btn-group-vertical>.btn:active,\n.btn-group-vertical>.btn.active {\n  z-index: 1;\n}\n\n.btn-toolbar {\n  display: flex;\n  flex-wrap: wrap;\n  justify-content: flex-start;\n}\n\n.btn-toolbar .input-group {\n  width: auto;\n}\n\n.btn-group>.btn:not(:first-child),\n.btn-group>.btn-group:not(:first-child) {\n  margin-left: -1px;\n}\n\n.btn-group>.btn:not(:last-child):not(.dropdown-toggle),\n.btn-group>.btn-group:not(:last-child)>.btn {\n  border-top-right-radius: 0;\n  border-bottom-right-radius: 0;\n}\n\n.btn-group>.btn:nth-child(n + 3),\n.btn-group> :not(.btn-check)+.btn,\n.btn-group>.btn-group:not(:first-child)>.btn {\n  border-top-left-radius: 0;\n  border-bottom-left-radius: 0;\n}\n\n.dropdown-toggle-split {\n  padding-right: 1.125rem;\n  padding-left: 1.125rem;\n}\n\n.dropdown-toggle-split::after,\n.dropup .dropdown-toggle-split::after,\n.dropend .dropdown-toggle-split::after {\n  margin-left: 0;\n}\n\n.dropstart .dropdown-toggle-split::before {\n  margin-right: 0;\n}\n\n.btn-sm+.dropdown-toggle-split,\n.btn-group-sm>.btn+.dropdown-toggle-split {\n  padding-right: 1.5rem;\n  padding-left: 1.5rem;\n}\n\n.btn-lg+.dropdown-toggle-split,\n.btn-group-lg>.btn+.dropdown-toggle-split {\n  padding-right: 3rem;\n  padding-left: 3rem;\n}\n\n.btn-group-vertical {\n  flex-direction: column;\n  align-items: flex-start;\n  justify-content: center;\n}\n\n.btn-group-vertical>.btn,\n.btn-group-vertical>.btn-group {\n  width: 100%;\n}\n\n.btn-group-vertical>.btn:not(:first-child),\n.btn-group-vertical>.btn-group:not(:first-child) {\n  margin-top: -1px;\n}\n\n.btn-group-vertical>.btn:not(:last-child):not(.dropdown-toggle),\n.btn-group-vertical>.btn-group:not(:last-child)>.btn {\n  border-bottom-right-radius: 0;\n  border-bottom-left-radius: 0;\n}\n\n.btn-group-vertical>.btn~.btn,\n.btn-group-vertical>.btn-group:not(:first-child)>.btn {\n  border-top-left-radius: 0;\n  border-top-right-radius: 0;\n}\n\n.nav {\n  display: flex;\n  flex-wrap: wrap;\n  padding-left: 0;\n  margin-bottom: 0;\n  list-style: none;\n}\n\n.nav-link {\n  display: block;\n  padding: 0.5rem 1rem;\n  color: #cb0c9f;\n  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .nav-link {\n    transition: none;\n  }\n}\n\n.nav-link:hover,\n.nav-link:focus {\n  color: #830866;\n}\n\n.nav-link.disabled {\n  color: #6c757d;\n  pointer-events: none;\n  cursor: default;\n}\n\n.nav-tabs {\n  border-bottom: 1px solid #dee2e6;\n}\n\n.nav-tabs .nav-link {\n  margin-bottom: -1px;\n  background: none;\n  border: 1px solid transparent;\n  border-top-left-radius: 0.5rem;\n  border-top-right-radius: 0.5rem;\n}\n\n.nav-tabs .nav-link:hover,\n.nav-tabs .nav-link:focus {\n  border-color: #e9ecef #e9ecef #dee2e6;\n  isolation: isolate;\n}\n\n.nav-tabs .nav-link.disabled {\n  color: #6c757d;\n  background-color: transparent;\n  border-color: transparent;\n}\n\n.nav-tabs .nav-link.active,\n.nav-tabs .nav-item.show .nav-link {\n  color: #495057;\n  background-color: #fff;\n  border-color: #dee2e6 #dee2e6 #fff;\n}\n\n.nav-tabs .dropdown-menu {\n  margin-top: -1px;\n  border-top-left-radius: 0;\n  border-top-right-radius: 0;\n}\n\n.nav-pills .nav-link {\n  background: none;\n  border: 0;\n  border-radius: 0.75rem;\n}\n\n.nav-pills .nav-link.active,\n.nav-pills .show>.nav-link {\n  color: #344767;\n  background-color: #fff;\n}\n\n.nav-fill>.nav-link,\n.nav-fill .nav-item {\n  flex: 1 1 auto;\n  text-align: center;\n}\n\n.nav-justified>.nav-link,\n.nav-justified .nav-item {\n  flex-basis: 0;\n  flex-grow: 1;\n  text-align: center;\n}\n\n.nav-fill .nav-item .nav-link,\n.nav-justified .nav-item .nav-link {\n  width: 100%;\n}\n\n.tab-content>.tab-pane {\n  display: none;\n}\n\n.tab-content>.active {\n  display: block;\n}\n\n.navbar {\n  position: relative;\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  justify-content: space-between;\n  padding-top: 0.5rem;\n  padding-right: 1rem;\n  padding-bottom: 0.5rem;\n  padding-left: 1rem;\n}\n\n.navbar>.container,\n.navbar>.container-fluid,\n.navbar>.container-sm,\n.navbar>.container-md,\n.navbar>.container-lg,\n.navbar>.container-xl,\n.navbar>.container-xxl {\n  display: flex;\n  flex-wrap: inherit;\n  align-items: center;\n  justify-content: space-between;\n}\n\n.navbar-brand {\n  padding-top: 0.40625rem;\n  padding-bottom: 0.40625rem;\n  margin-right: 1rem;\n  font-size: 1.125rem;\n  white-space: nowrap;\n}\n\n.navbar-nav {\n  display: flex;\n  flex-direction: column;\n  padding-left: 0;\n  margin-bottom: 0;\n  list-style: none;\n}\n\n.navbar-nav .nav-link {\n  padding-right: 0;\n  padding-left: 0;\n}\n\n.navbar-nav .dropdown-menu {\n  position: static;\n}\n\n.navbar-text {\n  padding-top: 0.5rem;\n  padding-bottom: 0.5rem;\n}\n\n.navbar-collapse {\n  flex-basis: 100%;\n  flex-grow: 1;\n  align-items: center;\n}\n\n.navbar-toggler {\n  padding: 0.25rem 0.75rem;\n  font-size: 1.125rem;\n  line-height: 1;\n  background-color: transparent;\n  border: 1px solid transparent;\n  border-radius: 0.5rem;\n  transition: box-shadow 0.15s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .navbar-toggler {\n    transition: none;\n  }\n}\n\n.navbar-toggler:hover {\n  text-decoration: none;\n}\n\n.navbar-toggler:focus {\n  text-decoration: none;\n  outline: 0;\n  box-shadow: 0 0 0 0.2rem;\n}\n\n.navbar-toggler-icon {\n  display: inline-block;\n  width: 1.5em;\n  height: 1.5em;\n  vertical-align: middle;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 100%;\n}\n\n.navbar-nav-scroll {\n  max-height: var(--bs-scroll-height, 75vh);\n  overflow-y: auto;\n}\n\n@media (min-width: 576px) {\n  .navbar-expand-sm {\n    flex-wrap: nowrap;\n    justify-content: flex-start;\n  }\n\n  .navbar-expand-sm .navbar-nav {\n    flex-direction: row;\n  }\n\n  .navbar-expand-sm .navbar-nav .dropdown-menu {\n    position: absolute;\n  }\n\n  .navbar-expand-sm .navbar-nav .nav-link {\n    padding-right: 0.5rem;\n    padding-left: 0.5rem;\n  }\n\n  .navbar-expand-sm .navbar-nav-scroll {\n    overflow: visible;\n  }\n\n  .navbar-expand-sm .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .navbar-expand-sm .navbar-toggler {\n    display: none;\n  }\n}\n\n@media (min-width: 768px) {\n  .navbar-expand-md {\n    flex-wrap: nowrap;\n    justify-content: flex-start;\n  }\n\n  .navbar-expand-md .navbar-nav {\n    flex-direction: row;\n  }\n\n  .navbar-expand-md .navbar-nav .dropdown-menu {\n    position: absolute;\n  }\n\n  .navbar-expand-md .navbar-nav .nav-link {\n    padding-right: 0.5rem;\n    padding-left: 0.5rem;\n  }\n\n  .navbar-expand-md .navbar-nav-scroll {\n    overflow: visible;\n  }\n\n  .navbar-expand-md .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .navbar-expand-md .navbar-toggler {\n    display: none;\n  }\n}\n\n@media (min-width: 992px) {\n  .navbar-expand-lg {\n    flex-wrap: nowrap;\n    justify-content: flex-start;\n  }\n\n  .navbar-expand-lg .navbar-nav {\n    flex-direction: row;\n  }\n\n  .navbar-expand-lg .navbar-nav .dropdown-menu {\n    position: absolute;\n  }\n\n  .navbar-expand-lg .navbar-nav .nav-link {\n    padding-right: 0.5rem;\n    padding-left: 0.5rem;\n  }\n\n  .navbar-expand-lg .navbar-nav-scroll {\n    overflow: visible;\n  }\n\n  .navbar-expand-lg .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .navbar-expand-lg .navbar-toggler {\n    display: none;\n  }\n}\n\n@media (min-width: 1200px) {\n  .navbar-expand-xl {\n    flex-wrap: nowrap;\n    justify-content: flex-start;\n  }\n\n  .navbar-expand-xl .navbar-nav {\n    flex-direction: row;\n  }\n\n  .navbar-expand-xl .navbar-nav .dropdown-menu {\n    position: absolute;\n  }\n\n  .navbar-expand-xl .navbar-nav .nav-link {\n    padding-right: 0.5rem;\n    padding-left: 0.5rem;\n  }\n\n  .navbar-expand-xl .navbar-nav-scroll {\n    overflow: visible;\n  }\n\n  .navbar-expand-xl .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .navbar-expand-xl .navbar-toggler {\n    display: none;\n  }\n}\n\n@media (min-width: 1400px) {\n  .navbar-expand-xxl {\n    flex-wrap: nowrap;\n    justify-content: flex-start;\n  }\n\n  .navbar-expand-xxl .navbar-nav {\n    flex-direction: row;\n  }\n\n  .navbar-expand-xxl .navbar-nav .dropdown-menu {\n    position: absolute;\n  }\n\n  .navbar-expand-xxl .navbar-nav .nav-link {\n    padding-right: 0.5rem;\n    padding-left: 0.5rem;\n  }\n\n  .navbar-expand-xxl .navbar-nav-scroll {\n    overflow: visible;\n  }\n\n  .navbar-expand-xxl .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .navbar-expand-xxl .navbar-toggler {\n    display: none;\n  }\n}\n\n.navbar-expand {\n  flex-wrap: nowrap;\n  justify-content: flex-start;\n}\n\n.navbar-expand .navbar-nav {\n  flex-direction: row;\n}\n\n.navbar-expand .navbar-nav .dropdown-menu {\n  position: absolute;\n}\n\n.navbar-expand .navbar-nav .nav-link {\n  padding-right: 0.5rem;\n  padding-left: 0.5rem;\n}\n\n.navbar-expand .navbar-nav-scroll {\n  overflow: visible;\n}\n\n.navbar-expand .navbar-collapse {\n  display: flex !important;\n  flex-basis: auto;\n}\n\n.navbar-expand .navbar-toggler {\n  display: none;\n}\n\n.navbar-light .navbar-brand {\n  color: rgba(52, 71, 103, 0.9);\n}\n\n.navbar-light .navbar-brand:hover,\n.navbar-light .navbar-brand:focus {\n  color: rgba(52, 71, 103, 0.9);\n}\n\n.navbar-light .navbar-nav .nav-link {\n  color: #344767;\n}\n\n.navbar-light .navbar-nav .nav-link:hover,\n.navbar-light .navbar-nav .nav-link:focus {\n  color: rgba(52, 71, 103, 0.7);\n}\n\n.navbar-light .navbar-nav .nav-link.disabled {\n  color: rgba(52, 71, 103, 0.3);\n}\n\n.navbar-light .navbar-nav .show>.nav-link,\n.navbar-light .navbar-nav .nav-link.active {\n  color: rgba(52, 71, 103, 0.9);\n}\n\n.navbar-light .navbar-toggler {\n  color: #344767;\n  border-color: rgba(52, 71, 103, 0.1);\n}\n\n.navbar-light .navbar-toggler-icon {\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23344767' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e\");\n}\n\n.navbar-light .navbar-text {\n  color: #344767;\n}\n\n.navbar-light .navbar-text a,\n.navbar-light .navbar-text a:hover,\n.navbar-light .navbar-text a:focus {\n  color: rgba(52, 71, 103, 0.9);\n}\n\n.navbar-dark .navbar-brand {\n  color: #fff;\n}\n\n.navbar-dark .navbar-brand:hover,\n.navbar-dark .navbar-brand:focus {\n  color: #fff;\n}\n\n.navbar-dark .navbar-nav .nav-link {\n  color: rgba(255, 255, 255, 0.85);\n}\n\n.navbar-dark .navbar-nav .nav-link:hover,\n.navbar-dark .navbar-nav .nav-link:focus {\n  color: rgba(255, 255, 255, 0.75);\n}\n\n.navbar-dark .navbar-nav .nav-link.disabled {\n  color: rgba(255, 255, 255, 0.25);\n}\n\n.navbar-dark .navbar-nav .show>.nav-link,\n.navbar-dark .navbar-nav .nav-link.active {\n  color: #fff;\n}\n\n.navbar-dark .navbar-toggler {\n  color: rgba(255, 255, 255, 0.85);\n  border-color: rgba(255, 255, 255, 0.1);\n}\n\n.navbar-dark .navbar-toggler-icon {\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e\");\n}\n\n.navbar-dark .navbar-text {\n  color: rgba(255, 255, 255, 0.85);\n}\n\n.navbar-dark .navbar-text a,\n.navbar-dark .navbar-text a:hover,\n.navbar-dark .navbar-text a:focus {\n  color: #fff;\n}\n\n.card {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  min-width: 0;\n  word-wrap: break-word;\n  background-color: #fff;\n  background-clip: border-box;\n  border: 0 solid rgba(0, 0, 0, 0.125);\n  border-radius: 1rem;\n}\n\n.card>hr {\n  margin-right: 0;\n  margin-left: 0;\n}\n\n.card>.list-group {\n  border-top: inherit;\n  border-bottom: inherit;\n}\n\n.card>.list-group:first-child {\n  border-top-width: 0;\n  border-top-left-radius: 1rem;\n  border-top-right-radius: 1rem;\n}\n\n.card>.list-group:last-child {\n  border-bottom-width: 0;\n  border-bottom-right-radius: 1rem;\n  border-bottom-left-radius: 1rem;\n}\n\n.card>.card-header+.list-group,\n.card>.list-group+.card-footer {\n  border-top: 0;\n}\n\n.card-body {\n  flex: 1 1 auto;\n  padding: 1rem 1rem;\n}\n\n.card-title {\n  margin-bottom: 0.5rem;\n}\n\n.card-subtitle {\n  margin-top: -0.25rem;\n  margin-bottom: 0;\n}\n\n.card-text:last-child {\n  margin-bottom: 0;\n}\n\n.card-link:hover {\n  text-decoration: none;\n}\n\n.card-link+.card-link {\n  margin-left: 1rem;\n}\n\n.card-header {\n  padding: 0.5rem 1rem;\n  margin-bottom: 0;\n  background-color: #fff;\n  border-bottom: 0 solid rgba(0, 0, 0, 0.125);\n}\n\n.card-header:first-child {\n  border-radius: 1rem 1rem 0 0;\n}\n\n.card-footer {\n  padding: 0.5rem 1rem;\n  background-color: #fff;\n  border-top: 0 solid rgba(0, 0, 0, 0.125);\n}\n\n.card-footer:last-child {\n  border-radius: 0 0 1rem 1rem;\n}\n\n.card-header-tabs {\n  margin-right: -0.5rem;\n  margin-bottom: -0.5rem;\n  margin-left: -0.5rem;\n  border-bottom: 0;\n}\n\n.card-header-pills {\n  margin-right: -0.5rem;\n  margin-left: -0.5rem;\n}\n\n.card-img-overlay {\n  position: absolute;\n  top: 0;\n  right: 0;\n  bottom: 0;\n  left: 0;\n  padding: 1rem;\n  border-radius: 1rem;\n}\n\n.card-img,\n.card-img-top,\n.card-img-bottom {\n  width: 100%;\n}\n\n.card-img,\n.card-img-top {\n  border-top-left-radius: 1rem;\n  border-top-right-radius: 1rem;\n}\n\n.card-img,\n.card-img-bottom {\n  border-bottom-right-radius: 1rem;\n  border-bottom-left-radius: 1rem;\n}\n\n.card-group>.card {\n  margin-bottom: 0.75rem;\n}\n\n@media (min-width: 576px) {\n  .card-group {\n    display: flex;\n    flex-flow: row wrap;\n  }\n\n  .card-group>.card {\n    flex: 1 0 0%;\n    margin-bottom: 0;\n  }\n\n  .card-group>.card+.card {\n    margin-left: 0;\n    border-left: 0;\n  }\n\n  .card-group>.card:not(:last-child) {\n    border-top-right-radius: 0;\n    border-bottom-right-radius: 0;\n  }\n\n  .card-group>.card:not(:last-child) .card-img-top,\n  .card-group>.card:not(:last-child) .card-header {\n    border-top-right-radius: 0;\n  }\n\n  .card-group>.card:not(:last-child) .card-img-bottom,\n  .card-group>.card:not(:last-child) .card-footer {\n    border-bottom-right-radius: 0;\n  }\n\n  .card-group>.card:not(:first-child) {\n    border-top-left-radius: 0;\n    border-bottom-left-radius: 0;\n  }\n\n  .card-group>.card:not(:first-child) .card-img-top,\n  .card-group>.card:not(:first-child) .card-header {\n    border-top-left-radius: 0;\n  }\n\n  .card-group>.card:not(:first-child) .card-img-bottom,\n  .card-group>.card:not(:first-child) .card-footer {\n    border-bottom-left-radius: 0;\n  }\n}\n\n.accordion-button {\n  position: relative;\n  display: flex;\n  align-items: center;\n  width: 100%;\n  padding: 1rem 1rem;\n  font-size: 1rem;\n  color: #67748e;\n  text-align: left;\n  background-color: transparent;\n  border: 0;\n  border-radius: 0;\n  overflow-anchor: none;\n  transition: all 0.15s ease-in, border-radius 0.15s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .accordion-button {\n    transition: none;\n  }\n}\n\n.accordion-button:not(.collapsed) {\n  color: #344767;\n  background-color: transparent;\n  box-shadow: inset 0 0 0 rgba(0, 0, 0, 0.125);\n}\n\n.accordion-button:not(.collapsed)::after {\n  background-image: none;\n  transform: rotate(180deg);\n}\n\n.accordion-button::after {\n  flex-shrink: 0;\n  width: 1rem;\n  height: 1rem;\n  margin-left: auto;\n  content: \"\";\n  background-image: none;\n  background-repeat: no-repeat;\n  background-size: 1rem;\n  transition: transform 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .accordion-button::after {\n    transition: none;\n  }\n}\n\n.accordion-button:hover {\n  z-index: 2;\n}\n\n.accordion-button:focus {\n  z-index: 3;\n  border-color: #e293d3;\n  outline: 0;\n  box-shadow: none;\n}\n\n.accordion-header {\n  margin-bottom: 0;\n}\n\n.accordion-item {\n  background-color: transparent;\n  border: 0 solid rgba(0, 0, 0, 0.125);\n}\n\n.accordion-item:first-of-type {\n  border-top-left-radius: 0.25rem;\n  border-top-right-radius: 0.25rem;\n}\n\n.accordion-item:first-of-type .accordion-button {\n  border-top-left-radius: 0.25rem;\n  border-top-right-radius: 0.25rem;\n}\n\n.accordion-item:not(:first-of-type) {\n  border-top: 0;\n}\n\n.accordion-item:last-of-type {\n  border-bottom-right-radius: 0.25rem;\n  border-bottom-left-radius: 0.25rem;\n}\n\n.accordion-item:last-of-type .accordion-button.collapsed {\n  border-bottom-right-radius: 0.25rem;\n  border-bottom-left-radius: 0.25rem;\n}\n\n.accordion-item:last-of-type .accordion-collapse {\n  border-bottom-right-radius: 0.25rem;\n  border-bottom-left-radius: 0.25rem;\n}\n\n.accordion-body {\n  padding: 1rem 1rem;\n}\n\n.accordion-flush .accordion-collapse {\n  border-width: 0;\n}\n\n.accordion-flush .accordion-item {\n  border-right: 0;\n  border-left: 0;\n  border-radius: 0;\n}\n\n.accordion-flush .accordion-item:first-child {\n  border-top: 0;\n}\n\n.accordion-flush .accordion-item:last-child {\n  border-bottom: 0;\n}\n\n.accordion-flush .accordion-item .accordion-button {\n  border-radius: 0;\n}\n\n.breadcrumb {\n  display: flex;\n  flex-wrap: wrap;\n  padding: 0.5rem 1rem;\n  margin-bottom: 1rem;\n  list-style: none;\n  background-color: #e9ecef;\n  border-radius: 0.5rem;\n}\n\n.breadcrumb-item+.breadcrumb-item {\n  padding-left: 0.5rem;\n}\n\n.breadcrumb-item+.breadcrumb-item::before {\n  float: left;\n  padding-right: 0.5rem;\n  color: #6c757d;\n  content: var(--bs-breadcrumb-divider, \"/\")\n    /* rtl: var(--bs-breadcrumb-divider, \"/\") */\n  ;\n}\n\n.breadcrumb-item.active {\n  color: #6c757d;\n}\n\n.pagination {\n  display: flex;\n  padding-left: 0;\n  list-style: none;\n}\n\n.page-link {\n  position: relative;\n  display: block;\n  color: #cb0c9f;\n  background-color: #fff;\n  border: 1px solid #dee2e6;\n  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .page-link {\n    transition: none;\n  }\n}\n\n.page-link:hover {\n  z-index: 2;\n  color: #830866;\n  background-color: #e9ecef;\n  border-color: #dee2e6;\n}\n\n.page-link:focus {\n  z-index: 3;\n  color: #830866;\n  background-color: #e9ecef;\n  outline: 0;\n  box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.25);\n}\n\n.page-item:not(:first-child) .page-link {\n  margin-left: -1px;\n}\n\n.page-item.active .page-link {\n  z-index: 3;\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.page-item.disabled .page-link {\n  color: #6c757d;\n  pointer-events: none;\n  background-color: #fff;\n  border-color: #dee2e6;\n}\n\n.page-link {\n  padding: 0.375rem 0.75rem;\n}\n\n.page-item:first-child .page-link {\n  border-top-left-radius: 0.5rem;\n  border-bottom-left-radius: 0.5rem;\n}\n\n.page-item:last-child .page-link {\n  border-top-right-radius: 0.5rem;\n  border-bottom-right-radius: 0.5rem;\n}\n\n.pagination-lg .page-link {\n  padding: 0.75rem 1.5rem;\n  font-size: 1.125rem;\n}\n\n.pagination-lg .page-item:first-child .page-link {\n  border-top-left-radius: 0.75rem;\n  border-bottom-left-radius: 0.75rem;\n}\n\n.pagination-lg .page-item:last-child .page-link {\n  border-top-right-radius: 0.75rem;\n  border-bottom-right-radius: 0.75rem;\n}\n\n.pagination-sm .page-link {\n  padding: 0.25rem 0.5rem;\n  font-size: 0.875rem;\n}\n\n.pagination-sm .page-item:first-child .page-link {\n  border-top-left-radius: 0.25rem;\n  border-bottom-left-radius: 0.25rem;\n}\n\n.pagination-sm .page-item:last-child .page-link {\n  border-top-right-radius: 0.25rem;\n  border-bottom-right-radius: 0.25rem;\n}\n\n.badge {\n  display: inline-block;\n  padding: 0.55em 0.9em;\n  font-size: 0.75em;\n  font-weight: 700;\n  line-height: 1;\n  color: #fff;\n  text-align: center;\n  white-space: nowrap;\n  vertical-align: baseline;\n  border-radius: 0.45rem;\n}\n\n.badge:empty {\n  display: none;\n}\n\n.btn .badge {\n  position: relative;\n  top: -1px;\n}\n\n.alert {\n  position: relative;\n  padding: 1rem 1rem;\n  margin-bottom: 1rem;\n  border: 1px solid transparent;\n  border-radius: 0.5rem;\n}\n\n.alert-heading {\n  color: inherit;\n}\n\n.alert-link {\n  font-weight: 600;\n}\n\n.alert-dismissible {\n  padding-right: 3rem;\n}\n\n.alert-dismissible .btn-close {\n  position: absolute;\n  top: 0;\n  right: 0;\n  z-index: 2;\n  padding: 1.25rem 1rem;\n}\n\n.alert-primary {\n  color: #7a075f;\n  background-color: #f5ceec;\n  border-color: #efb6e2;\n}\n\n.alert-primary .alert-link {\n  color: #62064c;\n}\n\n.alert-secondary {\n  color: #4f5867;\n  background-color: #e6e9ee;\n  border-color: #dadee6;\n}\n\n.alert-secondary .alert-link {\n  color: #3f4652;\n}\n\n.alert-success {\n  color: #345609;\n  background-color: #e6f7d0;\n  border-color: #daf3b9;\n}\n\n.alert-success .alert-link {\n  color: #2a4507;\n}\n\n.alert-info {\n  color: #0e748b;\n  background-color: #d1f3fa;\n  border-color: #b9ecf8;\n}\n\n.alert-info .alert-link {\n  color: #0b5d6f;\n}\n\n.alert-warning {\n  color: #645314;\n  background-color: #fef5d6;\n  border-color: #fef1c2;\n}\n\n.alert-warning .alert-link {\n  color: #504210;\n}\n\n.alert-danger {\n  color: #8c0404;\n  background-color: #fbcdcd;\n  border-color: #f9b4b4;\n}\n\n.alert-danger .alert-link {\n  color: #700303;\n}\n\n.alert-light {\n  color: #5d5e60;\n  background-color: #fbfbfc;\n  border-color: #f8f9fa;\n}\n\n.alert-light .alert-link {\n  color: #4a4b4d;\n}\n\n.alert-dark {\n  color: #1f2b3e;\n  background-color: #d6dae1;\n  border-color: #c2c8d1;\n}\n\n.alert-dark .alert-link {\n  color: #192232;\n}\n\n.alert-white {\n  color: #666666;\n  background-color: white;\n  border-color: white;\n}\n\n.alert-white .alert-link {\n  color: #525252;\n}\n\n@-webkit-keyframes progress-bar-stripes {\n  0% {\n    background-position-x: 3px;\n  }\n}\n\n@keyframes progress-bar-stripes {\n  0% {\n    background-position-x: 3px;\n  }\n}\n\n.progress {\n  display: flex;\n  height: 3px;\n  overflow: hidden;\n  font-size: 0.75rem;\n  background-color: #e9ecef;\n  border-radius: 0.5rem;\n}\n\n.progress-bar {\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n  overflow: hidden;\n  color: #fff;\n  text-align: center;\n  white-space: nowrap;\n  background-color: #cb0c9f;\n  transition: width 0.6s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .progress-bar {\n    transition: none;\n  }\n}\n\n.progress-bar-striped {\n  background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);\n  background-size: 3px 3px;\n}\n\n.progress-bar-animated {\n  -webkit-animation: 1s linear infinite progress-bar-stripes;\n          animation: 1s linear infinite progress-bar-stripes;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .progress-bar-animated {\n    -webkit-animation: none;\n            animation: none;\n  }\n}\n\n.list-group {\n  display: flex;\n  flex-direction: column;\n  padding-left: 0;\n  margin-bottom: 0;\n  border-radius: 0.5rem;\n}\n\n.list-group-numbered {\n  list-style-type: none;\n  counter-reset: section;\n}\n\n.list-group-numbered>li::before {\n  content: counters(section, \".\") \". \";\n  counter-increment: section;\n}\n\n.list-group-item-action {\n  width: 100%;\n  color: #495057;\n  text-align: inherit;\n}\n\n.list-group-item-action:hover,\n.list-group-item-action:focus {\n  z-index: 1;\n  color: #495057;\n  text-decoration: none;\n  background-color: #f8f9fa;\n}\n\n.list-group-item-action:active {\n  color: #67748e;\n  background-color: #e9ecef;\n}\n\n.list-group-item {\n  position: relative;\n  display: block;\n  padding: 0.5rem 1rem;\n  color: inherit;\n  background-color: #fff;\n  border: 1px solid rgba(0, 0, 0, 0.125);\n}\n\n.list-group-item:first-child {\n  border-top-left-radius: inherit;\n  border-top-right-radius: inherit;\n}\n\n.list-group-item:last-child {\n  border-bottom-right-radius: inherit;\n  border-bottom-left-radius: inherit;\n}\n\n.list-group-item.disabled,\n.list-group-item:disabled {\n  color: #6c757d;\n  pointer-events: none;\n  background-color: #fff;\n}\n\n.list-group-item.active {\n  z-index: 2;\n  color: #fff;\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.list-group-item+.list-group-item {\n  border-top-width: 0;\n}\n\n.list-group-item+.list-group-item.active {\n  margin-top: -1px;\n  border-top-width: 1px;\n}\n\n.list-group-horizontal {\n  flex-direction: row;\n}\n\n.list-group-horizontal>.list-group-item:first-child {\n  border-bottom-left-radius: 0.5rem;\n  border-top-right-radius: 0;\n}\n\n.list-group-horizontal>.list-group-item:last-child {\n  border-top-right-radius: 0.5rem;\n  border-bottom-left-radius: 0;\n}\n\n.list-group-horizontal>.list-group-item.active {\n  margin-top: 0;\n}\n\n.list-group-horizontal>.list-group-item+.list-group-item {\n  border-top-width: 1px;\n  border-left-width: 0;\n}\n\n.list-group-horizontal>.list-group-item+.list-group-item.active {\n  margin-left: -1px;\n  border-left-width: 1px;\n}\n\n@media (min-width: 576px) {\n  .list-group-horizontal-sm {\n    flex-direction: row;\n  }\n\n  .list-group-horizontal-sm>.list-group-item:first-child {\n    border-bottom-left-radius: 0.5rem;\n    border-top-right-radius: 0;\n  }\n\n  .list-group-horizontal-sm>.list-group-item:last-child {\n    border-top-right-radius: 0.5rem;\n    border-bottom-left-radius: 0;\n  }\n\n  .list-group-horizontal-sm>.list-group-item.active {\n    margin-top: 0;\n  }\n\n  .list-group-horizontal-sm>.list-group-item+.list-group-item {\n    border-top-width: 1px;\n    border-left-width: 0;\n  }\n\n  .list-group-horizontal-sm>.list-group-item+.list-group-item.active {\n    margin-left: -1px;\n    border-left-width: 1px;\n  }\n}\n\n@media (min-width: 768px) {\n  .list-group-horizontal-md {\n    flex-direction: row;\n  }\n\n  .list-group-horizontal-md>.list-group-item:first-child {\n    border-bottom-left-radius: 0.5rem;\n    border-top-right-radius: 0;\n  }\n\n  .list-group-horizontal-md>.list-group-item:last-child {\n    border-top-right-radius: 0.5rem;\n    border-bottom-left-radius: 0;\n  }\n\n  .list-group-horizontal-md>.list-group-item.active {\n    margin-top: 0;\n  }\n\n  .list-group-horizontal-md>.list-group-item+.list-group-item {\n    border-top-width: 1px;\n    border-left-width: 0;\n  }\n\n  .list-group-horizontal-md>.list-group-item+.list-group-item.active {\n    margin-left: -1px;\n    border-left-width: 1px;\n  }\n}\n\n@media (min-width: 992px) {\n  .list-group-horizontal-lg {\n    flex-direction: row;\n  }\n\n  .list-group-horizontal-lg>.list-group-item:first-child {\n    border-bottom-left-radius: 0.5rem;\n    border-top-right-radius: 0;\n  }\n\n  .list-group-horizontal-lg>.list-group-item:last-child {\n    border-top-right-radius: 0.5rem;\n    border-bottom-left-radius: 0;\n  }\n\n  .list-group-horizontal-lg>.list-group-item.active {\n    margin-top: 0;\n  }\n\n  .list-group-horizontal-lg>.list-group-item+.list-group-item {\n    border-top-width: 1px;\n    border-left-width: 0;\n  }\n\n  .list-group-horizontal-lg>.list-group-item+.list-group-item.active {\n    margin-left: -1px;\n    border-left-width: 1px;\n  }\n}\n\n@media (min-width: 1200px) {\n  .list-group-horizontal-xl {\n    flex-direction: row;\n  }\n\n  .list-group-horizontal-xl>.list-group-item:first-child {\n    border-bottom-left-radius: 0.5rem;\n    border-top-right-radius: 0;\n  }\n\n  .list-group-horizontal-xl>.list-group-item:last-child {\n    border-top-right-radius: 0.5rem;\n    border-bottom-left-radius: 0;\n  }\n\n  .list-group-horizontal-xl>.list-group-item.active {\n    margin-top: 0;\n  }\n\n  .list-group-horizontal-xl>.list-group-item+.list-group-item {\n    border-top-width: 1px;\n    border-left-width: 0;\n  }\n\n  .list-group-horizontal-xl>.list-group-item+.list-group-item.active {\n    margin-left: -1px;\n    border-left-width: 1px;\n  }\n}\n\n@media (min-width: 1400px) {\n  .list-group-horizontal-xxl {\n    flex-direction: row;\n  }\n\n  .list-group-horizontal-xxl>.list-group-item:first-child {\n    border-bottom-left-radius: 0.5rem;\n    border-top-right-radius: 0;\n  }\n\n  .list-group-horizontal-xxl>.list-group-item:last-child {\n    border-top-right-radius: 0.5rem;\n    border-bottom-left-radius: 0;\n  }\n\n  .list-group-horizontal-xxl>.list-group-item.active {\n    margin-top: 0;\n  }\n\n  .list-group-horizontal-xxl>.list-group-item+.list-group-item {\n    border-top-width: 1px;\n    border-left-width: 0;\n  }\n\n  .list-group-horizontal-xxl>.list-group-item+.list-group-item.active {\n    margin-left: -1px;\n    border-left-width: 1px;\n  }\n}\n\n.list-group-flush {\n  border-radius: 0;\n}\n\n.list-group-flush>.list-group-item {\n  border-width: 0 0 1px;\n}\n\n.list-group-flush>.list-group-item:last-child {\n  border-bottom-width: 0;\n}\n\n.list-group-item-primary {\n  color: #7a075f;\n  background-color: #f5ceec;\n}\n\n.list-group-item-primary.list-group-item-action:hover,\n.list-group-item-primary.list-group-item-action:focus {\n  color: #7a075f;\n  background-color: #ddb9d4;\n}\n\n.list-group-item-primary.list-group-item-action.active {\n  color: #fff;\n  background-color: #7a075f;\n  border-color: #7a075f;\n}\n\n.list-group-item-secondary {\n  color: #4f5867;\n  background-color: #e6e9ee;\n}\n\n.list-group-item-secondary.list-group-item-action:hover,\n.list-group-item-secondary.list-group-item-action:focus {\n  color: #4f5867;\n  background-color: #cfd2d6;\n}\n\n.list-group-item-secondary.list-group-item-action.active {\n  color: #fff;\n  background-color: #4f5867;\n  border-color: #4f5867;\n}\n\n.list-group-item-success {\n  color: #345609;\n  background-color: #e6f7d0;\n}\n\n.list-group-item-success.list-group-item-action:hover,\n.list-group-item-success.list-group-item-action:focus {\n  color: #345609;\n  background-color: #cfdebb;\n}\n\n.list-group-item-success.list-group-item-action.active {\n  color: #fff;\n  background-color: #345609;\n  border-color: #345609;\n}\n\n.list-group-item-info {\n  color: #0e748b;\n  background-color: #d1f3fa;\n}\n\n.list-group-item-info.list-group-item-action:hover,\n.list-group-item-info.list-group-item-action:focus {\n  color: #0e748b;\n  background-color: #bcdbe1;\n}\n\n.list-group-item-info.list-group-item-action.active {\n  color: #fff;\n  background-color: #0e748b;\n  border-color: #0e748b;\n}\n\n.list-group-item-warning {\n  color: #645314;\n  background-color: #fef5d6;\n}\n\n.list-group-item-warning.list-group-item-action:hover,\n.list-group-item-warning.list-group-item-action:focus {\n  color: #645314;\n  background-color: #e5ddc1;\n}\n\n.list-group-item-warning.list-group-item-action.active {\n  color: #fff;\n  background-color: #645314;\n  border-color: #645314;\n}\n\n.list-group-item-danger {\n  color: #8c0404;\n  background-color: #fbcdcd;\n}\n\n.list-group-item-danger.list-group-item-action:hover,\n.list-group-item-danger.list-group-item-action:focus {\n  color: #8c0404;\n  background-color: #e2b9b9;\n}\n\n.list-group-item-danger.list-group-item-action.active {\n  color: #fff;\n  background-color: #8c0404;\n  border-color: #8c0404;\n}\n\n.list-group-item-light {\n  color: #5d5e60;\n  background-color: #fbfbfc;\n}\n\n.list-group-item-light.list-group-item-action:hover,\n.list-group-item-light.list-group-item-action:focus {\n  color: #5d5e60;\n  background-color: #e2e2e3;\n}\n\n.list-group-item-light.list-group-item-action.active {\n  color: #fff;\n  background-color: #5d5e60;\n  border-color: #5d5e60;\n}\n\n.list-group-item-dark {\n  color: #1f2b3e;\n  background-color: #d6dae1;\n}\n\n.list-group-item-dark.list-group-item-action:hover,\n.list-group-item-dark.list-group-item-action:focus {\n  color: #1f2b3e;\n  background-color: #c1c4cb;\n}\n\n.list-group-item-dark.list-group-item-action.active {\n  color: #fff;\n  background-color: #1f2b3e;\n  border-color: #1f2b3e;\n}\n\n.list-group-item-white {\n  color: #666666;\n  background-color: white;\n}\n\n.list-group-item-white.list-group-item-action:hover,\n.list-group-item-white.list-group-item-action:focus {\n  color: #666666;\n  background-color: #e6e6e6;\n}\n\n.list-group-item-white.list-group-item-action.active {\n  color: #fff;\n  background-color: #666666;\n  border-color: #666666;\n}\n\n.btn-close {\n  box-sizing: content-box;\n  width: 1em;\n  height: 1em;\n  padding: 0.25em 0.25em;\n  color: #fff;\n  background: transparent url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23fff' viewBox='0 0 16 16'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e\") center/1em auto no-repeat;\n  border: 0;\n  border-radius: 0.25rem;\n  opacity: 0.5;\n}\n\n.btn-close:hover {\n  color: #fff;\n  text-decoration: none;\n  opacity: 0.75;\n}\n\n.btn-close:focus {\n  outline: 0;\n  box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.25);\n  opacity: 1;\n}\n\n.btn-close:disabled,\n.btn-close.disabled {\n  pointer-events: none;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n      -ms-user-select: none;\n          user-select: none;\n  opacity: 0.25;\n}\n\n.btn-close-white {\n  filter: invert(1) grayscale(100%) brightness(200%);\n}\n\n.toast {\n  width: 350px;\n  max-width: 100%;\n  font-size: 0.875rem;\n  pointer-events: auto;\n  background-color: rgba(255, 255, 255, 0.85);\n  background-clip: padding-box;\n  border: 0 solid transparent;\n  box-shadow: 0 0.25rem 0.375rem -0.0625rem rgba(20, 20, 20, 0.12), 0 0.125rem 0.25rem -0.0625rem rgba(20, 20, 20, 0.07);\n  border-radius: 0.5rem;\n}\n\n.toast:not(.showing):not(.show) {\n  opacity: 0;\n}\n\n.toast.hide {\n  display: none;\n}\n\n.toast-container {\n  width: -webkit-max-content;\n  width: -moz-max-content;\n  width: max-content;\n  max-width: 100%;\n  pointer-events: none;\n}\n\n.toast-container> :not(:last-child) {\n  margin-bottom: 1.5rem;\n}\n\n.toast-header {\n  display: flex;\n  align-items: center;\n  padding: 0.75rem 0.75rem;\n  color: #344767;\n  background-color: rgba(255, 255, 255, 0.85);\n  background-clip: padding-box;\n  border-bottom: 0 solid rgba(0, 0, 0, 0.05);\n  border-top-left-radius: 0.5rem;\n  border-top-right-radius: 0.5rem;\n}\n\n.toast-header .btn-close {\n  margin-right: -0.375rem;\n  margin-left: 0.75rem;\n}\n\n.toast-body {\n  padding: 0.75rem;\n  word-wrap: break-word;\n}\n\n.modal {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 1050;\n  display: none;\n  width: 100%;\n  height: 100%;\n  overflow-x: hidden;\n  overflow-y: auto;\n  outline: 0;\n}\n\n.modal-dialog {\n  position: relative;\n  width: auto;\n  margin: 0.5rem;\n  pointer-events: none;\n}\n\n.modal.fade .modal-dialog {\n  transition: transform 0.3s ease-out;\n  transform: translate(0, -50px);\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .modal.fade .modal-dialog {\n    transition: none;\n  }\n}\n\n.modal.show .modal-dialog {\n  transform: none;\n}\n\n.modal.modal-static .modal-dialog {\n  transform: scale(1.02);\n}\n\n.modal-dialog-scrollable {\n  height: calc(100% - 1rem);\n}\n\n.modal-dialog-scrollable .modal-content {\n  max-height: 100%;\n  overflow: hidden;\n}\n\n.modal-dialog-scrollable .modal-body {\n  overflow-y: auto;\n}\n\n.modal-dialog-centered {\n  display: flex;\n  align-items: center;\n  min-height: calc(100% - 1rem);\n}\n\n.modal-content {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  width: 100%;\n  pointer-events: auto;\n  background-color: #fff;\n  background-clip: padding-box;\n  border: 1px solid rgba(0, 0, 0, 0.2);\n  border-radius: 0.75rem;\n  outline: 0;\n}\n\n.modal-backdrop {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 1040;\n  width: 100vw;\n  height: 100vh;\n  background-color: #000;\n}\n\n.modal-backdrop.fade {\n  opacity: 0;\n}\n\n.modal-backdrop.show {\n  opacity: 0.5;\n}\n\n.modal-header {\n  display: flex;\n  flex-shrink: 0;\n  align-items: center;\n  justify-content: space-between;\n  padding: 1rem 1rem;\n  border-bottom: 1px solid #dee2e6;\n  border-top-left-radius: calc(0.75rem - 1px);\n  border-top-right-radius: calc(0.75rem - 1px);\n}\n\n.modal-header .btn-close {\n  padding: 0.5rem 0.5rem;\n  margin: -0.5rem -0.5rem -0.5rem auto;\n}\n\n.modal-title {\n  margin-bottom: 0;\n  line-height: 1.5;\n}\n\n.modal-body {\n  position: relative;\n  flex: 1 1 auto;\n  padding: 1rem;\n}\n\n.modal-footer {\n  display: flex;\n  flex-wrap: wrap;\n  flex-shrink: 0;\n  align-items: center;\n  justify-content: flex-end;\n  padding: 0.75rem;\n  border-top: 1px solid #dee2e6;\n  border-bottom-right-radius: calc(0.75rem - 1px);\n  border-bottom-left-radius: calc(0.75rem - 1px);\n}\n\n.modal-footer>* {\n  margin: 0.25rem;\n}\n\n@media (min-width: 576px) {\n  .modal-dialog {\n    max-width: 500px;\n    margin: 1.75rem auto;\n  }\n\n  .modal-dialog-scrollable {\n    height: calc(100% - 3.5rem);\n  }\n\n  .modal-dialog-centered {\n    min-height: calc(100% - 3.5rem);\n  }\n\n  .modal-sm {\n    max-width: 300px;\n  }\n}\n\n@media (min-width: 992px) {\n\n  .modal-lg,\n  .modal-xl {\n    max-width: 800px;\n  }\n}\n\n@media (min-width: 1200px) {\n  .modal-xl {\n    max-width: 1140px;\n  }\n}\n\n.modal-fullscreen {\n  width: 100vw;\n  max-width: none;\n  height: 100%;\n  margin: 0;\n}\n\n.modal-fullscreen .modal-content {\n  height: 100%;\n  border: 0;\n  border-radius: 0;\n}\n\n.modal-fullscreen .modal-header {\n  border-radius: 0;\n}\n\n.modal-fullscreen .modal-body {\n  overflow-y: auto;\n}\n\n.modal-fullscreen .modal-footer {\n  border-radius: 0;\n}\n\n@media (max-width: 575.98px) {\n  .modal-fullscreen-sm-down {\n    width: 100vw;\n    max-width: none;\n    height: 100%;\n    margin: 0;\n  }\n\n  .modal-fullscreen-sm-down .modal-content {\n    height: 100%;\n    border: 0;\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-sm-down .modal-header {\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-sm-down .modal-body {\n    overflow-y: auto;\n  }\n\n  .modal-fullscreen-sm-down .modal-footer {\n    border-radius: 0;\n  }\n}\n\n@media (max-width: 767.98px) {\n  .modal-fullscreen-md-down {\n    width: 100vw;\n    max-width: none;\n    height: 100%;\n    margin: 0;\n  }\n\n  .modal-fullscreen-md-down .modal-content {\n    height: 100%;\n    border: 0;\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-md-down .modal-header {\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-md-down .modal-body {\n    overflow-y: auto;\n  }\n\n  .modal-fullscreen-md-down .modal-footer {\n    border-radius: 0;\n  }\n}\n\n@media (max-width: 991.98px) {\n  .modal-fullscreen-lg-down {\n    width: 100vw;\n    max-width: none;\n    height: 100%;\n    margin: 0;\n  }\n\n  .modal-fullscreen-lg-down .modal-content {\n    height: 100%;\n    border: 0;\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-lg-down .modal-header {\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-lg-down .modal-body {\n    overflow-y: auto;\n  }\n\n  .modal-fullscreen-lg-down .modal-footer {\n    border-radius: 0;\n  }\n}\n\n@media (max-width: 1199.98px) {\n  .modal-fullscreen-xl-down {\n    width: 100vw;\n    max-width: none;\n    height: 100%;\n    margin: 0;\n  }\n\n  .modal-fullscreen-xl-down .modal-content {\n    height: 100%;\n    border: 0;\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-xl-down .modal-header {\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-xl-down .modal-body {\n    overflow-y: auto;\n  }\n\n  .modal-fullscreen-xl-down .modal-footer {\n    border-radius: 0;\n  }\n}\n\n@media (max-width: 1399.98px) {\n  .modal-fullscreen-xxl-down {\n    width: 100vw;\n    max-width: none;\n    height: 100%;\n    margin: 0;\n  }\n\n  .modal-fullscreen-xxl-down .modal-content {\n    height: 100%;\n    border: 0;\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-xxl-down .modal-header {\n    border-radius: 0;\n  }\n\n  .modal-fullscreen-xxl-down .modal-body {\n    overflow-y: auto;\n  }\n\n  .modal-fullscreen-xxl-down .modal-footer {\n    border-radius: 0;\n  }\n}\n\n.tooltip {\n  position: absolute;\n  z-index: 1070;\n  display: block;\n  margin: 0;\n  font-family: var(--bs-font-sans-serif);\n  font-style: normal;\n  font-weight: 400;\n  line-height: 1.5;\n  text-align: left;\n  text-align: start;\n  text-decoration: none;\n  text-shadow: none;\n  text-transform: none;\n  letter-spacing: normal;\n  word-break: normal;\n  word-spacing: normal;\n  white-space: normal;\n  line-break: auto;\n  font-size: 0.875rem;\n  word-wrap: break-word;\n  opacity: 0;\n}\n\n.tooltip.show {\n  opacity: 0.9;\n}\n\n.tooltip .tooltip-arrow {\n  position: absolute;\n  display: block;\n  width: 0.8rem;\n  height: 0.4rem;\n}\n\n.tooltip .tooltip-arrow::before {\n  position: absolute;\n  content: \"\";\n  border-color: transparent;\n  border-style: solid;\n}\n\n.bs-tooltip-top,\n.bs-tooltip-auto[data-popper-placement^=\"top\"] {\n  padding: 0.4rem 0;\n}\n\n.bs-tooltip-top .tooltip-arrow,\n.bs-tooltip-auto[data-popper-placement^=\"top\"] .tooltip-arrow {\n  bottom: 0;\n}\n\n.bs-tooltip-top .tooltip-arrow::before,\n.bs-tooltip-auto[data-popper-placement^=\"top\"] .tooltip-arrow::before {\n  top: -1px;\n  border-width: 0.4rem 0.4rem 0;\n  border-top-color: #000;\n}\n\n.bs-tooltip-end,\n.bs-tooltip-auto[data-popper-placement^=\"right\"] {\n  padding: 0 0.4rem;\n}\n\n.bs-tooltip-end .tooltip-arrow,\n.bs-tooltip-auto[data-popper-placement^=\"right\"] .tooltip-arrow {\n  left: 0;\n  width: 0.4rem;\n  height: 0.8rem;\n}\n\n.bs-tooltip-end .tooltip-arrow::before,\n.bs-tooltip-auto[data-popper-placement^=\"right\"] .tooltip-arrow::before {\n  right: -1px;\n  border-width: 0.4rem 0.4rem 0.4rem 0;\n  border-right-color: #000;\n}\n\n.bs-tooltip-bottom,\n.bs-tooltip-auto[data-popper-placement^=\"bottom\"] {\n  padding: 0.4rem 0;\n}\n\n.bs-tooltip-bottom .tooltip-arrow,\n.bs-tooltip-auto[data-popper-placement^=\"bottom\"] .tooltip-arrow {\n  top: 0;\n}\n\n.bs-tooltip-bottom .tooltip-arrow::before,\n.bs-tooltip-auto[data-popper-placement^=\"bottom\"] .tooltip-arrow::before {\n  bottom: -1px;\n  border-width: 0 0.4rem 0.4rem;\n  border-bottom-color: #000;\n}\n\n.bs-tooltip-start,\n.bs-tooltip-auto[data-popper-placement^=\"left\"] {\n  padding: 0 0.4rem;\n}\n\n.bs-tooltip-start .tooltip-arrow,\n.bs-tooltip-auto[data-popper-placement^=\"left\"] .tooltip-arrow {\n  right: 0;\n  width: 0.4rem;\n  height: 0.8rem;\n}\n\n.bs-tooltip-start .tooltip-arrow::before,\n.bs-tooltip-auto[data-popper-placement^=\"left\"] .tooltip-arrow::before {\n  left: -1px;\n  border-width: 0.4rem 0 0.4rem 0.4rem;\n  border-left-color: #000;\n}\n\n.tooltip-inner {\n  max-width: 200px;\n  padding: 0.25rem 0.5rem;\n  color: #fff;\n  text-align: center;\n  background-color: #000;\n  border-radius: 0.5rem;\n}\n\n.popover {\n  position: absolute;\n  top: 0;\n  left: 0\n    /* rtl:ignore */\n  ;\n  z-index: 1060;\n  display: block;\n  max-width: 276px;\n  font-family: var(--bs-font-sans-serif);\n  font-style: normal;\n  font-weight: 400;\n  line-height: 1.5;\n  text-align: left;\n  text-align: start;\n  text-decoration: none;\n  text-shadow: none;\n  text-transform: none;\n  letter-spacing: normal;\n  word-break: normal;\n  word-spacing: normal;\n  white-space: normal;\n  line-break: auto;\n  font-size: 0.75rem;\n  word-wrap: break-word;\n  background-color: #fff;\n  background-clip: padding-box;\n  border: 0px solid rgba(0, 0, 0, 0.2);\n  border-radius: 0.75rem;\n}\n\n.popover .popover-arrow {\n  position: absolute;\n  display: block;\n  width: 1rem;\n  height: 0.5rem;\n}\n\n.popover .popover-arrow::before,\n.popover .popover-arrow::after {\n  position: absolute;\n  display: block;\n  content: \"\";\n  border-color: transparent;\n  border-style: solid;\n}\n\n.bs-popover-top>.popover-arrow,\n.bs-popover-auto[data-popper-placement^=\"top\"]>.popover-arrow {\n  bottom: calc(-0.5rem - 0px);\n}\n\n.bs-popover-top>.popover-arrow::before,\n.bs-popover-auto[data-popper-placement^=\"top\"]>.popover-arrow::before {\n  bottom: 0;\n  border-width: 0.5rem 0.5rem 0;\n  border-top-color: rgba(0, 0, 0, 0.25);\n}\n\n.bs-popover-top>.popover-arrow::after,\n.bs-popover-auto[data-popper-placement^=\"top\"]>.popover-arrow::after {\n  bottom: 0px;\n  border-width: 0.5rem 0.5rem 0;\n  border-top-color: #fff;\n}\n\n.bs-popover-end>.popover-arrow,\n.bs-popover-auto[data-popper-placement^=\"right\"]>.popover-arrow {\n  left: calc(-0.5rem - 0px);\n  width: 0.5rem;\n  height: 1rem;\n}\n\n.bs-popover-end>.popover-arrow::before,\n.bs-popover-auto[data-popper-placement^=\"right\"]>.popover-arrow::before {\n  left: 0;\n  border-width: 0.5rem 0.5rem 0.5rem 0;\n  border-right-color: rgba(0, 0, 0, 0.25);\n}\n\n.bs-popover-end>.popover-arrow::after,\n.bs-popover-auto[data-popper-placement^=\"right\"]>.popover-arrow::after {\n  left: 0px;\n  border-width: 0.5rem 0.5rem 0.5rem 0;\n  border-right-color: #fff;\n}\n\n.bs-popover-bottom>.popover-arrow,\n.bs-popover-auto[data-popper-placement^=\"bottom\"]>.popover-arrow {\n  top: calc(-0.5rem - 0px);\n}\n\n.bs-popover-bottom>.popover-arrow::before,\n.bs-popover-auto[data-popper-placement^=\"bottom\"]>.popover-arrow::before {\n  top: 0;\n  border-width: 0 0.5rem 0.5rem 0.5rem;\n  border-bottom-color: rgba(0, 0, 0, 0.25);\n}\n\n.bs-popover-bottom>.popover-arrow::after,\n.bs-popover-auto[data-popper-placement^=\"bottom\"]>.popover-arrow::after {\n  top: 0px;\n  border-width: 0 0.5rem 0.5rem 0.5rem;\n  border-bottom-color: #fff;\n}\n\n.bs-popover-bottom .popover-header::before,\n.bs-popover-auto[data-popper-placement^=\"bottom\"] .popover-header::before {\n  position: absolute;\n  top: 0;\n  left: 50%;\n  display: block;\n  width: 1rem;\n  margin-left: -0.5rem;\n  content: \"\";\n  border-bottom: 0px solid #e9ecef;\n}\n\n.bs-popover-start>.popover-arrow,\n.bs-popover-auto[data-popper-placement^=\"left\"]>.popover-arrow {\n  right: calc(-0.5rem - 0px);\n  width: 0.5rem;\n  height: 1rem;\n}\n\n.bs-popover-start>.popover-arrow::before,\n.bs-popover-auto[data-popper-placement^=\"left\"]>.popover-arrow::before {\n  right: 0;\n  border-width: 0.5rem 0 0.5rem 0.5rem;\n  border-left-color: rgba(0, 0, 0, 0.25);\n}\n\n.bs-popover-start>.popover-arrow::after,\n.bs-popover-auto[data-popper-placement^=\"left\"]>.popover-arrow::after {\n  right: 0px;\n  border-width: 0.5rem 0 0.5rem 0.5rem;\n  border-left-color: #fff;\n}\n\n.popover-header {\n  padding: 0.5rem 1rem;\n  margin-bottom: 0;\n  font-size: 1rem;\n  color: #344767;\n  background-color: #e9ecef;\n  border-bottom: 0px solid rgba(0, 0, 0, 0.2);\n  border-top-left-radius: calc(0.75rem - 0px);\n  border-top-right-radius: calc(0.75rem - 0px);\n}\n\n.popover-header:empty {\n  display: none;\n}\n\n.popover-body {\n  padding: 1rem 1rem;\n  color: #67748e;\n}\n\n.carousel {\n  position: relative;\n}\n\n.carousel.pointer-event {\n  touch-action: pan-y;\n}\n\n.carousel-inner {\n  position: relative;\n  width: 100%;\n  overflow: hidden;\n}\n\n.carousel-inner::after {\n  display: block;\n  clear: both;\n  content: \"\";\n}\n\n.carousel-item {\n  position: relative;\n  display: none;\n  float: left;\n  width: 100%;\n  margin-right: -100%;\n  -webkit-backface-visibility: hidden;\n          backface-visibility: hidden;\n  transition: transform 0.6s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .carousel-item {\n    transition: none;\n  }\n}\n\n.carousel-item.active,\n.carousel-item-next,\n.carousel-item-prev {\n  display: block;\n}\n\n/* rtl:begin:ignore */\n.carousel-item-next:not(.carousel-item-start),\n.active.carousel-item-end {\n  transform: translateX(100%);\n}\n\n.carousel-item-prev:not(.carousel-item-end),\n.active.carousel-item-start {\n  transform: translateX(-100%);\n}\n\n/* rtl:end:ignore */\n.carousel-fade .carousel-item {\n  opacity: 0;\n  transition-property: opacity;\n  transform: none;\n}\n\n.carousel-fade .carousel-item.active,\n.carousel-fade .carousel-item-next.carousel-item-start,\n.carousel-fade .carousel-item-prev.carousel-item-end {\n  z-index: 1;\n  opacity: 1;\n}\n\n.carousel-fade .active.carousel-item-start,\n.carousel-fade .active.carousel-item-end {\n  z-index: 0;\n  opacity: 0;\n  transition: opacity 0s 0.6s;\n}\n\n@media (prefers-reduced-motion: reduce) {\n\n  .carousel-fade .active.carousel-item-start,\n  .carousel-fade .active.carousel-item-end {\n    transition: none;\n  }\n}\n\n.carousel-control-prev,\n.carousel-control-next {\n  position: absolute;\n  top: 0;\n  bottom: 0;\n  z-index: 1;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 15%;\n  padding: 0;\n  color: #fff;\n  text-align: center;\n  background: none;\n  border: 0;\n  opacity: 0.5;\n  transition: opacity 0.15s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n\n  .carousel-control-prev,\n  .carousel-control-next {\n    transition: none;\n  }\n}\n\n.carousel-control-prev:hover,\n.carousel-control-prev:focus,\n.carousel-control-next:hover,\n.carousel-control-next:focus {\n  color: #fff;\n  text-decoration: none;\n  outline: 0;\n  opacity: 0.9;\n}\n\n.carousel-control-prev {\n  left: 0;\n}\n\n.carousel-control-next {\n  right: 0;\n}\n\n.carousel-control-prev-icon,\n.carousel-control-next-icon {\n  display: inline-block;\n  width: 2rem;\n  height: 2rem;\n  background-repeat: no-repeat;\n  background-position: 50%;\n  background-size: 100% 100%;\n}\n\n/* rtl:options: {\n  \"autoRename\": true,\n  \"stringMap\":[ {\n    \"name\"    : \"prev-next\",\n    \"search\"  : \"prev\",\n    \"replace\" : \"next\"\n  } ]\n} */\n.carousel-control-prev-icon {\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23fff' viewBox='0 0 16 16'%3e%3cpath d='M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z'/%3e%3c/svg%3e\");\n}\n\n.carousel-control-next-icon {\n  background-image: url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23fff' viewBox='0 0 16 16'%3e%3cpath d='M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e\");\n}\n\n.carousel-indicators {\n  position: absolute;\n  right: 0;\n  bottom: 0;\n  left: 0;\n  z-index: 2;\n  display: flex;\n  justify-content: center;\n  padding: 0;\n  margin-right: 15%;\n  margin-bottom: 1rem;\n  margin-left: 15%;\n  list-style: none;\n}\n\n.carousel-indicators [data-bs-target] {\n  box-sizing: content-box;\n  flex: 0 1 auto;\n  width: 30px;\n  height: 3px;\n  padding: 0;\n  margin-right: 3px;\n  margin-left: 3px;\n  text-indent: -999px;\n  cursor: pointer;\n  background-color: #fff;\n  background-clip: padding-box;\n  border: 0;\n  border-top: 10px solid transparent;\n  border-bottom: 10px solid transparent;\n  opacity: 0.5;\n  transition: opacity 0.6s ease;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .carousel-indicators [data-bs-target] {\n    transition: none;\n  }\n}\n\n.carousel-indicators .active {\n  opacity: 1;\n}\n\n.carousel-caption {\n  position: absolute;\n  right: 15%;\n  bottom: 1.25rem;\n  left: 15%;\n  padding-top: 1.25rem;\n  padding-bottom: 1.25rem;\n  color: #fff;\n  text-align: center;\n}\n\n.carousel-dark .carousel-control-prev-icon,\n.carousel-dark .carousel-control-next-icon {\n  filter: invert(1) grayscale(100);\n}\n\n.carousel-dark .carousel-indicators [data-bs-target] {\n  background-color: #000;\n}\n\n.carousel-dark .carousel-caption {\n  color: #000;\n}\n\n@-webkit-keyframes spinner-border {\n  to {\n    transform: rotate(360deg)\n      /* rtl:ignore */\n    ;\n  }\n}\n\n@keyframes spinner-border {\n  to {\n    transform: rotate(360deg)\n      /* rtl:ignore */\n    ;\n  }\n}\n\n.spinner-border {\n  display: inline-block;\n  width: 2rem;\n  height: 2rem;\n  vertical-align: -0.125em;\n  border: 0.25em solid currentColor;\n  border-right-color: transparent;\n  border-radius: 50%;\n  -webkit-animation: 0.75s linear infinite spinner-border;\n          animation: 0.75s linear infinite spinner-border;\n}\n\n.spinner-border-sm {\n  width: 1rem;\n  height: 1rem;\n  border-width: 0.2em;\n}\n\n@-webkit-keyframes spinner-grow {\n  0% {\n    transform: scale(0);\n  }\n\n  50% {\n    opacity: 1;\n    transform: none;\n  }\n}\n\n@keyframes spinner-grow {\n  0% {\n    transform: scale(0);\n  }\n\n  50% {\n    opacity: 1;\n    transform: none;\n  }\n}\n\n.spinner-grow {\n  display: inline-block;\n  width: 2rem;\n  height: 2rem;\n  vertical-align: -0.125em;\n  background-color: currentColor;\n  border-radius: 50%;\n  opacity: 0;\n  -webkit-animation: 0.75s linear infinite spinner-grow;\n          animation: 0.75s linear infinite spinner-grow;\n}\n\n.spinner-grow-sm {\n  width: 1rem;\n  height: 1rem;\n}\n\n@media (prefers-reduced-motion: reduce) {\n\n  .spinner-border,\n  .spinner-grow {\n    -webkit-animation-duration: 1.5s;\n            animation-duration: 1.5s;\n  }\n}\n\n.offcanvas {\n  position: fixed;\n  bottom: 0;\n  z-index: 1050;\n  display: flex;\n  flex-direction: column;\n  max-width: 100%;\n  visibility: hidden;\n  background-color: #fff;\n  background-clip: padding-box;\n  outline: 0;\n  transition: transform 0.3s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .offcanvas {\n    transition: none;\n  }\n}\n\n.offcanvas-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 1rem 1rem;\n}\n\n.offcanvas-header .btn-close {\n  padding: 0.5rem 0.5rem;\n  margin-top: -0.5rem;\n  margin-right: -0.5rem;\n  margin-bottom: -0.5rem;\n}\n\n.offcanvas-title {\n  margin-bottom: 0;\n  line-height: 1.5;\n}\n\n.offcanvas-body {\n  flex-grow: 1;\n  padding: 1rem 1rem;\n  overflow-y: auto;\n}\n\n.offcanvas-start {\n  top: 0;\n  left: 0;\n  width: 400px;\n  border-right: 1px solid rgba(0, 0, 0, 0.2);\n  transform: translateX(-100%);\n}\n\n.offcanvas-end {\n  top: 0;\n  right: 0;\n  width: 400px;\n  border-left: 1px solid rgba(0, 0, 0, 0.2);\n  transform: translateX(100%);\n}\n\n.offcanvas-top {\n  top: 0;\n  right: 0;\n  left: 0;\n  height: 30vh;\n  max-height: 100%;\n  border-bottom: 1px solid rgba(0, 0, 0, 0.2);\n  transform: translateY(-100%);\n}\n\n.offcanvas-bottom {\n  right: 0;\n  left: 0;\n  height: 30vh;\n  max-height: 100%;\n  border-top: 1px solid rgba(0, 0, 0, 0.2);\n  transform: translateY(100%);\n}\n\n.offcanvas.show {\n  transform: none;\n}\n\n.clearfix::after {\n  display: block;\n  clear: both;\n  content: \"\";\n}\n\n.link-primary {\n  color: #cb0c9f;\n}\n\n.link-primary:hover,\n.link-primary:focus {\n  color: #a20a7f;\n}\n\n.link-secondary {\n  color: #8392AB;\n}\n\n.link-secondary:hover,\n.link-secondary:focus {\n  color: #9ca8bc;\n}\n\n.link-success {\n  color: #82d616;\n}\n\n.link-success:hover,\n.link-success:focus {\n  color: #9bde45;\n}\n\n.link-info {\n  color: #17c1e8;\n}\n\n.link-info:hover,\n.link-info:focus {\n  color: #45cded;\n}\n\n.link-warning {\n  color: #fbcf33;\n}\n\n.link-warning:hover,\n.link-warning:focus {\n  color: #fcd95c;\n}\n\n.link-danger {\n  color: #ea0606;\n}\n\n.link-danger:hover,\n.link-danger:focus {\n  color: #bb0505;\n}\n\n.link-light {\n  color: #e9ecef;\n}\n\n.link-light:hover,\n.link-light:focus {\n  color: #edf0f2;\n}\n\n.link-dark {\n  color: #344767;\n}\n\n.link-dark:hover,\n.link-dark:focus {\n  color: #2a3952;\n}\n\n.link-white {\n  color: #fff;\n}\n\n.link-white:hover,\n.link-white:focus {\n  color: white;\n}\n\n.ratio {\n  position: relative;\n  width: 100%;\n}\n\n.ratio::before {\n  display: block;\n  padding-top: var(--bs-aspect-ratio);\n  content: \"\";\n}\n\n.ratio>* {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n}\n\n.ratio-1x1 {\n  --bs-aspect-ratio: 100%;\n}\n\n.ratio-4x3 {\n  --bs-aspect-ratio: calc(3 / 4 * 100%);\n}\n\n.ratio-16x9 {\n  --bs-aspect-ratio: calc(9 / 16 * 100%);\n}\n\n.ratio-21x9 {\n  --bs-aspect-ratio: calc(9 / 21 * 100%);\n}\n\n.fixed-top {\n  position: fixed;\n  top: 0;\n  right: 0;\n  left: 0;\n  z-index: 1030;\n}\n\n.fixed-bottom {\n  position: fixed;\n  right: 0;\n  bottom: 0;\n  left: 0;\n  z-index: 1030;\n}\n\n.sticky-top {\n  position: -webkit-sticky;\n  position: sticky;\n  top: 0;\n  z-index: 1020;\n}\n\n@media (min-width: 576px) {\n  .sticky-sm-top {\n    position: -webkit-sticky;\n    position: sticky;\n    top: 0;\n    z-index: 1020;\n  }\n}\n\n@media (min-width: 768px) {\n  .sticky-md-top {\n    position: -webkit-sticky;\n    position: sticky;\n    top: 0;\n    z-index: 1020;\n  }\n}\n\n@media (min-width: 992px) {\n  .sticky-lg-top {\n    position: -webkit-sticky;\n    position: sticky;\n    top: 0;\n    z-index: 1020;\n  }\n}\n\n@media (min-width: 1200px) {\n  .sticky-xl-top {\n    position: -webkit-sticky;\n    position: sticky;\n    top: 0;\n    z-index: 1020;\n  }\n}\n\n@media (min-width: 1400px) {\n  .sticky-xxl-top {\n    position: -webkit-sticky;\n    position: sticky;\n    top: 0;\n    z-index: 1020;\n  }\n}\n\n.visually-hidden,\n.visually-hidden-focusable:not(:focus):not(:focus-within) {\n  position: absolute !important;\n  width: 1px !important;\n  height: 1px !important;\n  padding: 0 !important;\n  margin: -1px !important;\n  overflow: hidden !important;\n  clip: rect(0, 0, 0, 0) !important;\n  white-space: nowrap !important;\n  border: 0 !important;\n}\n\n.stretched-link::after {\n  position: absolute;\n  top: 0;\n  right: 0;\n  bottom: 0;\n  left: 0;\n  z-index: 1;\n  content: \"\";\n}\n\n.text-truncate {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.align-baseline {\n  vertical-align: baseline !important;\n}\n\n.align-top {\n  vertical-align: top !important;\n}\n\n.align-middle {\n  vertical-align: middle !important;\n}\n\n.align-bottom {\n  vertical-align: bottom !important;\n}\n\n.align-text-bottom {\n  vertical-align: text-bottom !important;\n}\n\n.align-text-top {\n  vertical-align: text-top !important;\n}\n\n.float-start {\n  float: left !important;\n}\n\n.float-end {\n  float: right !important;\n}\n\n.float-none {\n  float: none !important;\n}\n\n.overflow-auto {\n  overflow: auto !important;\n}\n\n.overflow-hidden {\n  overflow: hidden !important;\n}\n\n.overflow-visible {\n  overflow: visible !important;\n}\n\n.overflow-scroll {\n  overflow: scroll !important;\n}\n\n.d-inline {\n  display: inline !important;\n}\n\n.d-inline-block {\n  display: inline-block !important;\n}\n\n.d-block {\n  display: block !important;\n}\n\n.d-grid {\n  display: grid !important;\n}\n\n.d-table {\n  display: table !important;\n}\n\n.d-table-row {\n  display: table-row !important;\n}\n\n.d-table-cell {\n  display: table-cell !important;\n}\n\n.d-flex {\n  display: flex !important;\n}\n\n.d-inline-flex {\n  display: inline-flex !important;\n}\n\n.d-none {\n  display: none !important;\n}\n\n.shadow {\n  box-shadow: 0 0.25rem 0.375rem -0.0625rem rgba(20, 20, 20, 0.12), 0 0.125rem 0.25rem -0.0625rem rgba(20, 20, 20, 0.07) !important;\n}\n\n.shadow-sm {\n  box-shadow: 0 0.3125rem 0.625rem 0 rgba(0, 0, 0, 0.12) !important;\n}\n\n.shadow-lg {\n  box-shadow: 0 8px 26px -4px rgba(20, 20, 20, 0.15), 0 8px 9px -5px rgba(20, 20, 20, 0.06) !important;\n}\n\n.shadow-xl {\n  box-shadow: 0 23px 45px -11px rgba(20, 20, 20, 0.25) !important;\n}\n\n.shadow-none {\n  box-shadow: none !important;\n}\n\n.position-static {\n  position: static !important;\n}\n\n.position-relative {\n  position: relative !important;\n}\n\n.position-absolute {\n  position: absolute !important;\n}\n\n.position-fixed {\n  position: fixed !important;\n}\n\n.position-sticky {\n  position: -webkit-sticky !important;\n  position: sticky !important;\n}\n\n.top-0 {\n  top: 0 !important;\n}\n\n.top-1 {\n  top: 1% !important;\n}\n\n.top-2 {\n  top: 2% !important;\n}\n\n.top-3 {\n  top: 3% !important;\n}\n\n.top-4 {\n  top: 4% !important;\n}\n\n.top-5 {\n  top: 5% !important;\n}\n\n.top-6 {\n  top: 6% !important;\n}\n\n.top-7 {\n  top: 7% !important;\n}\n\n.top-8 {\n  top: 8% !important;\n}\n\n.top-9 {\n  top: 9% !important;\n}\n\n.top-10 {\n  top: 10% !important;\n}\n\n.top-50 {\n  top: 50% !important;\n}\n\n.top-100 {\n  top: 100% !important;\n}\n\n.bottom-0 {\n  bottom: 0 !important;\n}\n\n.bottom-1 {\n  bottom: 1% !important;\n}\n\n.bottom-2 {\n  bottom: 2% !important;\n}\n\n.bottom-3 {\n  bottom: 3% !important;\n}\n\n.bottom-4 {\n  bottom: 4% !important;\n}\n\n.bottom-5 {\n  bottom: 5% !important;\n}\n\n.bottom-6 {\n  bottom: 6% !important;\n}\n\n.bottom-7 {\n  bottom: 7% !important;\n}\n\n.bottom-8 {\n  bottom: 8% !important;\n}\n\n.bottom-9 {\n  bottom: 9% !important;\n}\n\n.bottom-10 {\n  bottom: 10% !important;\n}\n\n.bottom-50 {\n  bottom: 50% !important;\n}\n\n.bottom-100 {\n  bottom: 100% !important;\n}\n\n.start-0 {\n  left: 0 !important;\n}\n\n.start-1 {\n  left: 1% !important;\n}\n\n.start-2 {\n  left: 2% !important;\n}\n\n.start-3 {\n  left: 3% !important;\n}\n\n.start-4 {\n  left: 4% !important;\n}\n\n.start-5 {\n  left: 5% !important;\n}\n\n.start-6 {\n  left: 6% !important;\n}\n\n.start-7 {\n  left: 7% !important;\n}\n\n.start-8 {\n  left: 8% !important;\n}\n\n.start-9 {\n  left: 9% !important;\n}\n\n.start-10 {\n  left: 10% !important;\n}\n\n.start-50 {\n  left: 50% !important;\n}\n\n.start-100 {\n  left: 100% !important;\n}\n\n.end-0 {\n  right: 0 !important;\n}\n\n.end-1 {\n  right: 1% !important;\n}\n\n.end-2 {\n  right: 2% !important;\n}\n\n.end-3 {\n  right: 3% !important;\n}\n\n.end-4 {\n  right: 4% !important;\n}\n\n.end-5 {\n  right: 5% !important;\n}\n\n.end-6 {\n  right: 6% !important;\n}\n\n.end-7 {\n  right: 7% !important;\n}\n\n.end-8 {\n  right: 8% !important;\n}\n\n.end-9 {\n  right: 9% !important;\n}\n\n.end-10 {\n  right: 10% !important;\n}\n\n.end-50 {\n  right: 50% !important;\n}\n\n.end-100 {\n  right: 100% !important;\n}\n\n.translate-middle {\n  transform: translate(-50%, -50%) !important;\n}\n\n.translate-middle-x {\n  transform: translateX(-50%) !important;\n}\n\n.translate-middle-y {\n  transform: translateY(-50%) !important;\n}\n\n.border {\n  border: 1px solid #dee2e6 !important;\n}\n\n.border-0 {\n  border: 0 !important;\n}\n\n.border-top {\n  border-top: 1px solid #dee2e6 !important;\n}\n\n.border-top-0 {\n  border-top: 0 !important;\n}\n\n.border-end {\n  border-right: 1px solid #dee2e6 !important;\n}\n\n.border-end-0 {\n  border-right: 0 !important;\n}\n\n.border-bottom {\n  border-bottom: 1px solid #dee2e6 !important;\n}\n\n.border-bottom-0 {\n  border-bottom: 0 !important;\n}\n\n.border-start {\n  border-left: 1px solid #dee2e6 !important;\n}\n\n.border-start-0 {\n  border-left: 0 !important;\n}\n\n.border-primary {\n  border-color: #cb0c9f !important;\n}\n\n.border-secondary {\n  border-color: #8392AB !important;\n}\n\n.border-success {\n  border-color: #82d616 !important;\n}\n\n.border-info {\n  border-color: #17c1e8 !important;\n}\n\n.border-warning {\n  border-color: #fbcf33 !important;\n}\n\n.border-danger {\n  border-color: #ea0606 !important;\n}\n\n.border-light {\n  border-color: #e9ecef !important;\n}\n\n.border-dark {\n  border-color: #344767 !important;\n}\n\n.border-white {\n  border-color: #fff !important;\n}\n\n.border-0 {\n  border-width: 0 !important;\n}\n\n.border-1 {\n  border-width: 1px !important;\n}\n\n.border-2 {\n  border-width: 2px !important;\n}\n\n.border-3 {\n  border-width: 3px !important;\n}\n\n.border-4 {\n  border-width: 4px !important;\n}\n\n.border-5 {\n  border-width: 5px !important;\n}\n\n.w-0 {\n  width: 0% !important;\n}\n\n.w-1 {\n  width: 1% !important;\n}\n\n.w-2 {\n  width: 2% !important;\n}\n\n.w-3 {\n  width: 3% !important;\n}\n\n.w-4 {\n  width: 4% !important;\n}\n\n.w-5 {\n  width: 5% !important;\n}\n\n.w-6 {\n  width: 6% !important;\n}\n\n.w-7 {\n  width: 7% !important;\n}\n\n.w-8 {\n  width: 8% !important;\n}\n\n.w-9 {\n  width: 9% !important;\n}\n\n.w-10 {\n  width: 10% !important;\n}\n\n.w-15 {\n  width: 15% !important;\n}\n\n.w-20 {\n  width: 20% !important;\n}\n\n.w-25 {\n  width: 25% !important;\n}\n\n.w-30 {\n  width: 30% !important;\n}\n\n.w-35 {\n  width: 35% !important;\n}\n\n.w-40 {\n  width: 40% !important;\n}\n\n.w-45 {\n  width: 45% !important;\n}\n\n.w-50 {\n  width: 50% !important;\n}\n\n.w-55 {\n  width: 55% !important;\n}\n\n.w-60 {\n  width: 60% !important;\n}\n\n.w-65 {\n  width: 65% !important;\n}\n\n.w-70 {\n  width: 70% !important;\n}\n\n.w-75 {\n  width: 75% !important;\n}\n\n.w-80 {\n  width: 80% !important;\n}\n\n.w-85 {\n  width: 85% !important;\n}\n\n.w-90 {\n  width: 90% !important;\n}\n\n.w-95 {\n  width: 95% !important;\n}\n\n.w-100 {\n  width: 100% !important;\n}\n\n.w-auto {\n  width: auto !important;\n}\n\n.mw-100 {\n  max-width: 100% !important;\n}\n\n.vw-100 {\n  width: 100vw !important;\n}\n\n.min-vw-100 {\n  min-width: 100vw !important;\n}\n\n.h-25 {\n  height: 25% !important;\n}\n\n.h-50 {\n  height: 50% !important;\n}\n\n.h-75 {\n  height: 75% !important;\n}\n\n.h-100 {\n  height: 100% !important;\n}\n\n.h-auto {\n  height: auto !important;\n}\n\n.mh-100 {\n  max-height: 100% !important;\n}\n\n.vh-100 {\n  height: 100vh !important;\n}\n\n.min-vh-25 {\n  min-height: 25vh !important;\n}\n\n.min-vh-50 {\n  min-height: 50vh !important;\n}\n\n.min-vh-75 {\n  min-height: 75vh !important;\n}\n\n.min-vh-85 {\n  min-height: 85vh !important;\n}\n\n.min-vh-100 {\n  min-height: 100vh !important;\n}\n\n.flex-fill {\n  flex: 1 1 auto !important;\n}\n\n.flex-row {\n  flex-direction: row !important;\n}\n\n.flex-column {\n  flex-direction: column !important;\n}\n\n.flex-row-reverse {\n  flex-direction: row-reverse !important;\n}\n\n.flex-column-reverse {\n  flex-direction: column-reverse !important;\n}\n\n.flex-grow-0 {\n  flex-grow: 0 !important;\n}\n\n.flex-grow-1 {\n  flex-grow: 1 !important;\n}\n\n.flex-shrink-0 {\n  flex-shrink: 0 !important;\n}\n\n.flex-shrink-1 {\n  flex-shrink: 1 !important;\n}\n\n.flex-wrap {\n  flex-wrap: wrap !important;\n}\n\n.flex-nowrap {\n  flex-wrap: nowrap !important;\n}\n\n.flex-wrap-reverse {\n  flex-wrap: wrap-reverse !important;\n}\n\n.gap-0 {\n  gap: 0 !important;\n}\n\n.gap-1 {\n  gap: 0.25rem !important;\n}\n\n.gap-2 {\n  gap: 0.5rem !important;\n}\n\n.gap-3 {\n  gap: 1rem !important;\n}\n\n.gap-4 {\n  gap: 1.5rem !important;\n}\n\n.gap-5 {\n  gap: 3rem !important;\n}\n\n.gap-6 {\n  gap: 4rem !important;\n}\n\n.gap-7 {\n  gap: 6rem !important;\n}\n\n.gap-8 {\n  gap: 8rem !important;\n}\n\n.gap-9 {\n  gap: 10rem !important;\n}\n\n.gap-10 {\n  gap: 12rem !important;\n}\n\n.gap-11 {\n  gap: 14rem !important;\n}\n\n.gap-12 {\n  gap: 16rem !important;\n}\n\n.justify-content-start {\n  justify-content: flex-start !important;\n}\n\n.justify-content-end {\n  justify-content: flex-end !important;\n}\n\n.justify-content-center {\n  justify-content: center !important;\n}\n\n.justify-content-between {\n  justify-content: space-between !important;\n}\n\n.justify-content-around {\n  justify-content: space-around !important;\n}\n\n.justify-content-evenly {\n  justify-content: space-evenly !important;\n}\n\n.align-items-start {\n  align-items: flex-start !important;\n}\n\n.align-items-end {\n  align-items: flex-end !important;\n}\n\n.align-items-center {\n  align-items: center !important;\n}\n\n.align-items-baseline {\n  align-items: baseline !important;\n}\n\n.align-items-stretch {\n  align-items: stretch !important;\n}\n\n.align-content-start {\n  align-content: flex-start !important;\n}\n\n.align-content-end {\n  align-content: flex-end !important;\n}\n\n.align-content-center {\n  align-content: center !important;\n}\n\n.align-content-between {\n  align-content: space-between !important;\n}\n\n.align-content-around {\n  align-content: space-around !important;\n}\n\n.align-content-stretch {\n  align-content: stretch !important;\n}\n\n.align-self-auto {\n  align-self: auto !important;\n}\n\n.align-self-start {\n  align-self: flex-start !important;\n}\n\n.align-self-end {\n  align-self: flex-end !important;\n}\n\n.align-self-center {\n  align-self: center !important;\n}\n\n.align-self-baseline {\n  align-self: baseline !important;\n}\n\n.align-self-stretch {\n  align-self: stretch !important;\n}\n\n.order-first {\n  order: -1 !important;\n}\n\n.order-0 {\n  order: 0 !important;\n}\n\n.order-1 {\n  order: 1 !important;\n}\n\n.order-2 {\n  order: 2 !important;\n}\n\n.order-3 {\n  order: 3 !important;\n}\n\n.order-4 {\n  order: 4 !important;\n}\n\n.order-5 {\n  order: 5 !important;\n}\n\n.order-last {\n  order: 6 !important;\n}\n\n.m-0 {\n  margin: 0 !important;\n}\n\n.m-1 {\n  margin: 0.25rem !important;\n}\n\n.m-2 {\n  margin: 0.5rem !important;\n}\n\n.m-3 {\n  margin: 1rem !important;\n}\n\n.m-4 {\n  margin: 1.5rem !important;\n}\n\n.m-5 {\n  margin: 3rem !important;\n}\n\n.m-6 {\n  margin: 4rem !important;\n}\n\n.m-7 {\n  margin: 6rem !important;\n}\n\n.m-8 {\n  margin: 8rem !important;\n}\n\n.m-9 {\n  margin: 10rem !important;\n}\n\n.m-10 {\n  margin: 12rem !important;\n}\n\n.m-11 {\n  margin: 14rem !important;\n}\n\n.m-12 {\n  margin: 16rem !important;\n}\n\n.m-auto {\n  margin: auto !important;\n}\n\n.mx-0 {\n  margin-right: 0 !important;\n  margin-left: 0 !important;\n}\n\n.mx-1 {\n  margin-right: 0.25rem !important;\n  margin-left: 0.25rem !important;\n}\n\n.mx-2 {\n  margin-right: 0.5rem !important;\n  margin-left: 0.5rem !important;\n}\n\n.mx-3 {\n  margin-right: 1rem !important;\n  margin-left: 1rem !important;\n}\n\n.mx-4 {\n  margin-right: 1.5rem !important;\n  margin-left: 1.5rem !important;\n}\n\n.mx-5 {\n  margin-right: 3rem !important;\n  margin-left: 3rem !important;\n}\n\n.mx-6 {\n  margin-right: 4rem !important;\n  margin-left: 4rem !important;\n}\n\n.mx-7 {\n  margin-right: 6rem !important;\n  margin-left: 6rem !important;\n}\n\n.mx-8 {\n  margin-right: 8rem !important;\n  margin-left: 8rem !important;\n}\n\n.mx-9 {\n  margin-right: 10rem !important;\n  margin-left: 10rem !important;\n}\n\n.mx-10 {\n  margin-right: 12rem !important;\n  margin-left: 12rem !important;\n}\n\n.mx-11 {\n  margin-right: 14rem !important;\n  margin-left: 14rem !important;\n}\n\n.mx-12 {\n  margin-right: 16rem !important;\n  margin-left: 16rem !important;\n}\n\n.mx-auto {\n  margin-right: auto !important;\n  margin-left: auto !important;\n}\n\n.my-0 {\n  margin-top: 0 !important;\n  margin-bottom: 0 !important;\n}\n\n.my-1 {\n  margin-top: 0.25rem !important;\n  margin-bottom: 0.25rem !important;\n}\n\n.my-2 {\n  margin-top: 0.5rem !important;\n  margin-bottom: 0.5rem !important;\n}\n\n.my-3 {\n  margin-top: 1rem !important;\n  margin-bottom: 1rem !important;\n}\n\n.my-4 {\n  margin-top: 1.5rem !important;\n  margin-bottom: 1.5rem !important;\n}\n\n.my-5 {\n  margin-top: 3rem !important;\n  margin-bottom: 3rem !important;\n}\n\n.my-6 {\n  margin-top: 4rem !important;\n  margin-bottom: 4rem !important;\n}\n\n.my-7 {\n  margin-top: 6rem !important;\n  margin-bottom: 6rem !important;\n}\n\n.my-8 {\n  margin-top: 8rem !important;\n  margin-bottom: 8rem !important;\n}\n\n.my-9 {\n  margin-top: 10rem !important;\n  margin-bottom: 10rem !important;\n}\n\n.my-10 {\n  margin-top: 12rem !important;\n  margin-bottom: 12rem !important;\n}\n\n.my-11 {\n  margin-top: 14rem !important;\n  margin-bottom: 14rem !important;\n}\n\n.my-12 {\n  margin-top: 16rem !important;\n  margin-bottom: 16rem !important;\n}\n\n.my-auto {\n  margin-top: auto !important;\n  margin-bottom: auto !important;\n}\n\n.mt-0 {\n  margin-top: 0 !important;\n}\n\n.mt-1 {\n  margin-top: 0.25rem !important;\n}\n\n.mt-2 {\n  margin-top: 0.5rem !important;\n}\n\n.mt-3 {\n  margin-top: 1rem !important;\n}\n\n.mt-4 {\n  margin-top: 1.5rem !important;\n}\n\n.mt-5 {\n  margin-top: 3rem !important;\n}\n\n.mt-6 {\n  margin-top: 4rem !important;\n}\n\n.mt-7 {\n  margin-top: 6rem !important;\n}\n\n.mt-8 {\n  margin-top: 8rem !important;\n}\n\n.mt-9 {\n  margin-top: 10rem !important;\n}\n\n.mt-10 {\n  margin-top: 12rem !important;\n}\n\n.mt-11 {\n  margin-top: 14rem !important;\n}\n\n.mt-12 {\n  margin-top: 16rem !important;\n}\n\n.mt-auto {\n  margin-top: auto !important;\n}\n\n.me-0 {\n  margin-right: 0 !important;\n}\n\n.me-1 {\n  margin-right: 0.25rem !important;\n}\n\n.me-2 {\n  margin-right: 0.5rem !important;\n}\n\n.me-3 {\n  margin-right: 1rem !important;\n}\n\n.me-4 {\n  margin-right: 1.5rem !important;\n}\n\n.me-5 {\n  margin-right: 3rem !important;\n}\n\n.me-6 {\n  margin-right: 4rem !important;\n}\n\n.me-7 {\n  margin-right: 6rem !important;\n}\n\n.me-8 {\n  margin-right: 8rem !important;\n}\n\n.me-9 {\n  margin-right: 10rem !important;\n}\n\n.me-10 {\n  margin-right: 12rem !important;\n}\n\n.me-11 {\n  margin-right: 14rem !important;\n}\n\n.me-12 {\n  margin-right: 16rem !important;\n}\n\n.me-auto {\n  margin-right: auto !important;\n}\n\n.mb-0 {\n  margin-bottom: 0 !important;\n}\n\n.mb-1 {\n  margin-bottom: 0.25rem !important;\n}\n\n.mb-2 {\n  margin-bottom: 0.5rem !important;\n}\n\n.mb-3 {\n  margin-bottom: 1rem !important;\n}\n\n.mb-4 {\n  margin-bottom: 1.5rem !important;\n}\n\n.mb-5 {\n  margin-bottom: 3rem !important;\n}\n\n.mb-6 {\n  margin-bottom: 4rem !important;\n}\n\n.mb-7 {\n  margin-bottom: 6rem !important;\n}\n\n.mb-8 {\n  margin-bottom: 8rem !important;\n}\n\n.mb-9 {\n  margin-bottom: 10rem !important;\n}\n\n.mb-10 {\n  margin-bottom: 12rem !important;\n}\n\n.mb-11 {\n  margin-bottom: 14rem !important;\n}\n\n.mb-12 {\n  margin-bottom: 16rem !important;\n}\n\n.mb-auto {\n  margin-bottom: auto !important;\n}\n\n.ms-0 {\n  margin-left: 0 !important;\n}\n\n.ms-1 {\n  margin-left: 0.25rem !important;\n}\n\n.ms-2 {\n  margin-left: 0.5rem !important;\n}\n\n.ms-3 {\n  margin-left: 1rem !important;\n}\n\n.ms-4 {\n  margin-left: 1.5rem !important;\n}\n\n.ms-5 {\n  margin-left: 3rem !important;\n}\n\n.ms-6 {\n  margin-left: 4rem !important;\n}\n\n.ms-7 {\n  margin-left: 6rem !important;\n}\n\n.ms-8 {\n  margin-left: 8rem !important;\n}\n\n.ms-9 {\n  margin-left: 10rem !important;\n}\n\n.ms-10 {\n  margin-left: 12rem !important;\n}\n\n.ms-11 {\n  margin-left: 14rem !important;\n}\n\n.ms-12 {\n  margin-left: 16rem !important;\n}\n\n.ms-auto {\n  margin-left: auto !important;\n}\n\n.m-n1 {\n  margin: -0.25rem !important;\n}\n\n.m-n2 {\n  margin: -0.5rem !important;\n}\n\n.m-n3 {\n  margin: -1rem !important;\n}\n\n.m-n4 {\n  margin: -1.5rem !important;\n}\n\n.m-n5 {\n  margin: -3rem !important;\n}\n\n.m-n6 {\n  margin: -4rem !important;\n}\n\n.m-n7 {\n  margin: -6rem !important;\n}\n\n.m-n8 {\n  margin: -8rem !important;\n}\n\n.m-n9 {\n  margin: -10rem !important;\n}\n\n.m-n10 {\n  margin: -12rem !important;\n}\n\n.m-n11 {\n  margin: -14rem !important;\n}\n\n.m-n12 {\n  margin: -16rem !important;\n}\n\n.mx-n1 {\n  margin-right: -0.25rem !important;\n  margin-left: -0.25rem !important;\n}\n\n.mx-n2 {\n  margin-right: -0.5rem !important;\n  margin-left: -0.5rem !important;\n}\n\n.mx-n3 {\n  margin-right: -1rem !important;\n  margin-left: -1rem !important;\n}\n\n.mx-n4 {\n  margin-right: -1.5rem !important;\n  margin-left: -1.5rem !important;\n}\n\n.mx-n5 {\n  margin-right: -3rem !important;\n  margin-left: -3rem !important;\n}\n\n.mx-n6 {\n  margin-right: -4rem !important;\n  margin-left: -4rem !important;\n}\n\n.mx-n7 {\n  margin-right: -6rem !important;\n  margin-left: -6rem !important;\n}\n\n.mx-n8 {\n  margin-right: -8rem !important;\n  margin-left: -8rem !important;\n}\n\n.mx-n9 {\n  margin-right: -10rem !important;\n  margin-left: -10rem !important;\n}\n\n.mx-n10 {\n  margin-right: -12rem !important;\n  margin-left: -12rem !important;\n}\n\n.mx-n11 {\n  margin-right: -14rem !important;\n  margin-left: -14rem !important;\n}\n\n.mx-n12 {\n  margin-right: -16rem !important;\n  margin-left: -16rem !important;\n}\n\n.my-n1 {\n  margin-top: -0.25rem !important;\n  margin-bottom: -0.25rem !important;\n}\n\n.my-n2 {\n  margin-top: -0.5rem !important;\n  margin-bottom: -0.5rem !important;\n}\n\n.my-n3 {\n  margin-top: -1rem !important;\n  margin-bottom: -1rem !important;\n}\n\n.my-n4 {\n  margin-top: -1.5rem !important;\n  margin-bottom: -1.5rem !important;\n}\n\n.my-n5 {\n  margin-top: -3rem !important;\n  margin-bottom: -3rem !important;\n}\n\n.my-n6 {\n  margin-top: -4rem !important;\n  margin-bottom: -4rem !important;\n}\n\n.my-n7 {\n  margin-top: -6rem !important;\n  margin-bottom: -6rem !important;\n}\n\n.my-n8 {\n  margin-top: -8rem !important;\n  margin-bottom: -8rem !important;\n}\n\n.my-n9 {\n  margin-top: -10rem !important;\n  margin-bottom: -10rem !important;\n}\n\n.my-n10 {\n  margin-top: -12rem !important;\n  margin-bottom: -12rem !important;\n}\n\n.my-n11 {\n  margin-top: -14rem !important;\n  margin-bottom: -14rem !important;\n}\n\n.my-n12 {\n  margin-top: -16rem !important;\n  margin-bottom: -16rem !important;\n}\n\n.mt-n1 {\n  margin-top: -0.25rem !important;\n}\n\n.mt-n2 {\n  margin-top: -0.5rem !important;\n}\n\n.mt-n3 {\n  margin-top: -1rem !important;\n}\n\n.mt-n4 {\n  margin-top: -1.5rem !important;\n}\n\n.mt-n5 {\n  margin-top: -3rem !important;\n}\n\n.mt-n6 {\n  margin-top: -4rem !important;\n}\n\n.mt-n7 {\n  margin-top: -6rem !important;\n}\n\n.mt-n8 {\n  margin-top: -8rem !important;\n}\n\n.mt-n9 {\n  margin-top: -10rem !important;\n}\n\n.mt-n10 {\n  margin-top: -12rem !important;\n}\n\n.mt-n11 {\n  margin-top: -14rem !important;\n}\n\n.mt-n12 {\n  margin-top: -16rem !important;\n}\n\n.me-n1 {\n  margin-right: -0.25rem !important;\n}\n\n.me-n2 {\n  margin-right: -0.5rem !important;\n}\n\n.me-n3 {\n  margin-right: -1rem !important;\n}\n\n.me-n4 {\n  margin-right: -1.5rem !important;\n}\n\n.me-n5 {\n  margin-right: -3rem !important;\n}\n\n.me-n6 {\n  margin-right: -4rem !important;\n}\n\n.me-n7 {\n  margin-right: -6rem !important;\n}\n\n.me-n8 {\n  margin-right: -8rem !important;\n}\n\n.me-n9 {\n  margin-right: -10rem !important;\n}\n\n.me-n10 {\n  margin-right: -12rem !important;\n}\n\n.me-n11 {\n  margin-right: -14rem !important;\n}\n\n.me-n12 {\n  margin-right: -16rem !important;\n}\n\n.mb-n1 {\n  margin-bottom: -0.25rem !important;\n}\n\n.mb-n2 {\n  margin-bottom: -0.5rem !important;\n}\n\n.mb-n3 {\n  margin-bottom: -1rem !important;\n}\n\n.mb-n4 {\n  margin-bottom: -1.5rem !important;\n}\n\n.mb-n5 {\n  margin-bottom: -3rem !important;\n}\n\n.mb-n6 {\n  margin-bottom: -4rem !important;\n}\n\n.mb-n7 {\n  margin-bottom: -6rem !important;\n}\n\n.mb-n8 {\n  margin-bottom: -8rem !important;\n}\n\n.mb-n9 {\n  margin-bottom: -10rem !important;\n}\n\n.mb-n10 {\n  margin-bottom: -12rem !important;\n}\n\n.mb-n11 {\n  margin-bottom: -14rem !important;\n}\n\n.mb-n12 {\n  margin-bottom: -16rem !important;\n}\n\n.ms-n1 {\n  margin-left: -0.25rem !important;\n}\n\n.ms-n2 {\n  margin-left: -0.5rem !important;\n}\n\n.ms-n3 {\n  margin-left: -1rem !important;\n}\n\n.ms-n4 {\n  margin-left: -1.5rem !important;\n}\n\n.ms-n5 {\n  margin-left: -3rem !important;\n}\n\n.ms-n6 {\n  margin-left: -4rem !important;\n}\n\n.ms-n7 {\n  margin-left: -6rem !important;\n}\n\n.ms-n8 {\n  margin-left: -8rem !important;\n}\n\n.ms-n9 {\n  margin-left: -10rem !important;\n}\n\n.ms-n10 {\n  margin-left: -12rem !important;\n}\n\n.ms-n11 {\n  margin-left: -14rem !important;\n}\n\n.ms-n12 {\n  margin-left: -16rem !important;\n}\n\n.p-0 {\n  padding: 0 !important;\n}\n\n.p-1 {\n  padding: 0.25rem !important;\n}\n\n.p-2 {\n  padding: 0.5rem !important;\n}\n\n.p-3 {\n  padding: 1rem !important;\n}\n\n.p-4 {\n  padding: 1.5rem !important;\n}\n\n.p-5 {\n  padding: 3rem !important;\n}\n\n.p-6 {\n  padding: 4rem !important;\n}\n\n.p-7 {\n  padding: 6rem !important;\n}\n\n.p-8 {\n  padding: 8rem !important;\n}\n\n.p-9 {\n  padding: 10rem !important;\n}\n\n.p-10 {\n  padding: 12rem !important;\n}\n\n.p-11 {\n  padding: 14rem !important;\n}\n\n.p-12 {\n  padding: 16rem !important;\n}\n\n.px-0 {\n  padding-right: 0 !important;\n  padding-left: 0 !important;\n}\n\n.px-1 {\n  padding-right: 0.25rem !important;\n  padding-left: 0.25rem !important;\n}\n\n.px-2 {\n  padding-right: 0.5rem !important;\n  padding-left: 0.5rem !important;\n}\n\n.px-3 {\n  padding-right: 1rem !important;\n  padding-left: 1rem !important;\n}\n\n.px-4 {\n  padding-right: 1.5rem !important;\n  padding-left: 1.5rem !important;\n}\n\n.px-5 {\n  padding-right: 3rem !important;\n  padding-left: 3rem !important;\n}\n\n.px-6 {\n  padding-right: 4rem !important;\n  padding-left: 4rem !important;\n}\n\n.px-7 {\n  padding-right: 6rem !important;\n  padding-left: 6rem !important;\n}\n\n.px-8 {\n  padding-right: 8rem !important;\n  padding-left: 8rem !important;\n}\n\n.px-9 {\n  padding-right: 10rem !important;\n  padding-left: 10rem !important;\n}\n\n.px-10 {\n  padding-right: 12rem !important;\n  padding-left: 12rem !important;\n}\n\n.px-11 {\n  padding-right: 14rem !important;\n  padding-left: 14rem !important;\n}\n\n.px-12 {\n  padding-right: 16rem !important;\n  padding-left: 16rem !important;\n}\n\n.py-0 {\n  padding-top: 0 !important;\n  padding-bottom: 0 !important;\n}\n\n.py-1 {\n  padding-top: 0.25rem !important;\n  padding-bottom: 0.25rem !important;\n}\n\n.py-2 {\n  padding-top: 0.5rem !important;\n  padding-bottom: 0.5rem !important;\n}\n\n.py-3 {\n  padding-top: 1rem !important;\n  padding-bottom: 1rem !important;\n}\n\n.py-4 {\n  padding-top: 1.5rem !important;\n  padding-bottom: 1.5rem !important;\n}\n\n.py-5 {\n  padding-top: 3rem !important;\n  padding-bottom: 3rem !important;\n}\n\n.py-6 {\n  padding-top: 4rem !important;\n  padding-bottom: 4rem !important;\n}\n\n.py-7 {\n  padding-top: 6rem !important;\n  padding-bottom: 6rem !important;\n}\n\n.py-8 {\n  padding-top: 8rem !important;\n  padding-bottom: 8rem !important;\n}\n\n.py-9 {\n  padding-top: 10rem !important;\n  padding-bottom: 10rem !important;\n}\n\n.py-10 {\n  padding-top: 12rem !important;\n  padding-bottom: 12rem !important;\n}\n\n.py-11 {\n  padding-top: 14rem !important;\n  padding-bottom: 14rem !important;\n}\n\n.py-12 {\n  padding-top: 16rem !important;\n  padding-bottom: 16rem !important;\n}\n\n.pt-0 {\n  padding-top: 0 !important;\n}\n\n.pt-1 {\n  padding-top: 0.25rem !important;\n}\n\n.pt-2 {\n  padding-top: 0.5rem !important;\n}\n\n.pt-3 {\n  padding-top: 1rem !important;\n}\n\n.pt-4 {\n  padding-top: 1.5rem !important;\n}\n\n.pt-5 {\n  padding-top: 3rem !important;\n}\n\n.pt-6 {\n  padding-top: 4rem !important;\n}\n\n.pt-7 {\n  padding-top: 6rem !important;\n}\n\n.pt-8 {\n  padding-top: 8rem !important;\n}\n\n.pt-9 {\n  padding-top: 10rem !important;\n}\n\n.pt-10 {\n  padding-top: 12rem !important;\n}\n\n.pt-11 {\n  padding-top: 14rem !important;\n}\n\n.pt-12 {\n  padding-top: 16rem !important;\n}\n\n.pe-0 {\n  padding-right: 0 !important;\n}\n\n.pe-1 {\n  padding-right: 0.25rem !important;\n}\n\n.pe-2 {\n  padding-right: 0.5rem !important;\n}\n\n.pe-3 {\n  padding-right: 1rem !important;\n}\n\n.pe-4 {\n  padding-right: 1.5rem !important;\n}\n\n.pe-5 {\n  padding-right: 3rem !important;\n}\n\n.pe-6 {\n  padding-right: 4rem !important;\n}\n\n.pe-7 {\n  padding-right: 6rem !important;\n}\n\n.pe-8 {\n  padding-right: 8rem !important;\n}\n\n.pe-9 {\n  padding-right: 10rem !important;\n}\n\n.pe-10 {\n  padding-right: 12rem !important;\n}\n\n.pe-11 {\n  padding-right: 14rem !important;\n}\n\n.pe-12 {\n  padding-right: 16rem !important;\n}\n\n.pb-0 {\n  padding-bottom: 0 !important;\n}\n\n.pb-1 {\n  padding-bottom: 0.25rem !important;\n}\n\n.pb-2 {\n  padding-bottom: 0.5rem !important;\n}\n\n.pb-3 {\n  padding-bottom: 1rem !important;\n}\n\n.pb-4 {\n  padding-bottom: 1.5rem !important;\n}\n\n.pb-5 {\n  padding-bottom: 3rem !important;\n}\n\n.pb-6 {\n  padding-bottom: 4rem !important;\n}\n\n.pb-7 {\n  padding-bottom: 6rem !important;\n}\n\n.pb-8 {\n  padding-bottom: 8rem !important;\n}\n\n.pb-9 {\n  padding-bottom: 10rem !important;\n}\n\n.pb-10 {\n  padding-bottom: 12rem !important;\n}\n\n.pb-11 {\n  padding-bottom: 14rem !important;\n}\n\n.pb-12 {\n  padding-bottom: 16rem !important;\n}\n\n.ps-0 {\n  padding-left: 0 !important;\n}\n\n.ps-1 {\n  padding-left: 0.25rem !important;\n}\n\n.ps-2 {\n  padding-left: 0.5rem !important;\n}\n\n.ps-3 {\n  padding-left: 1rem !important;\n}\n\n.ps-4 {\n  padding-left: 1.5rem !important;\n}\n\n.ps-5 {\n  padding-left: 3rem !important;\n}\n\n.ps-6 {\n  padding-left: 4rem !important;\n}\n\n.ps-7 {\n  padding-left: 6rem !important;\n}\n\n.ps-8 {\n  padding-left: 8rem !important;\n}\n\n.ps-9 {\n  padding-left: 10rem !important;\n}\n\n.ps-10 {\n  padding-left: 12rem !important;\n}\n\n.ps-11 {\n  padding-left: 14rem !important;\n}\n\n.ps-12 {\n  padding-left: 16rem !important;\n}\n\n.font-monospace {\n  font-family: var(--bs-font-monospace) !important;\n}\n\n.fs-1 {\n  font-size: calc(1.425rem + 2.1vw) !important;\n}\n\n.fs-2 {\n  font-size: calc(1.35rem + 1.2vw) !important;\n}\n\n.fs-3 {\n  font-size: calc(1.3125rem + 0.75vw) !important;\n}\n\n.fs-4 {\n  font-size: calc(1.275rem + 0.3vw) !important;\n}\n\n.fs-5 {\n  font-size: 1.25rem !important;\n}\n\n.fs-6 {\n  font-size: 1rem !important;\n}\n\n.fst-italic {\n  font-style: italic !important;\n}\n\n.fst-normal {\n  font-style: normal !important;\n}\n\n.fw-light {\n  font-weight: 300 !important;\n}\n\n.fw-lighter {\n  font-weight: lighter !important;\n}\n\n.fw-normal {\n  font-weight: 400 !important;\n}\n\n.fw-bold {\n  font-weight: 600 !important;\n}\n\n.fw-bolder {\n  font-weight: 700 !important;\n}\n\n.lh-1 {\n  line-height: 1 !important;\n}\n\n.lh-sm {\n  line-height: 1.25 !important;\n}\n\n.lh-base {\n  line-height: 1.5 !important;\n}\n\n.lh-lg {\n  line-height: 2 !important;\n}\n\n.text-start {\n  text-align: left !important;\n}\n\n.text-end {\n  text-align: right !important;\n}\n\n.text-center {\n  text-align: center !important;\n}\n\n.text-decoration-none {\n  text-decoration: none !important;\n}\n\n.text-decoration-underline {\n  text-decoration: underline !important;\n}\n\n.text-decoration-line-through {\n  text-decoration: line-through !important;\n}\n\n.text-lowercase {\n  text-transform: lowercase !important;\n}\n\n.text-uppercase {\n  text-transform: uppercase !important;\n}\n\n.text-capitalize {\n  text-transform: capitalize !important;\n}\n\n.text-wrap {\n  white-space: normal !important;\n}\n\n.text-nowrap {\n  white-space: nowrap !important;\n}\n\n/* rtl:begin:remove */\n.text-break {\n  word-wrap: break-word !important;\n  word-break: break-word !important;\n}\n\n/* rtl:end:remove */\n.text-primary {\n  color: #cb0c9f !important;\n}\n\n.text-secondary {\n  color: #8392AB !important;\n}\n\n.text-success {\n  color: #82d616 !important;\n}\n\n.text-info {\n  color: #17c1e8 !important;\n}\n\n.text-warning {\n  color: #fbcf33 !important;\n}\n\n.text-danger {\n  color: #ea0606 !important;\n}\n\n.text-light {\n  color: #e9ecef !important;\n}\n\n.text-dark {\n  color: #344767 !important;\n}\n\n.text-white {\n  color: #fff !important;\n}\n\n.text-body {\n  color: #67748e !important;\n}\n\n.text-muted {\n  color: #6c757d !important;\n}\n\n.text-black-50 {\n  color: rgba(0, 0, 0, 0.5) !important;\n}\n\n.text-white-50 {\n  color: rgba(255, 255, 255, 0.5) !important;\n}\n\n.text-reset {\n  color: inherit !important;\n}\n\n.bg-primary {\n  background-color: #cb0c9f !important;\n}\n\n.bg-secondary {\n  background-color: #8392AB !important;\n}\n\n.bg-success {\n  background-color: #82d616 !important;\n}\n\n.bg-info {\n  background-color: #17c1e8 !important;\n}\n\n.bg-warning {\n  background-color: #fbcf33 !important;\n}\n\n.bg-danger {\n  background-color: #ea0606 !important;\n}\n\n.bg-light {\n  background-color: #e9ecef !important;\n}\n\n.bg-dark {\n  background-color: #344767 !important;\n}\n\n.bg-white {\n  background-color: #fff !important;\n}\n\n.bg-body {\n  background-color: #fff !important;\n}\n\n.bg-transparent {\n  background-color: transparent !important;\n}\n\n.bg-gray-100 {\n  background-color: #f8f9fa !important;\n}\n\n.bg-gray-200 {\n  background-color: #e9ecef !important;\n}\n\n.bg-gray-300 {\n  background-color: #dee2e6 !important;\n}\n\n.bg-gray-400 {\n  background-color: #ced4da !important;\n}\n\n.bg-gray-500 {\n  background-color: #adb5bd !important;\n}\n\n.bg-gray-600 {\n  background-color: #6c757d !important;\n}\n\n.bg-gray-700 {\n  background-color: #495057 !important;\n}\n\n.bg-gray-800 {\n  background-color: #343a40 !important;\n}\n\n.bg-gray-900 {\n  background-color: #212529 !important;\n}\n\n.bg-gradient {\n  background-image: var(--bs-gradient) !important;\n}\n\n.user-select-all {\n  -webkit-user-select: all !important;\n     -moz-user-select: all !important;\n          user-select: all !important;\n}\n\n.user-select-auto {\n  -webkit-user-select: auto !important;\n     -moz-user-select: auto !important;\n      -ms-user-select: auto !important;\n          user-select: auto !important;\n}\n\n.user-select-none {\n  -webkit-user-select: none !important;\n     -moz-user-select: none !important;\n      -ms-user-select: none !important;\n          user-select: none !important;\n}\n\n.pe-none {\n  pointer-events: none !important;\n}\n\n.pe-auto {\n  pointer-events: auto !important;\n}\n\n.rounded {\n  border-radius: 0.25rem !important;\n}\n\n.rounded-0 {\n  border-radius: 0 !important;\n}\n\n.rounded-1 {\n  border-radius: 0.25rem !important;\n}\n\n.rounded-2 {\n  border-radius: 0.25rem !important;\n}\n\n.rounded-3 {\n  border-radius: 0.75rem !important;\n}\n\n.rounded-circle,\n.avatar.rounded-circle img {\n  border-radius: 50% !important;\n}\n\n.rounded-pill {\n  border-radius: 50rem !important;\n}\n\n.rounded-top {\n  border-top-left-radius: 0.25rem !important;\n  border-top-right-radius: 0.25rem !important;\n}\n\n.rounded-end {\n  border-top-right-radius: 0.25rem !important;\n  border-bottom-right-radius: 0.25rem !important;\n}\n\n.rounded-bottom {\n  border-bottom-right-radius: 0.25rem !important;\n  border-bottom-left-radius: 0.25rem !important;\n}\n\n.rounded-start {\n  border-bottom-left-radius: 0.25rem !important;\n  border-top-left-radius: 0.25rem !important;\n}\n\n.visible {\n  visibility: visible !important;\n}\n\n.invisible {\n  visibility: hidden !important;\n}\n\n.transform-scale-5 {\n  transform: scale(0.5) !important;\n}\n\n.transform-scale-6 {\n  transform: scale(0.6) !important;\n}\n\n.transform-scale-7 {\n  transform: scale(0.7) !important;\n}\n\n.transform-scale-8 {\n  transform: scale(0.8) !important;\n}\n\n.transform-scale-9 {\n  transform: scale(0.9) !important;\n}\n\n.transform-scale-10 {\n  transform: scale(1) !important;\n}\n\n.opacity-0 {\n  opacity: 0 !important;\n}\n\n.opacity-1 {\n  opacity: 0.1 !important;\n}\n\n.opacity-2 {\n  opacity: 0.2 !important;\n}\n\n.opacity-3 {\n  opacity: 0.3 !important;\n}\n\n.opacity-4 {\n  opacity: 0.4 !important;\n}\n\n.opacity-5 {\n  opacity: 0.5 !important;\n}\n\n.opacity-6 {\n  opacity: 0.6 !important;\n}\n\n.opacity-7 {\n  opacity: 0.7 !important;\n}\n\n.opacity-8 {\n  opacity: 0.8 !important;\n}\n\n.opacity-9 {\n  opacity: 0.9 !important;\n}\n\n.opacity-10 {\n  opacity: 1 !important;\n}\n\n.z-index-0 {\n  z-index: 0 !important;\n}\n\n.z-index-1 {\n  z-index: 1 !important;\n}\n\n.z-index-2 {\n  z-index: 2 !important;\n}\n\n.z-index-3 {\n  z-index: 3 !important;\n}\n\n.letter-spacing-1 {\n  letter-spacing: 1px !important;\n}\n\n.letter-spacing-2 {\n  letter-spacing: 2px !important;\n}\n\n.letter-spacing-3 {\n  letter-spacing: 3px !important;\n}\n\n.letter-spacing-4 {\n  letter-spacing: 4px !important;\n}\n\n.letter-spacing-5 {\n  letter-spacing: 5px !important;\n}\n\n.border-radius-top-start-0 {\n  border-top-left-radius: 0 !important;\n}\n\n.border-radius-top-end-0 {\n  border-top-right-radius: 0 !important;\n}\n\n.border-radius-bottom-start-0 {\n  border-bottom-left-radius: 0 !important;\n}\n\n.border-radius-bottom-end-0 {\n  border-bottom-right-radius: 0 !important;\n}\n\n.max-height-100 {\n  max-height: 100px !important;\n}\n\n.max-height-150 {\n  max-height: 150px !important;\n}\n\n.max-height-160 {\n  max-height: 160px !important;\n}\n\n.max-height-200 {\n  max-height: 200px !important;\n}\n\n.max-height-250 {\n  max-height: 200px !important;\n}\n\n.max-height-300 {\n  max-height: 300px !important;\n}\n\n.max-height-400 {\n  max-height: 400px !important;\n}\n\n.max-height-500 {\n  max-height: 500px !important;\n}\n\n.max-height-600 {\n  max-height: 600px !important;\n}\n\n.max-height-vh-10 {\n  max-height: 10vh !important;\n}\n\n.max-height-vh-20 {\n  max-height: 20vh !important;\n}\n\n.max-height-vh-30 {\n  max-height: 30vh !important;\n}\n\n.max-height-vh-40 {\n  max-height: 40vh !important;\n}\n\n.max-height-vh-50 {\n  max-height: 50vh !important;\n}\n\n.max-height-vh-60 {\n  max-height: 60vh !important;\n}\n\n.max-height-vh-70 {\n  max-height: 70vh !important;\n}\n\n.max-height-vh-80 {\n  max-height: 80vh !important;\n}\n\n.max-height-vh-90 {\n  max-height: 90vh !important;\n}\n\n.max-height-vh-100 {\n  max-height: 100vh !important;\n}\n\n.min-height-100 {\n  min-height: 100px !important;\n}\n\n.min-height-150 {\n  min-height: 150px !important;\n}\n\n.min-height-160 {\n  min-height: 160px !important;\n}\n\n.min-height-200 {\n  min-height: 200px !important;\n}\n\n.min-height-250 {\n  min-height: 200px !important;\n}\n\n.min-height-300 {\n  min-height: 300px !important;\n}\n\n.min-height-400 {\n  min-height: 400px !important;\n}\n\n.min-height-500 {\n  min-height: 500px !important;\n}\n\n.min-height-600 {\n  min-height: 600px !important;\n}\n\n.height-100 {\n  height: 100px !important;\n}\n\n.height-200 {\n  height: 200px !important;\n}\n\n.height-300 {\n  height: 300px !important;\n}\n\n.height-400 {\n  height: 400px !important;\n}\n\n.height-500 {\n  height: 500px !important;\n}\n\n.height-600 {\n  height: 600px !important;\n}\n\n.max-width-100 {\n  max-width: 100px !important;\n}\n\n.max-width-200 {\n  max-width: 200px !important;\n}\n\n.max-width-300 {\n  max-width: 300px !important;\n}\n\n.max-width-400 {\n  max-width: 400px !important;\n}\n\n.max-width-500 {\n  max-width: 500px !important;\n}\n\n@media (min-width: 576px) {\n  .float-sm-start {\n    float: left !important;\n  }\n\n  .float-sm-end {\n    float: right !important;\n  }\n\n  .float-sm-none {\n    float: none !important;\n  }\n\n  .d-sm-inline {\n    display: inline !important;\n  }\n\n  .d-sm-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-sm-block {\n    display: block !important;\n  }\n\n  .d-sm-grid {\n    display: grid !important;\n  }\n\n  .d-sm-table {\n    display: table !important;\n  }\n\n  .d-sm-table-row {\n    display: table-row !important;\n  }\n\n  .d-sm-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-sm-flex {\n    display: flex !important;\n  }\n\n  .d-sm-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-sm-none {\n    display: none !important;\n  }\n\n  .border-top-sm {\n    border-top: 1px solid #dee2e6 !important;\n  }\n\n  .border-top-sm-0 {\n    border-top: 0 !important;\n  }\n\n  .border-end-sm {\n    border-right: 1px solid #dee2e6 !important;\n  }\n\n  .border-end-sm-0 {\n    border-right: 0 !important;\n  }\n\n  .border-bottom-sm {\n    border-bottom: 1px solid #dee2e6 !important;\n  }\n\n  .border-bottom-sm-0 {\n    border-bottom: 0 !important;\n  }\n\n  .border-start-sm {\n    border-left: 1px solid #dee2e6 !important;\n  }\n\n  .border-start-sm-0 {\n    border-left: 0 !important;\n  }\n\n  .w-sm-0 {\n    width: 0% !important;\n  }\n\n  .w-sm-1 {\n    width: 1% !important;\n  }\n\n  .w-sm-2 {\n    width: 2% !important;\n  }\n\n  .w-sm-3 {\n    width: 3% !important;\n  }\n\n  .w-sm-4 {\n    width: 4% !important;\n  }\n\n  .w-sm-5 {\n    width: 5% !important;\n  }\n\n  .w-sm-6 {\n    width: 6% !important;\n  }\n\n  .w-sm-7 {\n    width: 7% !important;\n  }\n\n  .w-sm-8 {\n    width: 8% !important;\n  }\n\n  .w-sm-9 {\n    width: 9% !important;\n  }\n\n  .w-sm-10 {\n    width: 10% !important;\n  }\n\n  .w-sm-15 {\n    width: 15% !important;\n  }\n\n  .w-sm-20 {\n    width: 20% !important;\n  }\n\n  .w-sm-25 {\n    width: 25% !important;\n  }\n\n  .w-sm-30 {\n    width: 30% !important;\n  }\n\n  .w-sm-35 {\n    width: 35% !important;\n  }\n\n  .w-sm-40 {\n    width: 40% !important;\n  }\n\n  .w-sm-45 {\n    width: 45% !important;\n  }\n\n  .w-sm-50 {\n    width: 50% !important;\n  }\n\n  .w-sm-55 {\n    width: 55% !important;\n  }\n\n  .w-sm-60 {\n    width: 60% !important;\n  }\n\n  .w-sm-65 {\n    width: 65% !important;\n  }\n\n  .w-sm-70 {\n    width: 70% !important;\n  }\n\n  .w-sm-75 {\n    width: 75% !important;\n  }\n\n  .w-sm-80 {\n    width: 80% !important;\n  }\n\n  .w-sm-85 {\n    width: 85% !important;\n  }\n\n  .w-sm-90 {\n    width: 90% !important;\n  }\n\n  .w-sm-95 {\n    width: 95% !important;\n  }\n\n  .w-sm-100 {\n    width: 100% !important;\n  }\n\n  .w-sm-auto {\n    width: auto !important;\n  }\n\n  .flex-sm-fill {\n    flex: 1 1 auto !important;\n  }\n\n  .flex-sm-row {\n    flex-direction: row !important;\n  }\n\n  .flex-sm-column {\n    flex-direction: column !important;\n  }\n\n  .flex-sm-row-reverse {\n    flex-direction: row-reverse !important;\n  }\n\n  .flex-sm-column-reverse {\n    flex-direction: column-reverse !important;\n  }\n\n  .flex-sm-grow-0 {\n    flex-grow: 0 !important;\n  }\n\n  .flex-sm-grow-1 {\n    flex-grow: 1 !important;\n  }\n\n  .flex-sm-shrink-0 {\n    flex-shrink: 0 !important;\n  }\n\n  .flex-sm-shrink-1 {\n    flex-shrink: 1 !important;\n  }\n\n  .flex-sm-wrap {\n    flex-wrap: wrap !important;\n  }\n\n  .flex-sm-nowrap {\n    flex-wrap: nowrap !important;\n  }\n\n  .flex-sm-wrap-reverse {\n    flex-wrap: wrap-reverse !important;\n  }\n\n  .gap-sm-0 {\n    gap: 0 !important;\n  }\n\n  .gap-sm-1 {\n    gap: 0.25rem !important;\n  }\n\n  .gap-sm-2 {\n    gap: 0.5rem !important;\n  }\n\n  .gap-sm-3 {\n    gap: 1rem !important;\n  }\n\n  .gap-sm-4 {\n    gap: 1.5rem !important;\n  }\n\n  .gap-sm-5 {\n    gap: 3rem !important;\n  }\n\n  .gap-sm-6 {\n    gap: 4rem !important;\n  }\n\n  .gap-sm-7 {\n    gap: 6rem !important;\n  }\n\n  .gap-sm-8 {\n    gap: 8rem !important;\n  }\n\n  .gap-sm-9 {\n    gap: 10rem !important;\n  }\n\n  .gap-sm-10 {\n    gap: 12rem !important;\n  }\n\n  .gap-sm-11 {\n    gap: 14rem !important;\n  }\n\n  .gap-sm-12 {\n    gap: 16rem !important;\n  }\n\n  .justify-content-sm-start {\n    justify-content: flex-start !important;\n  }\n\n  .justify-content-sm-end {\n    justify-content: flex-end !important;\n  }\n\n  .justify-content-sm-center {\n    justify-content: center !important;\n  }\n\n  .justify-content-sm-between {\n    justify-content: space-between !important;\n  }\n\n  .justify-content-sm-around {\n    justify-content: space-around !important;\n  }\n\n  .justify-content-sm-evenly {\n    justify-content: space-evenly !important;\n  }\n\n  .align-items-sm-start {\n    align-items: flex-start !important;\n  }\n\n  .align-items-sm-end {\n    align-items: flex-end !important;\n  }\n\n  .align-items-sm-center {\n    align-items: center !important;\n  }\n\n  .align-items-sm-baseline {\n    align-items: baseline !important;\n  }\n\n  .align-items-sm-stretch {\n    align-items: stretch !important;\n  }\n\n  .align-content-sm-start {\n    align-content: flex-start !important;\n  }\n\n  .align-content-sm-end {\n    align-content: flex-end !important;\n  }\n\n  .align-content-sm-center {\n    align-content: center !important;\n  }\n\n  .align-content-sm-between {\n    align-content: space-between !important;\n  }\n\n  .align-content-sm-around {\n    align-content: space-around !important;\n  }\n\n  .align-content-sm-stretch {\n    align-content: stretch !important;\n  }\n\n  .align-self-sm-auto {\n    align-self: auto !important;\n  }\n\n  .align-self-sm-start {\n    align-self: flex-start !important;\n  }\n\n  .align-self-sm-end {\n    align-self: flex-end !important;\n  }\n\n  .align-self-sm-center {\n    align-self: center !important;\n  }\n\n  .align-self-sm-baseline {\n    align-self: baseline !important;\n  }\n\n  .align-self-sm-stretch {\n    align-self: stretch !important;\n  }\n\n  .order-sm-first {\n    order: -1 !important;\n  }\n\n  .order-sm-0 {\n    order: 0 !important;\n  }\n\n  .order-sm-1 {\n    order: 1 !important;\n  }\n\n  .order-sm-2 {\n    order: 2 !important;\n  }\n\n  .order-sm-3 {\n    order: 3 !important;\n  }\n\n  .order-sm-4 {\n    order: 4 !important;\n  }\n\n  .order-sm-5 {\n    order: 5 !important;\n  }\n\n  .order-sm-last {\n    order: 6 !important;\n  }\n\n  .m-sm-0 {\n    margin: 0 !important;\n  }\n\n  .m-sm-1 {\n    margin: 0.25rem !important;\n  }\n\n  .m-sm-2 {\n    margin: 0.5rem !important;\n  }\n\n  .m-sm-3 {\n    margin: 1rem !important;\n  }\n\n  .m-sm-4 {\n    margin: 1.5rem !important;\n  }\n\n  .m-sm-5 {\n    margin: 3rem !important;\n  }\n\n  .m-sm-6 {\n    margin: 4rem !important;\n  }\n\n  .m-sm-7 {\n    margin: 6rem !important;\n  }\n\n  .m-sm-8 {\n    margin: 8rem !important;\n  }\n\n  .m-sm-9 {\n    margin: 10rem !important;\n  }\n\n  .m-sm-10 {\n    margin: 12rem !important;\n  }\n\n  .m-sm-11 {\n    margin: 14rem !important;\n  }\n\n  .m-sm-12 {\n    margin: 16rem !important;\n  }\n\n  .m-sm-auto {\n    margin: auto !important;\n  }\n\n  .mx-sm-0 {\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n  }\n\n  .mx-sm-1 {\n    margin-right: 0.25rem !important;\n    margin-left: 0.25rem !important;\n  }\n\n  .mx-sm-2 {\n    margin-right: 0.5rem !important;\n    margin-left: 0.5rem !important;\n  }\n\n  .mx-sm-3 {\n    margin-right: 1rem !important;\n    margin-left: 1rem !important;\n  }\n\n  .mx-sm-4 {\n    margin-right: 1.5rem !important;\n    margin-left: 1.5rem !important;\n  }\n\n  .mx-sm-5 {\n    margin-right: 3rem !important;\n    margin-left: 3rem !important;\n  }\n\n  .mx-sm-6 {\n    margin-right: 4rem !important;\n    margin-left: 4rem !important;\n  }\n\n  .mx-sm-7 {\n    margin-right: 6rem !important;\n    margin-left: 6rem !important;\n  }\n\n  .mx-sm-8 {\n    margin-right: 8rem !important;\n    margin-left: 8rem !important;\n  }\n\n  .mx-sm-9 {\n    margin-right: 10rem !important;\n    margin-left: 10rem !important;\n  }\n\n  .mx-sm-10 {\n    margin-right: 12rem !important;\n    margin-left: 12rem !important;\n  }\n\n  .mx-sm-11 {\n    margin-right: 14rem !important;\n    margin-left: 14rem !important;\n  }\n\n  .mx-sm-12 {\n    margin-right: 16rem !important;\n    margin-left: 16rem !important;\n  }\n\n  .mx-sm-auto {\n    margin-right: auto !important;\n    margin-left: auto !important;\n  }\n\n  .my-sm-0 {\n    margin-top: 0 !important;\n    margin-bottom: 0 !important;\n  }\n\n  .my-sm-1 {\n    margin-top: 0.25rem !important;\n    margin-bottom: 0.25rem !important;\n  }\n\n  .my-sm-2 {\n    margin-top: 0.5rem !important;\n    margin-bottom: 0.5rem !important;\n  }\n\n  .my-sm-3 {\n    margin-top: 1rem !important;\n    margin-bottom: 1rem !important;\n  }\n\n  .my-sm-4 {\n    margin-top: 1.5rem !important;\n    margin-bottom: 1.5rem !important;\n  }\n\n  .my-sm-5 {\n    margin-top: 3rem !important;\n    margin-bottom: 3rem !important;\n  }\n\n  .my-sm-6 {\n    margin-top: 4rem !important;\n    margin-bottom: 4rem !important;\n  }\n\n  .my-sm-7 {\n    margin-top: 6rem !important;\n    margin-bottom: 6rem !important;\n  }\n\n  .my-sm-8 {\n    margin-top: 8rem !important;\n    margin-bottom: 8rem !important;\n  }\n\n  .my-sm-9 {\n    margin-top: 10rem !important;\n    margin-bottom: 10rem !important;\n  }\n\n  .my-sm-10 {\n    margin-top: 12rem !important;\n    margin-bottom: 12rem !important;\n  }\n\n  .my-sm-11 {\n    margin-top: 14rem !important;\n    margin-bottom: 14rem !important;\n  }\n\n  .my-sm-12 {\n    margin-top: 16rem !important;\n    margin-bottom: 16rem !important;\n  }\n\n  .my-sm-auto {\n    margin-top: auto !important;\n    margin-bottom: auto !important;\n  }\n\n  .mt-sm-0 {\n    margin-top: 0 !important;\n  }\n\n  .mt-sm-1 {\n    margin-top: 0.25rem !important;\n  }\n\n  .mt-sm-2 {\n    margin-top: 0.5rem !important;\n  }\n\n  .mt-sm-3 {\n    margin-top: 1rem !important;\n  }\n\n  .mt-sm-4 {\n    margin-top: 1.5rem !important;\n  }\n\n  .mt-sm-5 {\n    margin-top: 3rem !important;\n  }\n\n  .mt-sm-6 {\n    margin-top: 4rem !important;\n  }\n\n  .mt-sm-7 {\n    margin-top: 6rem !important;\n  }\n\n  .mt-sm-8 {\n    margin-top: 8rem !important;\n  }\n\n  .mt-sm-9 {\n    margin-top: 10rem !important;\n  }\n\n  .mt-sm-10 {\n    margin-top: 12rem !important;\n  }\n\n  .mt-sm-11 {\n    margin-top: 14rem !important;\n  }\n\n  .mt-sm-12 {\n    margin-top: 16rem !important;\n  }\n\n  .mt-sm-auto {\n    margin-top: auto !important;\n  }\n\n  .me-sm-0 {\n    margin-right: 0 !important;\n  }\n\n  .me-sm-1 {\n    margin-right: 0.25rem !important;\n  }\n\n  .me-sm-2 {\n    margin-right: 0.5rem !important;\n  }\n\n  .me-sm-3 {\n    margin-right: 1rem !important;\n  }\n\n  .me-sm-4 {\n    margin-right: 1.5rem !important;\n  }\n\n  .me-sm-5 {\n    margin-right: 3rem !important;\n  }\n\n  .me-sm-6 {\n    margin-right: 4rem !important;\n  }\n\n  .me-sm-7 {\n    margin-right: 6rem !important;\n  }\n\n  .me-sm-8 {\n    margin-right: 8rem !important;\n  }\n\n  .me-sm-9 {\n    margin-right: 10rem !important;\n  }\n\n  .me-sm-10 {\n    margin-right: 12rem !important;\n  }\n\n  .me-sm-11 {\n    margin-right: 14rem !important;\n  }\n\n  .me-sm-12 {\n    margin-right: 16rem !important;\n  }\n\n  .me-sm-auto {\n    margin-right: auto !important;\n  }\n\n  .mb-sm-0 {\n    margin-bottom: 0 !important;\n  }\n\n  .mb-sm-1 {\n    margin-bottom: 0.25rem !important;\n  }\n\n  .mb-sm-2 {\n    margin-bottom: 0.5rem !important;\n  }\n\n  .mb-sm-3 {\n    margin-bottom: 1rem !important;\n  }\n\n  .mb-sm-4 {\n    margin-bottom: 1.5rem !important;\n  }\n\n  .mb-sm-5 {\n    margin-bottom: 3rem !important;\n  }\n\n  .mb-sm-6 {\n    margin-bottom: 4rem !important;\n  }\n\n  .mb-sm-7 {\n    margin-bottom: 6rem !important;\n  }\n\n  .mb-sm-8 {\n    margin-bottom: 8rem !important;\n  }\n\n  .mb-sm-9 {\n    margin-bottom: 10rem !important;\n  }\n\n  .mb-sm-10 {\n    margin-bottom: 12rem !important;\n  }\n\n  .mb-sm-11 {\n    margin-bottom: 14rem !important;\n  }\n\n  .mb-sm-12 {\n    margin-bottom: 16rem !important;\n  }\n\n  .mb-sm-auto {\n    margin-bottom: auto !important;\n  }\n\n  .ms-sm-0 {\n    margin-left: 0 !important;\n  }\n\n  .ms-sm-1 {\n    margin-left: 0.25rem !important;\n  }\n\n  .ms-sm-2 {\n    margin-left: 0.5rem !important;\n  }\n\n  .ms-sm-3 {\n    margin-left: 1rem !important;\n  }\n\n  .ms-sm-4 {\n    margin-left: 1.5rem !important;\n  }\n\n  .ms-sm-5 {\n    margin-left: 3rem !important;\n  }\n\n  .ms-sm-6 {\n    margin-left: 4rem !important;\n  }\n\n  .ms-sm-7 {\n    margin-left: 6rem !important;\n  }\n\n  .ms-sm-8 {\n    margin-left: 8rem !important;\n  }\n\n  .ms-sm-9 {\n    margin-left: 10rem !important;\n  }\n\n  .ms-sm-10 {\n    margin-left: 12rem !important;\n  }\n\n  .ms-sm-11 {\n    margin-left: 14rem !important;\n  }\n\n  .ms-sm-12 {\n    margin-left: 16rem !important;\n  }\n\n  .ms-sm-auto {\n    margin-left: auto !important;\n  }\n\n  .m-sm-n1 {\n    margin: -0.25rem !important;\n  }\n\n  .m-sm-n2 {\n    margin: -0.5rem !important;\n  }\n\n  .m-sm-n3 {\n    margin: -1rem !important;\n  }\n\n  .m-sm-n4 {\n    margin: -1.5rem !important;\n  }\n\n  .m-sm-n5 {\n    margin: -3rem !important;\n  }\n\n  .m-sm-n6 {\n    margin: -4rem !important;\n  }\n\n  .m-sm-n7 {\n    margin: -6rem !important;\n  }\n\n  .m-sm-n8 {\n    margin: -8rem !important;\n  }\n\n  .m-sm-n9 {\n    margin: -10rem !important;\n  }\n\n  .m-sm-n10 {\n    margin: -12rem !important;\n  }\n\n  .m-sm-n11 {\n    margin: -14rem !important;\n  }\n\n  .m-sm-n12 {\n    margin: -16rem !important;\n  }\n\n  .mx-sm-n1 {\n    margin-right: -0.25rem !important;\n    margin-left: -0.25rem !important;\n  }\n\n  .mx-sm-n2 {\n    margin-right: -0.5rem !important;\n    margin-left: -0.5rem !important;\n  }\n\n  .mx-sm-n3 {\n    margin-right: -1rem !important;\n    margin-left: -1rem !important;\n  }\n\n  .mx-sm-n4 {\n    margin-right: -1.5rem !important;\n    margin-left: -1.5rem !important;\n  }\n\n  .mx-sm-n5 {\n    margin-right: -3rem !important;\n    margin-left: -3rem !important;\n  }\n\n  .mx-sm-n6 {\n    margin-right: -4rem !important;\n    margin-left: -4rem !important;\n  }\n\n  .mx-sm-n7 {\n    margin-right: -6rem !important;\n    margin-left: -6rem !important;\n  }\n\n  .mx-sm-n8 {\n    margin-right: -8rem !important;\n    margin-left: -8rem !important;\n  }\n\n  .mx-sm-n9 {\n    margin-right: -10rem !important;\n    margin-left: -10rem !important;\n  }\n\n  .mx-sm-n10 {\n    margin-right: -12rem !important;\n    margin-left: -12rem !important;\n  }\n\n  .mx-sm-n11 {\n    margin-right: -14rem !important;\n    margin-left: -14rem !important;\n  }\n\n  .mx-sm-n12 {\n    margin-right: -16rem !important;\n    margin-left: -16rem !important;\n  }\n\n  .my-sm-n1 {\n    margin-top: -0.25rem !important;\n    margin-bottom: -0.25rem !important;\n  }\n\n  .my-sm-n2 {\n    margin-top: -0.5rem !important;\n    margin-bottom: -0.5rem !important;\n  }\n\n  .my-sm-n3 {\n    margin-top: -1rem !important;\n    margin-bottom: -1rem !important;\n  }\n\n  .my-sm-n4 {\n    margin-top: -1.5rem !important;\n    margin-bottom: -1.5rem !important;\n  }\n\n  .my-sm-n5 {\n    margin-top: -3rem !important;\n    margin-bottom: -3rem !important;\n  }\n\n  .my-sm-n6 {\n    margin-top: -4rem !important;\n    margin-bottom: -4rem !important;\n  }\n\n  .my-sm-n7 {\n    margin-top: -6rem !important;\n    margin-bottom: -6rem !important;\n  }\n\n  .my-sm-n8 {\n    margin-top: -8rem !important;\n    margin-bottom: -8rem !important;\n  }\n\n  .my-sm-n9 {\n    margin-top: -10rem !important;\n    margin-bottom: -10rem !important;\n  }\n\n  .my-sm-n10 {\n    margin-top: -12rem !important;\n    margin-bottom: -12rem !important;\n  }\n\n  .my-sm-n11 {\n    margin-top: -14rem !important;\n    margin-bottom: -14rem !important;\n  }\n\n  .my-sm-n12 {\n    margin-top: -16rem !important;\n    margin-bottom: -16rem !important;\n  }\n\n  .mt-sm-n1 {\n    margin-top: -0.25rem !important;\n  }\n\n  .mt-sm-n2 {\n    margin-top: -0.5rem !important;\n  }\n\n  .mt-sm-n3 {\n    margin-top: -1rem !important;\n  }\n\n  .mt-sm-n4 {\n    margin-top: -1.5rem !important;\n  }\n\n  .mt-sm-n5 {\n    margin-top: -3rem !important;\n  }\n\n  .mt-sm-n6 {\n    margin-top: -4rem !important;\n  }\n\n  .mt-sm-n7 {\n    margin-top: -6rem !important;\n  }\n\n  .mt-sm-n8 {\n    margin-top: -8rem !important;\n  }\n\n  .mt-sm-n9 {\n    margin-top: -10rem !important;\n  }\n\n  .mt-sm-n10 {\n    margin-top: -12rem !important;\n  }\n\n  .mt-sm-n11 {\n    margin-top: -14rem !important;\n  }\n\n  .mt-sm-n12 {\n    margin-top: -16rem !important;\n  }\n\n  .me-sm-n1 {\n    margin-right: -0.25rem !important;\n  }\n\n  .me-sm-n2 {\n    margin-right: -0.5rem !important;\n  }\n\n  .me-sm-n3 {\n    margin-right: -1rem !important;\n  }\n\n  .me-sm-n4 {\n    margin-right: -1.5rem !important;\n  }\n\n  .me-sm-n5 {\n    margin-right: -3rem !important;\n  }\n\n  .me-sm-n6 {\n    margin-right: -4rem !important;\n  }\n\n  .me-sm-n7 {\n    margin-right: -6rem !important;\n  }\n\n  .me-sm-n8 {\n    margin-right: -8rem !important;\n  }\n\n  .me-sm-n9 {\n    margin-right: -10rem !important;\n  }\n\n  .me-sm-n10 {\n    margin-right: -12rem !important;\n  }\n\n  .me-sm-n11 {\n    margin-right: -14rem !important;\n  }\n\n  .me-sm-n12 {\n    margin-right: -16rem !important;\n  }\n\n  .mb-sm-n1 {\n    margin-bottom: -0.25rem !important;\n  }\n\n  .mb-sm-n2 {\n    margin-bottom: -0.5rem !important;\n  }\n\n  .mb-sm-n3 {\n    margin-bottom: -1rem !important;\n  }\n\n  .mb-sm-n4 {\n    margin-bottom: -1.5rem !important;\n  }\n\n  .mb-sm-n5 {\n    margin-bottom: -3rem !important;\n  }\n\n  .mb-sm-n6 {\n    margin-bottom: -4rem !important;\n  }\n\n  .mb-sm-n7 {\n    margin-bottom: -6rem !important;\n  }\n\n  .mb-sm-n8 {\n    margin-bottom: -8rem !important;\n  }\n\n  .mb-sm-n9 {\n    margin-bottom: -10rem !important;\n  }\n\n  .mb-sm-n10 {\n    margin-bottom: -12rem !important;\n  }\n\n  .mb-sm-n11 {\n    margin-bottom: -14rem !important;\n  }\n\n  .mb-sm-n12 {\n    margin-bottom: -16rem !important;\n  }\n\n  .ms-sm-n1 {\n    margin-left: -0.25rem !important;\n  }\n\n  .ms-sm-n2 {\n    margin-left: -0.5rem !important;\n  }\n\n  .ms-sm-n3 {\n    margin-left: -1rem !important;\n  }\n\n  .ms-sm-n4 {\n    margin-left: -1.5rem !important;\n  }\n\n  .ms-sm-n5 {\n    margin-left: -3rem !important;\n  }\n\n  .ms-sm-n6 {\n    margin-left: -4rem !important;\n  }\n\n  .ms-sm-n7 {\n    margin-left: -6rem !important;\n  }\n\n  .ms-sm-n8 {\n    margin-left: -8rem !important;\n  }\n\n  .ms-sm-n9 {\n    margin-left: -10rem !important;\n  }\n\n  .ms-sm-n10 {\n    margin-left: -12rem !important;\n  }\n\n  .ms-sm-n11 {\n    margin-left: -14rem !important;\n  }\n\n  .ms-sm-n12 {\n    margin-left: -16rem !important;\n  }\n\n  .p-sm-0 {\n    padding: 0 !important;\n  }\n\n  .p-sm-1 {\n    padding: 0.25rem !important;\n  }\n\n  .p-sm-2 {\n    padding: 0.5rem !important;\n  }\n\n  .p-sm-3 {\n    padding: 1rem !important;\n  }\n\n  .p-sm-4 {\n    padding: 1.5rem !important;\n  }\n\n  .p-sm-5 {\n    padding: 3rem !important;\n  }\n\n  .p-sm-6 {\n    padding: 4rem !important;\n  }\n\n  .p-sm-7 {\n    padding: 6rem !important;\n  }\n\n  .p-sm-8 {\n    padding: 8rem !important;\n  }\n\n  .p-sm-9 {\n    padding: 10rem !important;\n  }\n\n  .p-sm-10 {\n    padding: 12rem !important;\n  }\n\n  .p-sm-11 {\n    padding: 14rem !important;\n  }\n\n  .p-sm-12 {\n    padding: 16rem !important;\n  }\n\n  .px-sm-0 {\n    padding-right: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .px-sm-1 {\n    padding-right: 0.25rem !important;\n    padding-left: 0.25rem !important;\n  }\n\n  .px-sm-2 {\n    padding-right: 0.5rem !important;\n    padding-left: 0.5rem !important;\n  }\n\n  .px-sm-3 {\n    padding-right: 1rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .px-sm-4 {\n    padding-right: 1.5rem !important;\n    padding-left: 1.5rem !important;\n  }\n\n  .px-sm-5 {\n    padding-right: 3rem !important;\n    padding-left: 3rem !important;\n  }\n\n  .px-sm-6 {\n    padding-right: 4rem !important;\n    padding-left: 4rem !important;\n  }\n\n  .px-sm-7 {\n    padding-right: 6rem !important;\n    padding-left: 6rem !important;\n  }\n\n  .px-sm-8 {\n    padding-right: 8rem !important;\n    padding-left: 8rem !important;\n  }\n\n  .px-sm-9 {\n    padding-right: 10rem !important;\n    padding-left: 10rem !important;\n  }\n\n  .px-sm-10 {\n    padding-right: 12rem !important;\n    padding-left: 12rem !important;\n  }\n\n  .px-sm-11 {\n    padding-right: 14rem !important;\n    padding-left: 14rem !important;\n  }\n\n  .px-sm-12 {\n    padding-right: 16rem !important;\n    padding-left: 16rem !important;\n  }\n\n  .py-sm-0 {\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n  }\n\n  .py-sm-1 {\n    padding-top: 0.25rem !important;\n    padding-bottom: 0.25rem !important;\n  }\n\n  .py-sm-2 {\n    padding-top: 0.5rem !important;\n    padding-bottom: 0.5rem !important;\n  }\n\n  .py-sm-3 {\n    padding-top: 1rem !important;\n    padding-bottom: 1rem !important;\n  }\n\n  .py-sm-4 {\n    padding-top: 1.5rem !important;\n    padding-bottom: 1.5rem !important;\n  }\n\n  .py-sm-5 {\n    padding-top: 3rem !important;\n    padding-bottom: 3rem !important;\n  }\n\n  .py-sm-6 {\n    padding-top: 4rem !important;\n    padding-bottom: 4rem !important;\n  }\n\n  .py-sm-7 {\n    padding-top: 6rem !important;\n    padding-bottom: 6rem !important;\n  }\n\n  .py-sm-8 {\n    padding-top: 8rem !important;\n    padding-bottom: 8rem !important;\n  }\n\n  .py-sm-9 {\n    padding-top: 10rem !important;\n    padding-bottom: 10rem !important;\n  }\n\n  .py-sm-10 {\n    padding-top: 12rem !important;\n    padding-bottom: 12rem !important;\n  }\n\n  .py-sm-11 {\n    padding-top: 14rem !important;\n    padding-bottom: 14rem !important;\n  }\n\n  .py-sm-12 {\n    padding-top: 16rem !important;\n    padding-bottom: 16rem !important;\n  }\n\n  .pt-sm-0 {\n    padding-top: 0 !important;\n  }\n\n  .pt-sm-1 {\n    padding-top: 0.25rem !important;\n  }\n\n  .pt-sm-2 {\n    padding-top: 0.5rem !important;\n  }\n\n  .pt-sm-3 {\n    padding-top: 1rem !important;\n  }\n\n  .pt-sm-4 {\n    padding-top: 1.5rem !important;\n  }\n\n  .pt-sm-5 {\n    padding-top: 3rem !important;\n  }\n\n  .pt-sm-6 {\n    padding-top: 4rem !important;\n  }\n\n  .pt-sm-7 {\n    padding-top: 6rem !important;\n  }\n\n  .pt-sm-8 {\n    padding-top: 8rem !important;\n  }\n\n  .pt-sm-9 {\n    padding-top: 10rem !important;\n  }\n\n  .pt-sm-10 {\n    padding-top: 12rem !important;\n  }\n\n  .pt-sm-11 {\n    padding-top: 14rem !important;\n  }\n\n  .pt-sm-12 {\n    padding-top: 16rem !important;\n  }\n\n  .pe-sm-0 {\n    padding-right: 0 !important;\n  }\n\n  .pe-sm-1 {\n    padding-right: 0.25rem !important;\n  }\n\n  .pe-sm-2 {\n    padding-right: 0.5rem !important;\n  }\n\n  .pe-sm-3 {\n    padding-right: 1rem !important;\n  }\n\n  .pe-sm-4 {\n    padding-right: 1.5rem !important;\n  }\n\n  .pe-sm-5 {\n    padding-right: 3rem !important;\n  }\n\n  .pe-sm-6 {\n    padding-right: 4rem !important;\n  }\n\n  .pe-sm-7 {\n    padding-right: 6rem !important;\n  }\n\n  .pe-sm-8 {\n    padding-right: 8rem !important;\n  }\n\n  .pe-sm-9 {\n    padding-right: 10rem !important;\n  }\n\n  .pe-sm-10 {\n    padding-right: 12rem !important;\n  }\n\n  .pe-sm-11 {\n    padding-right: 14rem !important;\n  }\n\n  .pe-sm-12 {\n    padding-right: 16rem !important;\n  }\n\n  .pb-sm-0 {\n    padding-bottom: 0 !important;\n  }\n\n  .pb-sm-1 {\n    padding-bottom: 0.25rem !important;\n  }\n\n  .pb-sm-2 {\n    padding-bottom: 0.5rem !important;\n  }\n\n  .pb-sm-3 {\n    padding-bottom: 1rem !important;\n  }\n\n  .pb-sm-4 {\n    padding-bottom: 1.5rem !important;\n  }\n\n  .pb-sm-5 {\n    padding-bottom: 3rem !important;\n  }\n\n  .pb-sm-6 {\n    padding-bottom: 4rem !important;\n  }\n\n  .pb-sm-7 {\n    padding-bottom: 6rem !important;\n  }\n\n  .pb-sm-8 {\n    padding-bottom: 8rem !important;\n  }\n\n  .pb-sm-9 {\n    padding-bottom: 10rem !important;\n  }\n\n  .pb-sm-10 {\n    padding-bottom: 12rem !important;\n  }\n\n  .pb-sm-11 {\n    padding-bottom: 14rem !important;\n  }\n\n  .pb-sm-12 {\n    padding-bottom: 16rem !important;\n  }\n\n  .ps-sm-0 {\n    padding-left: 0 !important;\n  }\n\n  .ps-sm-1 {\n    padding-left: 0.25rem !important;\n  }\n\n  .ps-sm-2 {\n    padding-left: 0.5rem !important;\n  }\n\n  .ps-sm-3 {\n    padding-left: 1rem !important;\n  }\n\n  .ps-sm-4 {\n    padding-left: 1.5rem !important;\n  }\n\n  .ps-sm-5 {\n    padding-left: 3rem !important;\n  }\n\n  .ps-sm-6 {\n    padding-left: 4rem !important;\n  }\n\n  .ps-sm-7 {\n    padding-left: 6rem !important;\n  }\n\n  .ps-sm-8 {\n    padding-left: 8rem !important;\n  }\n\n  .ps-sm-9 {\n    padding-left: 10rem !important;\n  }\n\n  .ps-sm-10 {\n    padding-left: 12rem !important;\n  }\n\n  .ps-sm-11 {\n    padding-left: 14rem !important;\n  }\n\n  .ps-sm-12 {\n    padding-left: 16rem !important;\n  }\n\n  .text-sm-start {\n    text-align: left !important;\n  }\n\n  .text-sm-end {\n    text-align: right !important;\n  }\n\n  .text-sm-center {\n    text-align: center !important;\n  }\n\n  .transform-scale-sm-5 {\n    transform: scale(0.5) !important;\n  }\n\n  .transform-scale-sm-6 {\n    transform: scale(0.6) !important;\n  }\n\n  .transform-scale-sm-7 {\n    transform: scale(0.7) !important;\n  }\n\n  .transform-scale-sm-8 {\n    transform: scale(0.8) !important;\n  }\n\n  .transform-scale-sm-9 {\n    transform: scale(0.9) !important;\n  }\n\n  .transform-scale-sm-10 {\n    transform: scale(1) !important;\n  }\n\n  .border-radius-top-start-sm-0 {\n    border-top-left-radius: 0 !important;\n  }\n\n  .border-radius-top-end-sm-0 {\n    border-top-right-radius: 0 !important;\n  }\n\n  .border-radius-bottom-start-sm-0 {\n    border-bottom-left-radius: 0 !important;\n  }\n\n  .border-radius-bottom-end-sm-0 {\n    border-bottom-right-radius: 0 !important;\n  }\n}\n\n@media (min-width: 768px) {\n  .float-md-start {\n    float: left !important;\n  }\n\n  .float-md-end {\n    float: right !important;\n  }\n\n  .float-md-none {\n    float: none !important;\n  }\n\n  .d-md-inline {\n    display: inline !important;\n  }\n\n  .d-md-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-md-block {\n    display: block !important;\n  }\n\n  .d-md-grid {\n    display: grid !important;\n  }\n\n  .d-md-table {\n    display: table !important;\n  }\n\n  .d-md-table-row {\n    display: table-row !important;\n  }\n\n  .d-md-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-md-flex {\n    display: flex !important;\n  }\n\n  .d-md-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-md-none {\n    display: none !important;\n  }\n\n  .border-top-md {\n    border-top: 1px solid #dee2e6 !important;\n  }\n\n  .border-top-md-0 {\n    border-top: 0 !important;\n  }\n\n  .border-end-md {\n    border-right: 1px solid #dee2e6 !important;\n  }\n\n  .border-end-md-0 {\n    border-right: 0 !important;\n  }\n\n  .border-bottom-md {\n    border-bottom: 1px solid #dee2e6 !important;\n  }\n\n  .border-bottom-md-0 {\n    border-bottom: 0 !important;\n  }\n\n  .border-start-md {\n    border-left: 1px solid #dee2e6 !important;\n  }\n\n  .border-start-md-0 {\n    border-left: 0 !important;\n  }\n\n  .w-md-0 {\n    width: 0% !important;\n  }\n\n  .w-md-1 {\n    width: 1% !important;\n  }\n\n  .w-md-2 {\n    width: 2% !important;\n  }\n\n  .w-md-3 {\n    width: 3% !important;\n  }\n\n  .w-md-4 {\n    width: 4% !important;\n  }\n\n  .w-md-5 {\n    width: 5% !important;\n  }\n\n  .w-md-6 {\n    width: 6% !important;\n  }\n\n  .w-md-7 {\n    width: 7% !important;\n  }\n\n  .w-md-8 {\n    width: 8% !important;\n  }\n\n  .w-md-9 {\n    width: 9% !important;\n  }\n\n  .w-md-10 {\n    width: 10% !important;\n  }\n\n  .w-md-15 {\n    width: 15% !important;\n  }\n\n  .w-md-20 {\n    width: 20% !important;\n  }\n\n  .w-md-25 {\n    width: 25% !important;\n  }\n\n  .w-md-30 {\n    width: 30% !important;\n  }\n\n  .w-md-35 {\n    width: 35% !important;\n  }\n\n  .w-md-40 {\n    width: 40% !important;\n  }\n\n  .w-md-45 {\n    width: 45% !important;\n  }\n\n  .w-md-50 {\n    width: 50% !important;\n  }\n\n  .w-md-55 {\n    width: 55% !important;\n  }\n\n  .w-md-60 {\n    width: 60% !important;\n  }\n\n  .w-md-65 {\n    width: 65% !important;\n  }\n\n  .w-md-70 {\n    width: 70% !important;\n  }\n\n  .w-md-75 {\n    width: 75% !important;\n  }\n\n  .w-md-80 {\n    width: 80% !important;\n  }\n\n  .w-md-85 {\n    width: 85% !important;\n  }\n\n  .w-md-90 {\n    width: 90% !important;\n  }\n\n  .w-md-95 {\n    width: 95% !important;\n  }\n\n  .w-md-100 {\n    width: 100% !important;\n  }\n\n  .w-md-auto {\n    width: auto !important;\n  }\n\n  .flex-md-fill {\n    flex: 1 1 auto !important;\n  }\n\n  .flex-md-row {\n    flex-direction: row !important;\n  }\n\n  .flex-md-column {\n    flex-direction: column !important;\n  }\n\n  .flex-md-row-reverse {\n    flex-direction: row-reverse !important;\n  }\n\n  .flex-md-column-reverse {\n    flex-direction: column-reverse !important;\n  }\n\n  .flex-md-grow-0 {\n    flex-grow: 0 !important;\n  }\n\n  .flex-md-grow-1 {\n    flex-grow: 1 !important;\n  }\n\n  .flex-md-shrink-0 {\n    flex-shrink: 0 !important;\n  }\n\n  .flex-md-shrink-1 {\n    flex-shrink: 1 !important;\n  }\n\n  .flex-md-wrap {\n    flex-wrap: wrap !important;\n  }\n\n  .flex-md-nowrap {\n    flex-wrap: nowrap !important;\n  }\n\n  .flex-md-wrap-reverse {\n    flex-wrap: wrap-reverse !important;\n  }\n\n  .gap-md-0 {\n    gap: 0 !important;\n  }\n\n  .gap-md-1 {\n    gap: 0.25rem !important;\n  }\n\n  .gap-md-2 {\n    gap: 0.5rem !important;\n  }\n\n  .gap-md-3 {\n    gap: 1rem !important;\n  }\n\n  .gap-md-4 {\n    gap: 1.5rem !important;\n  }\n\n  .gap-md-5 {\n    gap: 3rem !important;\n  }\n\n  .gap-md-6 {\n    gap: 4rem !important;\n  }\n\n  .gap-md-7 {\n    gap: 6rem !important;\n  }\n\n  .gap-md-8 {\n    gap: 8rem !important;\n  }\n\n  .gap-md-9 {\n    gap: 10rem !important;\n  }\n\n  .gap-md-10 {\n    gap: 12rem !important;\n  }\n\n  .gap-md-11 {\n    gap: 14rem !important;\n  }\n\n  .gap-md-12 {\n    gap: 16rem !important;\n  }\n\n  .justify-content-md-start {\n    justify-content: flex-start !important;\n  }\n\n  .justify-content-md-end {\n    justify-content: flex-end !important;\n  }\n\n  .justify-content-md-center {\n    justify-content: center !important;\n  }\n\n  .justify-content-md-between {\n    justify-content: space-between !important;\n  }\n\n  .justify-content-md-around {\n    justify-content: space-around !important;\n  }\n\n  .justify-content-md-evenly {\n    justify-content: space-evenly !important;\n  }\n\n  .align-items-md-start {\n    align-items: flex-start !important;\n  }\n\n  .align-items-md-end {\n    align-items: flex-end !important;\n  }\n\n  .align-items-md-center {\n    align-items: center !important;\n  }\n\n  .align-items-md-baseline {\n    align-items: baseline !important;\n  }\n\n  .align-items-md-stretch {\n    align-items: stretch !important;\n  }\n\n  .align-content-md-start {\n    align-content: flex-start !important;\n  }\n\n  .align-content-md-end {\n    align-content: flex-end !important;\n  }\n\n  .align-content-md-center {\n    align-content: center !important;\n  }\n\n  .align-content-md-between {\n    align-content: space-between !important;\n  }\n\n  .align-content-md-around {\n    align-content: space-around !important;\n  }\n\n  .align-content-md-stretch {\n    align-content: stretch !important;\n  }\n\n  .align-self-md-auto {\n    align-self: auto !important;\n  }\n\n  .align-self-md-start {\n    align-self: flex-start !important;\n  }\n\n  .align-self-md-end {\n    align-self: flex-end !important;\n  }\n\n  .align-self-md-center {\n    align-self: center !important;\n  }\n\n  .align-self-md-baseline {\n    align-self: baseline !important;\n  }\n\n  .align-self-md-stretch {\n    align-self: stretch !important;\n  }\n\n  .order-md-first {\n    order: -1 !important;\n  }\n\n  .order-md-0 {\n    order: 0 !important;\n  }\n\n  .order-md-1 {\n    order: 1 !important;\n  }\n\n  .order-md-2 {\n    order: 2 !important;\n  }\n\n  .order-md-3 {\n    order: 3 !important;\n  }\n\n  .order-md-4 {\n    order: 4 !important;\n  }\n\n  .order-md-5 {\n    order: 5 !important;\n  }\n\n  .order-md-last {\n    order: 6 !important;\n  }\n\n  .m-md-0 {\n    margin: 0 !important;\n  }\n\n  .m-md-1 {\n    margin: 0.25rem !important;\n  }\n\n  .m-md-2 {\n    margin: 0.5rem !important;\n  }\n\n  .m-md-3 {\n    margin: 1rem !important;\n  }\n\n  .m-md-4 {\n    margin: 1.5rem !important;\n  }\n\n  .m-md-5 {\n    margin: 3rem !important;\n  }\n\n  .m-md-6 {\n    margin: 4rem !important;\n  }\n\n  .m-md-7 {\n    margin: 6rem !important;\n  }\n\n  .m-md-8 {\n    margin: 8rem !important;\n  }\n\n  .m-md-9 {\n    margin: 10rem !important;\n  }\n\n  .m-md-10 {\n    margin: 12rem !important;\n  }\n\n  .m-md-11 {\n    margin: 14rem !important;\n  }\n\n  .m-md-12 {\n    margin: 16rem !important;\n  }\n\n  .m-md-auto {\n    margin: auto !important;\n  }\n\n  .mx-md-0 {\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n  }\n\n  .mx-md-1 {\n    margin-right: 0.25rem !important;\n    margin-left: 0.25rem !important;\n  }\n\n  .mx-md-2 {\n    margin-right: 0.5rem !important;\n    margin-left: 0.5rem !important;\n  }\n\n  .mx-md-3 {\n    margin-right: 1rem !important;\n    margin-left: 1rem !important;\n  }\n\n  .mx-md-4 {\n    margin-right: 1.5rem !important;\n    margin-left: 1.5rem !important;\n  }\n\n  .mx-md-5 {\n    margin-right: 3rem !important;\n    margin-left: 3rem !important;\n  }\n\n  .mx-md-6 {\n    margin-right: 4rem !important;\n    margin-left: 4rem !important;\n  }\n\n  .mx-md-7 {\n    margin-right: 6rem !important;\n    margin-left: 6rem !important;\n  }\n\n  .mx-md-8 {\n    margin-right: 8rem !important;\n    margin-left: 8rem !important;\n  }\n\n  .mx-md-9 {\n    margin-right: 10rem !important;\n    margin-left: 10rem !important;\n  }\n\n  .mx-md-10 {\n    margin-right: 12rem !important;\n    margin-left: 12rem !important;\n  }\n\n  .mx-md-11 {\n    margin-right: 14rem !important;\n    margin-left: 14rem !important;\n  }\n\n  .mx-md-12 {\n    margin-right: 16rem !important;\n    margin-left: 16rem !important;\n  }\n\n  .mx-md-auto {\n    margin-right: auto !important;\n    margin-left: auto !important;\n  }\n\n  .my-md-0 {\n    margin-top: 0 !important;\n    margin-bottom: 0 !important;\n  }\n\n  .my-md-1 {\n    margin-top: 0.25rem !important;\n    margin-bottom: 0.25rem !important;\n  }\n\n  .my-md-2 {\n    margin-top: 0.5rem !important;\n    margin-bottom: 0.5rem !important;\n  }\n\n  .my-md-3 {\n    margin-top: 1rem !important;\n    margin-bottom: 1rem !important;\n  }\n\n  .my-md-4 {\n    margin-top: 1.5rem !important;\n    margin-bottom: 1.5rem !important;\n  }\n\n  .my-md-5 {\n    margin-top: 3rem !important;\n    margin-bottom: 3rem !important;\n  }\n\n  .my-md-6 {\n    margin-top: 4rem !important;\n    margin-bottom: 4rem !important;\n  }\n\n  .my-md-7 {\n    margin-top: 6rem !important;\n    margin-bottom: 6rem !important;\n  }\n\n  .my-md-8 {\n    margin-top: 8rem !important;\n    margin-bottom: 8rem !important;\n  }\n\n  .my-md-9 {\n    margin-top: 10rem !important;\n    margin-bottom: 10rem !important;\n  }\n\n  .my-md-10 {\n    margin-top: 12rem !important;\n    margin-bottom: 12rem !important;\n  }\n\n  .my-md-11 {\n    margin-top: 14rem !important;\n    margin-bottom: 14rem !important;\n  }\n\n  .my-md-12 {\n    margin-top: 16rem !important;\n    margin-bottom: 16rem !important;\n  }\n\n  .my-md-auto {\n    margin-top: auto !important;\n    margin-bottom: auto !important;\n  }\n\n  .mt-md-0 {\n    margin-top: 0 !important;\n  }\n\n  .mt-md-1 {\n    margin-top: 0.25rem !important;\n  }\n\n  .mt-md-2 {\n    margin-top: 0.5rem !important;\n  }\n\n  .mt-md-3 {\n    margin-top: 1rem !important;\n  }\n\n  .mt-md-4 {\n    margin-top: 1.5rem !important;\n  }\n\n  .mt-md-5 {\n    margin-top: 3rem !important;\n  }\n\n  .mt-md-6 {\n    margin-top: 4rem !important;\n  }\n\n  .mt-md-7 {\n    margin-top: 6rem !important;\n  }\n\n  .mt-md-8 {\n    margin-top: 8rem !important;\n  }\n\n  .mt-md-9 {\n    margin-top: 10rem !important;\n  }\n\n  .mt-md-10 {\n    margin-top: 12rem !important;\n  }\n\n  .mt-md-11 {\n    margin-top: 14rem !important;\n  }\n\n  .mt-md-12 {\n    margin-top: 16rem !important;\n  }\n\n  .mt-md-auto {\n    margin-top: auto !important;\n  }\n\n  .me-md-0 {\n    margin-right: 0 !important;\n  }\n\n  .me-md-1 {\n    margin-right: 0.25rem !important;\n  }\n\n  .me-md-2 {\n    margin-right: 0.5rem !important;\n  }\n\n  .me-md-3 {\n    margin-right: 1rem !important;\n  }\n\n  .me-md-4 {\n    margin-right: 1.5rem !important;\n  }\n\n  .me-md-5 {\n    margin-right: 3rem !important;\n  }\n\n  .me-md-6 {\n    margin-right: 4rem !important;\n  }\n\n  .me-md-7 {\n    margin-right: 6rem !important;\n  }\n\n  .me-md-8 {\n    margin-right: 8rem !important;\n  }\n\n  .me-md-9 {\n    margin-right: 10rem !important;\n  }\n\n  .me-md-10 {\n    margin-right: 12rem !important;\n  }\n\n  .me-md-11 {\n    margin-right: 14rem !important;\n  }\n\n  .me-md-12 {\n    margin-right: 16rem !important;\n  }\n\n  .me-md-auto {\n    margin-right: auto !important;\n  }\n\n  .mb-md-0 {\n    margin-bottom: 0 !important;\n  }\n\n  .mb-md-1 {\n    margin-bottom: 0.25rem !important;\n  }\n\n  .mb-md-2 {\n    margin-bottom: 0.5rem !important;\n  }\n\n  .mb-md-3 {\n    margin-bottom: 1rem !important;\n  }\n\n  .mb-md-4 {\n    margin-bottom: 1.5rem !important;\n  }\n\n  .mb-md-5 {\n    margin-bottom: 3rem !important;\n  }\n\n  .mb-md-6 {\n    margin-bottom: 4rem !important;\n  }\n\n  .mb-md-7 {\n    margin-bottom: 6rem !important;\n  }\n\n  .mb-md-8 {\n    margin-bottom: 8rem !important;\n  }\n\n  .mb-md-9 {\n    margin-bottom: 10rem !important;\n  }\n\n  .mb-md-10 {\n    margin-bottom: 12rem !important;\n  }\n\n  .mb-md-11 {\n    margin-bottom: 14rem !important;\n  }\n\n  .mb-md-12 {\n    margin-bottom: 16rem !important;\n  }\n\n  .mb-md-auto {\n    margin-bottom: auto !important;\n  }\n\n  .ms-md-0 {\n    margin-left: 0 !important;\n  }\n\n  .ms-md-1 {\n    margin-left: 0.25rem !important;\n  }\n\n  .ms-md-2 {\n    margin-left: 0.5rem !important;\n  }\n\n  .ms-md-3 {\n    margin-left: 1rem !important;\n  }\n\n  .ms-md-4 {\n    margin-left: 1.5rem !important;\n  }\n\n  .ms-md-5 {\n    margin-left: 3rem !important;\n  }\n\n  .ms-md-6 {\n    margin-left: 4rem !important;\n  }\n\n  .ms-md-7 {\n    margin-left: 6rem !important;\n  }\n\n  .ms-md-8 {\n    margin-left: 8rem !important;\n  }\n\n  .ms-md-9 {\n    margin-left: 10rem !important;\n  }\n\n  .ms-md-10 {\n    margin-left: 12rem !important;\n  }\n\n  .ms-md-11 {\n    margin-left: 14rem !important;\n  }\n\n  .ms-md-12 {\n    margin-left: 16rem !important;\n  }\n\n  .ms-md-auto {\n    margin-left: auto !important;\n  }\n\n  .m-md-n1 {\n    margin: -0.25rem !important;\n  }\n\n  .m-md-n2 {\n    margin: -0.5rem !important;\n  }\n\n  .m-md-n3 {\n    margin: -1rem !important;\n  }\n\n  .m-md-n4 {\n    margin: -1.5rem !important;\n  }\n\n  .m-md-n5 {\n    margin: -3rem !important;\n  }\n\n  .m-md-n6 {\n    margin: -4rem !important;\n  }\n\n  .m-md-n7 {\n    margin: -6rem !important;\n  }\n\n  .m-md-n8 {\n    margin: -8rem !important;\n  }\n\n  .m-md-n9 {\n    margin: -10rem !important;\n  }\n\n  .m-md-n10 {\n    margin: -12rem !important;\n  }\n\n  .m-md-n11 {\n    margin: -14rem !important;\n  }\n\n  .m-md-n12 {\n    margin: -16rem !important;\n  }\n\n  .mx-md-n1 {\n    margin-right: -0.25rem !important;\n    margin-left: -0.25rem !important;\n  }\n\n  .mx-md-n2 {\n    margin-right: -0.5rem !important;\n    margin-left: -0.5rem !important;\n  }\n\n  .mx-md-n3 {\n    margin-right: -1rem !important;\n    margin-left: -1rem !important;\n  }\n\n  .mx-md-n4 {\n    margin-right: -1.5rem !important;\n    margin-left: -1.5rem !important;\n  }\n\n  .mx-md-n5 {\n    margin-right: -3rem !important;\n    margin-left: -3rem !important;\n  }\n\n  .mx-md-n6 {\n    margin-right: -4rem !important;\n    margin-left: -4rem !important;\n  }\n\n  .mx-md-n7 {\n    margin-right: -6rem !important;\n    margin-left: -6rem !important;\n  }\n\n  .mx-md-n8 {\n    margin-right: -8rem !important;\n    margin-left: -8rem !important;\n  }\n\n  .mx-md-n9 {\n    margin-right: -10rem !important;\n    margin-left: -10rem !important;\n  }\n\n  .mx-md-n10 {\n    margin-right: -12rem !important;\n    margin-left: -12rem !important;\n  }\n\n  .mx-md-n11 {\n    margin-right: -14rem !important;\n    margin-left: -14rem !important;\n  }\n\n  .mx-md-n12 {\n    margin-right: -16rem !important;\n    margin-left: -16rem !important;\n  }\n\n  .my-md-n1 {\n    margin-top: -0.25rem !important;\n    margin-bottom: -0.25rem !important;\n  }\n\n  .my-md-n2 {\n    margin-top: -0.5rem !important;\n    margin-bottom: -0.5rem !important;\n  }\n\n  .my-md-n3 {\n    margin-top: -1rem !important;\n    margin-bottom: -1rem !important;\n  }\n\n  .my-md-n4 {\n    margin-top: -1.5rem !important;\n    margin-bottom: -1.5rem !important;\n  }\n\n  .my-md-n5 {\n    margin-top: -3rem !important;\n    margin-bottom: -3rem !important;\n  }\n\n  .my-md-n6 {\n    margin-top: -4rem !important;\n    margin-bottom: -4rem !important;\n  }\n\n  .my-md-n7 {\n    margin-top: -6rem !important;\n    margin-bottom: -6rem !important;\n  }\n\n  .my-md-n8 {\n    margin-top: -8rem !important;\n    margin-bottom: -8rem !important;\n  }\n\n  .my-md-n9 {\n    margin-top: -10rem !important;\n    margin-bottom: -10rem !important;\n  }\n\n  .my-md-n10 {\n    margin-top: -12rem !important;\n    margin-bottom: -12rem !important;\n  }\n\n  .my-md-n11 {\n    margin-top: -14rem !important;\n    margin-bottom: -14rem !important;\n  }\n\n  .my-md-n12 {\n    margin-top: -16rem !important;\n    margin-bottom: -16rem !important;\n  }\n\n  .mt-md-n1 {\n    margin-top: -0.25rem !important;\n  }\n\n  .mt-md-n2 {\n    margin-top: -0.5rem !important;\n  }\n\n  .mt-md-n3 {\n    margin-top: -1rem !important;\n  }\n\n  .mt-md-n4 {\n    margin-top: -1.5rem !important;\n  }\n\n  .mt-md-n5 {\n    margin-top: -3rem !important;\n  }\n\n  .mt-md-n6 {\n    margin-top: -4rem !important;\n  }\n\n  .mt-md-n7 {\n    margin-top: -6rem !important;\n  }\n\n  .mt-md-n8 {\n    margin-top: -8rem !important;\n  }\n\n  .mt-md-n9 {\n    margin-top: -10rem !important;\n  }\n\n  .mt-md-n10 {\n    margin-top: -12rem !important;\n  }\n\n  .mt-md-n11 {\n    margin-top: -14rem !important;\n  }\n\n  .mt-md-n12 {\n    margin-top: -16rem !important;\n  }\n\n  .me-md-n1 {\n    margin-right: -0.25rem !important;\n  }\n\n  .me-md-n2 {\n    margin-right: -0.5rem !important;\n  }\n\n  .me-md-n3 {\n    margin-right: -1rem !important;\n  }\n\n  .me-md-n4 {\n    margin-right: -1.5rem !important;\n  }\n\n  .me-md-n5 {\n    margin-right: -3rem !important;\n  }\n\n  .me-md-n6 {\n    margin-right: -4rem !important;\n  }\n\n  .me-md-n7 {\n    margin-right: -6rem !important;\n  }\n\n  .me-md-n8 {\n    margin-right: -8rem !important;\n  }\n\n  .me-md-n9 {\n    margin-right: -10rem !important;\n  }\n\n  .me-md-n10 {\n    margin-right: -12rem !important;\n  }\n\n  .me-md-n11 {\n    margin-right: -14rem !important;\n  }\n\n  .me-md-n12 {\n    margin-right: -16rem !important;\n  }\n\n  .mb-md-n1 {\n    margin-bottom: -0.25rem !important;\n  }\n\n  .mb-md-n2 {\n    margin-bottom: -0.5rem !important;\n  }\n\n  .mb-md-n3 {\n    margin-bottom: -1rem !important;\n  }\n\n  .mb-md-n4 {\n    margin-bottom: -1.5rem !important;\n  }\n\n  .mb-md-n5 {\n    margin-bottom: -3rem !important;\n  }\n\n  .mb-md-n6 {\n    margin-bottom: -4rem !important;\n  }\n\n  .mb-md-n7 {\n    margin-bottom: -6rem !important;\n  }\n\n  .mb-md-n8 {\n    margin-bottom: -8rem !important;\n  }\n\n  .mb-md-n9 {\n    margin-bottom: -10rem !important;\n  }\n\n  .mb-md-n10 {\n    margin-bottom: -12rem !important;\n  }\n\n  .mb-md-n11 {\n    margin-bottom: -14rem !important;\n  }\n\n  .mb-md-n12 {\n    margin-bottom: -16rem !important;\n  }\n\n  .ms-md-n1 {\n    margin-left: -0.25rem !important;\n  }\n\n  .ms-md-n2 {\n    margin-left: -0.5rem !important;\n  }\n\n  .ms-md-n3 {\n    margin-left: -1rem !important;\n  }\n\n  .ms-md-n4 {\n    margin-left: -1.5rem !important;\n  }\n\n  .ms-md-n5 {\n    margin-left: -3rem !important;\n  }\n\n  .ms-md-n6 {\n    margin-left: -4rem !important;\n  }\n\n  .ms-md-n7 {\n    margin-left: -6rem !important;\n  }\n\n  .ms-md-n8 {\n    margin-left: -8rem !important;\n  }\n\n  .ms-md-n9 {\n    margin-left: -10rem !important;\n  }\n\n  .ms-md-n10 {\n    margin-left: -12rem !important;\n  }\n\n  .ms-md-n11 {\n    margin-left: -14rem !important;\n  }\n\n  .ms-md-n12 {\n    margin-left: -16rem !important;\n  }\n\n  .p-md-0 {\n    padding: 0 !important;\n  }\n\n  .p-md-1 {\n    padding: 0.25rem !important;\n  }\n\n  .p-md-2 {\n    padding: 0.5rem !important;\n  }\n\n  .p-md-3 {\n    padding: 1rem !important;\n  }\n\n  .p-md-4 {\n    padding: 1.5rem !important;\n  }\n\n  .p-md-5 {\n    padding: 3rem !important;\n  }\n\n  .p-md-6 {\n    padding: 4rem !important;\n  }\n\n  .p-md-7 {\n    padding: 6rem !important;\n  }\n\n  .p-md-8 {\n    padding: 8rem !important;\n  }\n\n  .p-md-9 {\n    padding: 10rem !important;\n  }\n\n  .p-md-10 {\n    padding: 12rem !important;\n  }\n\n  .p-md-11 {\n    padding: 14rem !important;\n  }\n\n  .p-md-12 {\n    padding: 16rem !important;\n  }\n\n  .px-md-0 {\n    padding-right: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .px-md-1 {\n    padding-right: 0.25rem !important;\n    padding-left: 0.25rem !important;\n  }\n\n  .px-md-2 {\n    padding-right: 0.5rem !important;\n    padding-left: 0.5rem !important;\n  }\n\n  .px-md-3 {\n    padding-right: 1rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .px-md-4 {\n    padding-right: 1.5rem !important;\n    padding-left: 1.5rem !important;\n  }\n\n  .px-md-5 {\n    padding-right: 3rem !important;\n    padding-left: 3rem !important;\n  }\n\n  .px-md-6 {\n    padding-right: 4rem !important;\n    padding-left: 4rem !important;\n  }\n\n  .px-md-7 {\n    padding-right: 6rem !important;\n    padding-left: 6rem !important;\n  }\n\n  .px-md-8 {\n    padding-right: 8rem !important;\n    padding-left: 8rem !important;\n  }\n\n  .px-md-9 {\n    padding-right: 10rem !important;\n    padding-left: 10rem !important;\n  }\n\n  .px-md-10 {\n    padding-right: 12rem !important;\n    padding-left: 12rem !important;\n  }\n\n  .px-md-11 {\n    padding-right: 14rem !important;\n    padding-left: 14rem !important;\n  }\n\n  .px-md-12 {\n    padding-right: 16rem !important;\n    padding-left: 16rem !important;\n  }\n\n  .py-md-0 {\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n  }\n\n  .py-md-1 {\n    padding-top: 0.25rem !important;\n    padding-bottom: 0.25rem !important;\n  }\n\n  .py-md-2 {\n    padding-top: 0.5rem !important;\n    padding-bottom: 0.5rem !important;\n  }\n\n  .py-md-3 {\n    padding-top: 1rem !important;\n    padding-bottom: 1rem !important;\n  }\n\n  .py-md-4 {\n    padding-top: 1.5rem !important;\n    padding-bottom: 1.5rem !important;\n  }\n\n  .py-md-5 {\n    padding-top: 3rem !important;\n    padding-bottom: 3rem !important;\n  }\n\n  .py-md-6 {\n    padding-top: 4rem !important;\n    padding-bottom: 4rem !important;\n  }\n\n  .py-md-7 {\n    padding-top: 6rem !important;\n    padding-bottom: 6rem !important;\n  }\n\n  .py-md-8 {\n    padding-top: 8rem !important;\n    padding-bottom: 8rem !important;\n  }\n\n  .py-md-9 {\n    padding-top: 10rem !important;\n    padding-bottom: 10rem !important;\n  }\n\n  .py-md-10 {\n    padding-top: 12rem !important;\n    padding-bottom: 12rem !important;\n  }\n\n  .py-md-11 {\n    padding-top: 14rem !important;\n    padding-bottom: 14rem !important;\n  }\n\n  .py-md-12 {\n    padding-top: 16rem !important;\n    padding-bottom: 16rem !important;\n  }\n\n  .pt-md-0 {\n    padding-top: 0 !important;\n  }\n\n  .pt-md-1 {\n    padding-top: 0.25rem !important;\n  }\n\n  .pt-md-2 {\n    padding-top: 0.5rem !important;\n  }\n\n  .pt-md-3 {\n    padding-top: 1rem !important;\n  }\n\n  .pt-md-4 {\n    padding-top: 1.5rem !important;\n  }\n\n  .pt-md-5 {\n    padding-top: 3rem !important;\n  }\n\n  .pt-md-6 {\n    padding-top: 4rem !important;\n  }\n\n  .pt-md-7 {\n    padding-top: 6rem !important;\n  }\n\n  .pt-md-8 {\n    padding-top: 8rem !important;\n  }\n\n  .pt-md-9 {\n    padding-top: 10rem !important;\n  }\n\n  .pt-md-10 {\n    padding-top: 12rem !important;\n  }\n\n  .pt-md-11 {\n    padding-top: 14rem !important;\n  }\n\n  .pt-md-12 {\n    padding-top: 16rem !important;\n  }\n\n  .pe-md-0 {\n    padding-right: 0 !important;\n  }\n\n  .pe-md-1 {\n    padding-right: 0.25rem !important;\n  }\n\n  .pe-md-2 {\n    padding-right: 0.5rem !important;\n  }\n\n  .pe-md-3 {\n    padding-right: 1rem !important;\n  }\n\n  .pe-md-4 {\n    padding-right: 1.5rem !important;\n  }\n\n  .pe-md-5 {\n    padding-right: 3rem !important;\n  }\n\n  .pe-md-6 {\n    padding-right: 4rem !important;\n  }\n\n  .pe-md-7 {\n    padding-right: 6rem !important;\n  }\n\n  .pe-md-8 {\n    padding-right: 8rem !important;\n  }\n\n  .pe-md-9 {\n    padding-right: 10rem !important;\n  }\n\n  .pe-md-10 {\n    padding-right: 12rem !important;\n  }\n\n  .pe-md-11 {\n    padding-right: 14rem !important;\n  }\n\n  .pe-md-12 {\n    padding-right: 16rem !important;\n  }\n\n  .pb-md-0 {\n    padding-bottom: 0 !important;\n  }\n\n  .pb-md-1 {\n    padding-bottom: 0.25rem !important;\n  }\n\n  .pb-md-2 {\n    padding-bottom: 0.5rem !important;\n  }\n\n  .pb-md-3 {\n    padding-bottom: 1rem !important;\n  }\n\n  .pb-md-4 {\n    padding-bottom: 1.5rem !important;\n  }\n\n  .pb-md-5 {\n    padding-bottom: 3rem !important;\n  }\n\n  .pb-md-6 {\n    padding-bottom: 4rem !important;\n  }\n\n  .pb-md-7 {\n    padding-bottom: 6rem !important;\n  }\n\n  .pb-md-8 {\n    padding-bottom: 8rem !important;\n  }\n\n  .pb-md-9 {\n    padding-bottom: 10rem !important;\n  }\n\n  .pb-md-10 {\n    padding-bottom: 12rem !important;\n  }\n\n  .pb-md-11 {\n    padding-bottom: 14rem !important;\n  }\n\n  .pb-md-12 {\n    padding-bottom: 16rem !important;\n  }\n\n  .ps-md-0 {\n    padding-left: 0 !important;\n  }\n\n  .ps-md-1 {\n    padding-left: 0.25rem !important;\n  }\n\n  .ps-md-2 {\n    padding-left: 0.5rem !important;\n  }\n\n  .ps-md-3 {\n    padding-left: 1rem !important;\n  }\n\n  .ps-md-4 {\n    padding-left: 1.5rem !important;\n  }\n\n  .ps-md-5 {\n    padding-left: 3rem !important;\n  }\n\n  .ps-md-6 {\n    padding-left: 4rem !important;\n  }\n\n  .ps-md-7 {\n    padding-left: 6rem !important;\n  }\n\n  .ps-md-8 {\n    padding-left: 8rem !important;\n  }\n\n  .ps-md-9 {\n    padding-left: 10rem !important;\n  }\n\n  .ps-md-10 {\n    padding-left: 12rem !important;\n  }\n\n  .ps-md-11 {\n    padding-left: 14rem !important;\n  }\n\n  .ps-md-12 {\n    padding-left: 16rem !important;\n  }\n\n  .text-md-start {\n    text-align: left !important;\n  }\n\n  .text-md-end {\n    text-align: right !important;\n  }\n\n  .text-md-center {\n    text-align: center !important;\n  }\n\n  .transform-scale-md-5 {\n    transform: scale(0.5) !important;\n  }\n\n  .transform-scale-md-6 {\n    transform: scale(0.6) !important;\n  }\n\n  .transform-scale-md-7 {\n    transform: scale(0.7) !important;\n  }\n\n  .transform-scale-md-8 {\n    transform: scale(0.8) !important;\n  }\n\n  .transform-scale-md-9 {\n    transform: scale(0.9) !important;\n  }\n\n  .transform-scale-md-10 {\n    transform: scale(1) !important;\n  }\n\n  .border-radius-top-start-md-0 {\n    border-top-left-radius: 0 !important;\n  }\n\n  .border-radius-top-end-md-0 {\n    border-top-right-radius: 0 !important;\n  }\n\n  .border-radius-bottom-start-md-0 {\n    border-bottom-left-radius: 0 !important;\n  }\n\n  .border-radius-bottom-end-md-0 {\n    border-bottom-right-radius: 0 !important;\n  }\n}\n\n@media (min-width: 992px) {\n  .float-lg-start {\n    float: left !important;\n  }\n\n  .float-lg-end {\n    float: right !important;\n  }\n\n  .float-lg-none {\n    float: none !important;\n  }\n\n  .d-lg-inline {\n    display: inline !important;\n  }\n\n  .d-lg-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-lg-block {\n    display: block !important;\n  }\n\n  .d-lg-grid {\n    display: grid !important;\n  }\n\n  .d-lg-table {\n    display: table !important;\n  }\n\n  .d-lg-table-row {\n    display: table-row !important;\n  }\n\n  .d-lg-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-lg-flex {\n    display: flex !important;\n  }\n\n  .d-lg-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-lg-none {\n    display: none !important;\n  }\n\n  .border-top-lg {\n    border-top: 1px solid #dee2e6 !important;\n  }\n\n  .border-top-lg-0 {\n    border-top: 0 !important;\n  }\n\n  .border-end-lg {\n    border-right: 1px solid #dee2e6 !important;\n  }\n\n  .border-end-lg-0 {\n    border-right: 0 !important;\n  }\n\n  .border-bottom-lg {\n    border-bottom: 1px solid #dee2e6 !important;\n  }\n\n  .border-bottom-lg-0 {\n    border-bottom: 0 !important;\n  }\n\n  .border-start-lg {\n    border-left: 1px solid #dee2e6 !important;\n  }\n\n  .border-start-lg-0 {\n    border-left: 0 !important;\n  }\n\n  .w-lg-0 {\n    width: 0% !important;\n  }\n\n  .w-lg-1 {\n    width: 1% !important;\n  }\n\n  .w-lg-2 {\n    width: 2% !important;\n  }\n\n  .w-lg-3 {\n    width: 3% !important;\n  }\n\n  .w-lg-4 {\n    width: 4% !important;\n  }\n\n  .w-lg-5 {\n    width: 5% !important;\n  }\n\n  .w-lg-6 {\n    width: 6% !important;\n  }\n\n  .w-lg-7 {\n    width: 7% !important;\n  }\n\n  .w-lg-8 {\n    width: 8% !important;\n  }\n\n  .w-lg-9 {\n    width: 9% !important;\n  }\n\n  .w-lg-10 {\n    width: 10% !important;\n  }\n\n  .w-lg-15 {\n    width: 15% !important;\n  }\n\n  .w-lg-20 {\n    width: 20% !important;\n  }\n\n  .w-lg-25 {\n    width: 25% !important;\n  }\n\n  .w-lg-30 {\n    width: 30% !important;\n  }\n\n  .w-lg-35 {\n    width: 35% !important;\n  }\n\n  .w-lg-40 {\n    width: 40% !important;\n  }\n\n  .w-lg-45 {\n    width: 45% !important;\n  }\n\n  .w-lg-50 {\n    width: 50% !important;\n  }\n\n  .w-lg-55 {\n    width: 55% !important;\n  }\n\n  .w-lg-60 {\n    width: 60% !important;\n  }\n\n  .w-lg-65 {\n    width: 65% !important;\n  }\n\n  .w-lg-70 {\n    width: 70% !important;\n  }\n\n  .w-lg-75 {\n    width: 75% !important;\n  }\n\n  .w-lg-80 {\n    width: 80% !important;\n  }\n\n  .w-lg-85 {\n    width: 85% !important;\n  }\n\n  .w-lg-90 {\n    width: 90% !important;\n  }\n\n  .w-lg-95 {\n    width: 95% !important;\n  }\n\n  .w-lg-100 {\n    width: 100% !important;\n  }\n\n  .w-lg-auto {\n    width: auto !important;\n  }\n\n  .flex-lg-fill {\n    flex: 1 1 auto !important;\n  }\n\n  .flex-lg-row {\n    flex-direction: row !important;\n  }\n\n  .flex-lg-column {\n    flex-direction: column !important;\n  }\n\n  .flex-lg-row-reverse {\n    flex-direction: row-reverse !important;\n  }\n\n  .flex-lg-column-reverse {\n    flex-direction: column-reverse !important;\n  }\n\n  .flex-lg-grow-0 {\n    flex-grow: 0 !important;\n  }\n\n  .flex-lg-grow-1 {\n    flex-grow: 1 !important;\n  }\n\n  .flex-lg-shrink-0 {\n    flex-shrink: 0 !important;\n  }\n\n  .flex-lg-shrink-1 {\n    flex-shrink: 1 !important;\n  }\n\n  .flex-lg-wrap {\n    flex-wrap: wrap !important;\n  }\n\n  .flex-lg-nowrap {\n    flex-wrap: nowrap !important;\n  }\n\n  .flex-lg-wrap-reverse {\n    flex-wrap: wrap-reverse !important;\n  }\n\n  .gap-lg-0 {\n    gap: 0 !important;\n  }\n\n  .gap-lg-1 {\n    gap: 0.25rem !important;\n  }\n\n  .gap-lg-2 {\n    gap: 0.5rem !important;\n  }\n\n  .gap-lg-3 {\n    gap: 1rem !important;\n  }\n\n  .gap-lg-4 {\n    gap: 1.5rem !important;\n  }\n\n  .gap-lg-5 {\n    gap: 3rem !important;\n  }\n\n  .gap-lg-6 {\n    gap: 4rem !important;\n  }\n\n  .gap-lg-7 {\n    gap: 6rem !important;\n  }\n\n  .gap-lg-8 {\n    gap: 8rem !important;\n  }\n\n  .gap-lg-9 {\n    gap: 10rem !important;\n  }\n\n  .gap-lg-10 {\n    gap: 12rem !important;\n  }\n\n  .gap-lg-11 {\n    gap: 14rem !important;\n  }\n\n  .gap-lg-12 {\n    gap: 16rem !important;\n  }\n\n  .justify-content-lg-start {\n    justify-content: flex-start !important;\n  }\n\n  .justify-content-lg-end {\n    justify-content: flex-end !important;\n  }\n\n  .justify-content-lg-center {\n    justify-content: center !important;\n  }\n\n  .justify-content-lg-between {\n    justify-content: space-between !important;\n  }\n\n  .justify-content-lg-around {\n    justify-content: space-around !important;\n  }\n\n  .justify-content-lg-evenly {\n    justify-content: space-evenly !important;\n  }\n\n  .align-items-lg-start {\n    align-items: flex-start !important;\n  }\n\n  .align-items-lg-end {\n    align-items: flex-end !important;\n  }\n\n  .align-items-lg-center {\n    align-items: center !important;\n  }\n\n  .align-items-lg-baseline {\n    align-items: baseline !important;\n  }\n\n  .align-items-lg-stretch {\n    align-items: stretch !important;\n  }\n\n  .align-content-lg-start {\n    align-content: flex-start !important;\n  }\n\n  .align-content-lg-end {\n    align-content: flex-end !important;\n  }\n\n  .align-content-lg-center {\n    align-content: center !important;\n  }\n\n  .align-content-lg-between {\n    align-content: space-between !important;\n  }\n\n  .align-content-lg-around {\n    align-content: space-around !important;\n  }\n\n  .align-content-lg-stretch {\n    align-content: stretch !important;\n  }\n\n  .align-self-lg-auto {\n    align-self: auto !important;\n  }\n\n  .align-self-lg-start {\n    align-self: flex-start !important;\n  }\n\n  .align-self-lg-end {\n    align-self: flex-end !important;\n  }\n\n  .align-self-lg-center {\n    align-self: center !important;\n  }\n\n  .align-self-lg-baseline {\n    align-self: baseline !important;\n  }\n\n  .align-self-lg-stretch {\n    align-self: stretch !important;\n  }\n\n  .order-lg-first {\n    order: -1 !important;\n  }\n\n  .order-lg-0 {\n    order: 0 !important;\n  }\n\n  .order-lg-1 {\n    order: 1 !important;\n  }\n\n  .order-lg-2 {\n    order: 2 !important;\n  }\n\n  .order-lg-3 {\n    order: 3 !important;\n  }\n\n  .order-lg-4 {\n    order: 4 !important;\n  }\n\n  .order-lg-5 {\n    order: 5 !important;\n  }\n\n  .order-lg-last {\n    order: 6 !important;\n  }\n\n  .m-lg-0 {\n    margin: 0 !important;\n  }\n\n  .m-lg-1 {\n    margin: 0.25rem !important;\n  }\n\n  .m-lg-2 {\n    margin: 0.5rem !important;\n  }\n\n  .m-lg-3 {\n    margin: 1rem !important;\n  }\n\n  .m-lg-4 {\n    margin: 1.5rem !important;\n  }\n\n  .m-lg-5 {\n    margin: 3rem !important;\n  }\n\n  .m-lg-6 {\n    margin: 4rem !important;\n  }\n\n  .m-lg-7 {\n    margin: 6rem !important;\n  }\n\n  .m-lg-8 {\n    margin: 8rem !important;\n  }\n\n  .m-lg-9 {\n    margin: 10rem !important;\n  }\n\n  .m-lg-10 {\n    margin: 12rem !important;\n  }\n\n  .m-lg-11 {\n    margin: 14rem !important;\n  }\n\n  .m-lg-12 {\n    margin: 16rem !important;\n  }\n\n  .m-lg-auto {\n    margin: auto !important;\n  }\n\n  .mx-lg-0 {\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n  }\n\n  .mx-lg-1 {\n    margin-right: 0.25rem !important;\n    margin-left: 0.25rem !important;\n  }\n\n  .mx-lg-2 {\n    margin-right: 0.5rem !important;\n    margin-left: 0.5rem !important;\n  }\n\n  .mx-lg-3 {\n    margin-right: 1rem !important;\n    margin-left: 1rem !important;\n  }\n\n  .mx-lg-4 {\n    margin-right: 1.5rem !important;\n    margin-left: 1.5rem !important;\n  }\n\n  .mx-lg-5 {\n    margin-right: 3rem !important;\n    margin-left: 3rem !important;\n  }\n\n  .mx-lg-6 {\n    margin-right: 4rem !important;\n    margin-left: 4rem !important;\n  }\n\n  .mx-lg-7 {\n    margin-right: 6rem !important;\n    margin-left: 6rem !important;\n  }\n\n  .mx-lg-8 {\n    margin-right: 8rem !important;\n    margin-left: 8rem !important;\n  }\n\n  .mx-lg-9 {\n    margin-right: 10rem !important;\n    margin-left: 10rem !important;\n  }\n\n  .mx-lg-10 {\n    margin-right: 12rem !important;\n    margin-left: 12rem !important;\n  }\n\n  .mx-lg-11 {\n    margin-right: 14rem !important;\n    margin-left: 14rem !important;\n  }\n\n  .mx-lg-12 {\n    margin-right: 16rem !important;\n    margin-left: 16rem !important;\n  }\n\n  .mx-lg-auto {\n    margin-right: auto !important;\n    margin-left: auto !important;\n  }\n\n  .my-lg-0 {\n    margin-top: 0 !important;\n    margin-bottom: 0 !important;\n  }\n\n  .my-lg-1 {\n    margin-top: 0.25rem !important;\n    margin-bottom: 0.25rem !important;\n  }\n\n  .my-lg-2 {\n    margin-top: 0.5rem !important;\n    margin-bottom: 0.5rem !important;\n  }\n\n  .my-lg-3 {\n    margin-top: 1rem !important;\n    margin-bottom: 1rem !important;\n  }\n\n  .my-lg-4 {\n    margin-top: 1.5rem !important;\n    margin-bottom: 1.5rem !important;\n  }\n\n  .my-lg-5 {\n    margin-top: 3rem !important;\n    margin-bottom: 3rem !important;\n  }\n\n  .my-lg-6 {\n    margin-top: 4rem !important;\n    margin-bottom: 4rem !important;\n  }\n\n  .my-lg-7 {\n    margin-top: 6rem !important;\n    margin-bottom: 6rem !important;\n  }\n\n  .my-lg-8 {\n    margin-top: 8rem !important;\n    margin-bottom: 8rem !important;\n  }\n\n  .my-lg-9 {\n    margin-top: 10rem !important;\n    margin-bottom: 10rem !important;\n  }\n\n  .my-lg-10 {\n    margin-top: 12rem !important;\n    margin-bottom: 12rem !important;\n  }\n\n  .my-lg-11 {\n    margin-top: 14rem !important;\n    margin-bottom: 14rem !important;\n  }\n\n  .my-lg-12 {\n    margin-top: 16rem !important;\n    margin-bottom: 16rem !important;\n  }\n\n  .my-lg-auto {\n    margin-top: auto !important;\n    margin-bottom: auto !important;\n  }\n\n  .mt-lg-0 {\n    margin-top: 0 !important;\n  }\n\n  .mt-lg-1 {\n    margin-top: 0.25rem !important;\n  }\n\n  .mt-lg-2 {\n    margin-top: 0.5rem !important;\n  }\n\n  .mt-lg-3 {\n    margin-top: 1rem !important;\n  }\n\n  .mt-lg-4 {\n    margin-top: 1.5rem !important;\n  }\n\n  .mt-lg-5 {\n    margin-top: 3rem !important;\n  }\n\n  .mt-lg-6 {\n    margin-top: 4rem !important;\n  }\n\n  .mt-lg-7 {\n    margin-top: 6rem !important;\n  }\n\n  .mt-lg-8 {\n    margin-top: 8rem !important;\n  }\n\n  .mt-lg-9 {\n    margin-top: 10rem !important;\n  }\n\n  .mt-lg-10 {\n    margin-top: 12rem !important;\n  }\n\n  .mt-lg-11 {\n    margin-top: 14rem !important;\n  }\n\n  .mt-lg-12 {\n    margin-top: 16rem !important;\n  }\n\n  .mt-lg-auto {\n    margin-top: auto !important;\n  }\n\n  .me-lg-0 {\n    margin-right: 0 !important;\n  }\n\n  .me-lg-1 {\n    margin-right: 0.25rem !important;\n  }\n\n  .me-lg-2 {\n    margin-right: 0.5rem !important;\n  }\n\n  .me-lg-3 {\n    margin-right: 1rem !important;\n  }\n\n  .me-lg-4 {\n    margin-right: 1.5rem !important;\n  }\n\n  .me-lg-5 {\n    margin-right: 3rem !important;\n  }\n\n  .me-lg-6 {\n    margin-right: 4rem !important;\n  }\n\n  .me-lg-7 {\n    margin-right: 6rem !important;\n  }\n\n  .me-lg-8 {\n    margin-right: 8rem !important;\n  }\n\n  .me-lg-9 {\n    margin-right: 10rem !important;\n  }\n\n  .me-lg-10 {\n    margin-right: 12rem !important;\n  }\n\n  .me-lg-11 {\n    margin-right: 14rem !important;\n  }\n\n  .me-lg-12 {\n    margin-right: 16rem !important;\n  }\n\n  .me-lg-auto {\n    margin-right: auto !important;\n  }\n\n  .mb-lg-0 {\n    margin-bottom: 0 !important;\n  }\n\n  .mb-lg-1 {\n    margin-bottom: 0.25rem !important;\n  }\n\n  .mb-lg-2 {\n    margin-bottom: 0.5rem !important;\n  }\n\n  .mb-lg-3 {\n    margin-bottom: 1rem !important;\n  }\n\n  .mb-lg-4 {\n    margin-bottom: 1.5rem !important;\n  }\n\n  .mb-lg-5 {\n    margin-bottom: 3rem !important;\n  }\n\n  .mb-lg-6 {\n    margin-bottom: 4rem !important;\n  }\n\n  .mb-lg-7 {\n    margin-bottom: 6rem !important;\n  }\n\n  .mb-lg-8 {\n    margin-bottom: 8rem !important;\n  }\n\n  .mb-lg-9 {\n    margin-bottom: 10rem !important;\n  }\n\n  .mb-lg-10 {\n    margin-bottom: 12rem !important;\n  }\n\n  .mb-lg-11 {\n    margin-bottom: 14rem !important;\n  }\n\n  .mb-lg-12 {\n    margin-bottom: 16rem !important;\n  }\n\n  .mb-lg-auto {\n    margin-bottom: auto !important;\n  }\n\n  .ms-lg-0 {\n    margin-left: 0 !important;\n  }\n\n  .ms-lg-1 {\n    margin-left: 0.25rem !important;\n  }\n\n  .ms-lg-2 {\n    margin-left: 0.5rem !important;\n  }\n\n  .ms-lg-3 {\n    margin-left: 1rem !important;\n  }\n\n  .ms-lg-4 {\n    margin-left: 1.5rem !important;\n  }\n\n  .ms-lg-5 {\n    margin-left: 3rem !important;\n  }\n\n  .ms-lg-6 {\n    margin-left: 4rem !important;\n  }\n\n  .ms-lg-7 {\n    margin-left: 6rem !important;\n  }\n\n  .ms-lg-8 {\n    margin-left: 8rem !important;\n  }\n\n  .ms-lg-9 {\n    margin-left: 10rem !important;\n  }\n\n  .ms-lg-10 {\n    margin-left: 12rem !important;\n  }\n\n  .ms-lg-11 {\n    margin-left: 14rem !important;\n  }\n\n  .ms-lg-12 {\n    margin-left: 16rem !important;\n  }\n\n  .ms-lg-auto {\n    margin-left: auto !important;\n  }\n\n  .m-lg-n1 {\n    margin: -0.25rem !important;\n  }\n\n  .m-lg-n2 {\n    margin: -0.5rem !important;\n  }\n\n  .m-lg-n3 {\n    margin: -1rem !important;\n  }\n\n  .m-lg-n4 {\n    margin: -1.5rem !important;\n  }\n\n  .m-lg-n5 {\n    margin: -3rem !important;\n  }\n\n  .m-lg-n6 {\n    margin: -4rem !important;\n  }\n\n  .m-lg-n7 {\n    margin: -6rem !important;\n  }\n\n  .m-lg-n8 {\n    margin: -8rem !important;\n  }\n\n  .m-lg-n9 {\n    margin: -10rem !important;\n  }\n\n  .m-lg-n10 {\n    margin: -12rem !important;\n  }\n\n  .m-lg-n11 {\n    margin: -14rem !important;\n  }\n\n  .m-lg-n12 {\n    margin: -16rem !important;\n  }\n\n  .mx-lg-n1 {\n    margin-right: -0.25rem !important;\n    margin-left: -0.25rem !important;\n  }\n\n  .mx-lg-n2 {\n    margin-right: -0.5rem !important;\n    margin-left: -0.5rem !important;\n  }\n\n  .mx-lg-n3 {\n    margin-right: -1rem !important;\n    margin-left: -1rem !important;\n  }\n\n  .mx-lg-n4 {\n    margin-right: -1.5rem !important;\n    margin-left: -1.5rem !important;\n  }\n\n  .mx-lg-n5 {\n    margin-right: -3rem !important;\n    margin-left: -3rem !important;\n  }\n\n  .mx-lg-n6 {\n    margin-right: -4rem !important;\n    margin-left: -4rem !important;\n  }\n\n  .mx-lg-n7 {\n    margin-right: -6rem !important;\n    margin-left: -6rem !important;\n  }\n\n  .mx-lg-n8 {\n    margin-right: -8rem !important;\n    margin-left: -8rem !important;\n  }\n\n  .mx-lg-n9 {\n    margin-right: -10rem !important;\n    margin-left: -10rem !important;\n  }\n\n  .mx-lg-n10 {\n    margin-right: -12rem !important;\n    margin-left: -12rem !important;\n  }\n\n  .mx-lg-n11 {\n    margin-right: -14rem !important;\n    margin-left: -14rem !important;\n  }\n\n  .mx-lg-n12 {\n    margin-right: -16rem !important;\n    margin-left: -16rem !important;\n  }\n\n  .my-lg-n1 {\n    margin-top: -0.25rem !important;\n    margin-bottom: -0.25rem !important;\n  }\n\n  .my-lg-n2 {\n    margin-top: -0.5rem !important;\n    margin-bottom: -0.5rem !important;\n  }\n\n  .my-lg-n3 {\n    margin-top: -1rem !important;\n    margin-bottom: -1rem !important;\n  }\n\n  .my-lg-n4 {\n    margin-top: -1.5rem !important;\n    margin-bottom: -1.5rem !important;\n  }\n\n  .my-lg-n5 {\n    margin-top: -3rem !important;\n    margin-bottom: -3rem !important;\n  }\n\n  .my-lg-n6 {\n    margin-top: -4rem !important;\n    margin-bottom: -4rem !important;\n  }\n\n  .my-lg-n7 {\n    margin-top: -6rem !important;\n    margin-bottom: -6rem !important;\n  }\n\n  .my-lg-n8 {\n    margin-top: -8rem !important;\n    margin-bottom: -8rem !important;\n  }\n\n  .my-lg-n9 {\n    margin-top: -10rem !important;\n    margin-bottom: -10rem !important;\n  }\n\n  .my-lg-n10 {\n    margin-top: -12rem !important;\n    margin-bottom: -12rem !important;\n  }\n\n  .my-lg-n11 {\n    margin-top: -14rem !important;\n    margin-bottom: -14rem !important;\n  }\n\n  .my-lg-n12 {\n    margin-top: -16rem !important;\n    margin-bottom: -16rem !important;\n  }\n\n  .mt-lg-n1 {\n    margin-top: -0.25rem !important;\n  }\n\n  .mt-lg-n2 {\n    margin-top: -0.5rem !important;\n  }\n\n  .mt-lg-n3 {\n    margin-top: -1rem !important;\n  }\n\n  .mt-lg-n4 {\n    margin-top: -1.5rem !important;\n  }\n\n  .mt-lg-n5 {\n    margin-top: -3rem !important;\n  }\n\n  .mt-lg-n6 {\n    margin-top: -4rem !important;\n  }\n\n  .mt-lg-n7 {\n    margin-top: -6rem !important;\n  }\n\n  .mt-lg-n8 {\n    margin-top: -8rem !important;\n  }\n\n  .mt-lg-n9 {\n    margin-top: -10rem !important;\n  }\n\n  .mt-lg-n10 {\n    margin-top: -12rem !important;\n  }\n\n  .mt-lg-n11 {\n    margin-top: -14rem !important;\n  }\n\n  .mt-lg-n12 {\n    margin-top: -16rem !important;\n  }\n\n  .me-lg-n1 {\n    margin-right: -0.25rem !important;\n  }\n\n  .me-lg-n2 {\n    margin-right: -0.5rem !important;\n  }\n\n  .me-lg-n3 {\n    margin-right: -1rem !important;\n  }\n\n  .me-lg-n4 {\n    margin-right: -1.5rem !important;\n  }\n\n  .me-lg-n5 {\n    margin-right: -3rem !important;\n  }\n\n  .me-lg-n6 {\n    margin-right: -4rem !important;\n  }\n\n  .me-lg-n7 {\n    margin-right: -6rem !important;\n  }\n\n  .me-lg-n8 {\n    margin-right: -8rem !important;\n  }\n\n  .me-lg-n9 {\n    margin-right: -10rem !important;\n  }\n\n  .me-lg-n10 {\n    margin-right: -12rem !important;\n  }\n\n  .me-lg-n11 {\n    margin-right: -14rem !important;\n  }\n\n  .me-lg-n12 {\n    margin-right: -16rem !important;\n  }\n\n  .mb-lg-n1 {\n    margin-bottom: -0.25rem !important;\n  }\n\n  .mb-lg-n2 {\n    margin-bottom: -0.5rem !important;\n  }\n\n  .mb-lg-n3 {\n    margin-bottom: -1rem !important;\n  }\n\n  .mb-lg-n4 {\n    margin-bottom: -1.5rem !important;\n  }\n\n  .mb-lg-n5 {\n    margin-bottom: -3rem !important;\n  }\n\n  .mb-lg-n6 {\n    margin-bottom: -4rem !important;\n  }\n\n  .mb-lg-n7 {\n    margin-bottom: -6rem !important;\n  }\n\n  .mb-lg-n8 {\n    margin-bottom: -8rem !important;\n  }\n\n  .mb-lg-n9 {\n    margin-bottom: -10rem !important;\n  }\n\n  .mb-lg-n10 {\n    margin-bottom: -12rem !important;\n  }\n\n  .mb-lg-n11 {\n    margin-bottom: -14rem !important;\n  }\n\n  .mb-lg-n12 {\n    margin-bottom: -16rem !important;\n  }\n\n  .ms-lg-n1 {\n    margin-left: -0.25rem !important;\n  }\n\n  .ms-lg-n2 {\n    margin-left: -0.5rem !important;\n  }\n\n  .ms-lg-n3 {\n    margin-left: -1rem !important;\n  }\n\n  .ms-lg-n4 {\n    margin-left: -1.5rem !important;\n  }\n\n  .ms-lg-n5 {\n    margin-left: -3rem !important;\n  }\n\n  .ms-lg-n6 {\n    margin-left: -4rem !important;\n  }\n\n  .ms-lg-n7 {\n    margin-left: -6rem !important;\n  }\n\n  .ms-lg-n8 {\n    margin-left: -8rem !important;\n  }\n\n  .ms-lg-n9 {\n    margin-left: -10rem !important;\n  }\n\n  .ms-lg-n10 {\n    margin-left: -12rem !important;\n  }\n\n  .ms-lg-n11 {\n    margin-left: -14rem !important;\n  }\n\n  .ms-lg-n12 {\n    margin-left: -16rem !important;\n  }\n\n  .p-lg-0 {\n    padding: 0 !important;\n  }\n\n  .p-lg-1 {\n    padding: 0.25rem !important;\n  }\n\n  .p-lg-2 {\n    padding: 0.5rem !important;\n  }\n\n  .p-lg-3 {\n    padding: 1rem !important;\n  }\n\n  .p-lg-4 {\n    padding: 1.5rem !important;\n  }\n\n  .p-lg-5 {\n    padding: 3rem !important;\n  }\n\n  .p-lg-6 {\n    padding: 4rem !important;\n  }\n\n  .p-lg-7 {\n    padding: 6rem !important;\n  }\n\n  .p-lg-8 {\n    padding: 8rem !important;\n  }\n\n  .p-lg-9 {\n    padding: 10rem !important;\n  }\n\n  .p-lg-10 {\n    padding: 12rem !important;\n  }\n\n  .p-lg-11 {\n    padding: 14rem !important;\n  }\n\n  .p-lg-12 {\n    padding: 16rem !important;\n  }\n\n  .px-lg-0 {\n    padding-right: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .px-lg-1 {\n    padding-right: 0.25rem !important;\n    padding-left: 0.25rem !important;\n  }\n\n  .px-lg-2 {\n    padding-right: 0.5rem !important;\n    padding-left: 0.5rem !important;\n  }\n\n  .px-lg-3 {\n    padding-right: 1rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .px-lg-4 {\n    padding-right: 1.5rem !important;\n    padding-left: 1.5rem !important;\n  }\n\n  .px-lg-5 {\n    padding-right: 3rem !important;\n    padding-left: 3rem !important;\n  }\n\n  .px-lg-6 {\n    padding-right: 4rem !important;\n    padding-left: 4rem !important;\n  }\n\n  .px-lg-7 {\n    padding-right: 6rem !important;\n    padding-left: 6rem !important;\n  }\n\n  .px-lg-8 {\n    padding-right: 8rem !important;\n    padding-left: 8rem !important;\n  }\n\n  .px-lg-9 {\n    padding-right: 10rem !important;\n    padding-left: 10rem !important;\n  }\n\n  .px-lg-10 {\n    padding-right: 12rem !important;\n    padding-left: 12rem !important;\n  }\n\n  .px-lg-11 {\n    padding-right: 14rem !important;\n    padding-left: 14rem !important;\n  }\n\n  .px-lg-12 {\n    padding-right: 16rem !important;\n    padding-left: 16rem !important;\n  }\n\n  .py-lg-0 {\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n  }\n\n  .py-lg-1 {\n    padding-top: 0.25rem !important;\n    padding-bottom: 0.25rem !important;\n  }\n\n  .py-lg-2 {\n    padding-top: 0.5rem !important;\n    padding-bottom: 0.5rem !important;\n  }\n\n  .py-lg-3 {\n    padding-top: 1rem !important;\n    padding-bottom: 1rem !important;\n  }\n\n  .py-lg-4 {\n    padding-top: 1.5rem !important;\n    padding-bottom: 1.5rem !important;\n  }\n\n  .py-lg-5 {\n    padding-top: 3rem !important;\n    padding-bottom: 3rem !important;\n  }\n\n  .py-lg-6 {\n    padding-top: 4rem !important;\n    padding-bottom: 4rem !important;\n  }\n\n  .py-lg-7 {\n    padding-top: 6rem !important;\n    padding-bottom: 6rem !important;\n  }\n\n  .py-lg-8 {\n    padding-top: 8rem !important;\n    padding-bottom: 8rem !important;\n  }\n\n  .py-lg-9 {\n    padding-top: 10rem !important;\n    padding-bottom: 10rem !important;\n  }\n\n  .py-lg-10 {\n    padding-top: 12rem !important;\n    padding-bottom: 12rem !important;\n  }\n\n  .py-lg-11 {\n    padding-top: 14rem !important;\n    padding-bottom: 14rem !important;\n  }\n\n  .py-lg-12 {\n    padding-top: 16rem !important;\n    padding-bottom: 16rem !important;\n  }\n\n  .pt-lg-0 {\n    padding-top: 0 !important;\n  }\n\n  .pt-lg-1 {\n    padding-top: 0.25rem !important;\n  }\n\n  .pt-lg-2 {\n    padding-top: 0.5rem !important;\n  }\n\n  .pt-lg-3 {\n    padding-top: 1rem !important;\n  }\n\n  .pt-lg-4 {\n    padding-top: 1.5rem !important;\n  }\n\n  .pt-lg-5 {\n    padding-top: 3rem !important;\n  }\n\n  .pt-lg-6 {\n    padding-top: 4rem !important;\n  }\n\n  .pt-lg-7 {\n    padding-top: 6rem !important;\n  }\n\n  .pt-lg-8 {\n    padding-top: 8rem !important;\n  }\n\n  .pt-lg-9 {\n    padding-top: 10rem !important;\n  }\n\n  .pt-lg-10 {\n    padding-top: 12rem !important;\n  }\n\n  .pt-lg-11 {\n    padding-top: 14rem !important;\n  }\n\n  .pt-lg-12 {\n    padding-top: 16rem !important;\n  }\n\n  .pe-lg-0 {\n    padding-right: 0 !important;\n  }\n\n  .pe-lg-1 {\n    padding-right: 0.25rem !important;\n  }\n\n  .pe-lg-2 {\n    padding-right: 0.5rem !important;\n  }\n\n  .pe-lg-3 {\n    padding-right: 1rem !important;\n  }\n\n  .pe-lg-4 {\n    padding-right: 1.5rem !important;\n  }\n\n  .pe-lg-5 {\n    padding-right: 3rem !important;\n  }\n\n  .pe-lg-6 {\n    padding-right: 4rem !important;\n  }\n\n  .pe-lg-7 {\n    padding-right: 6rem !important;\n  }\n\n  .pe-lg-8 {\n    padding-right: 8rem !important;\n  }\n\n  .pe-lg-9 {\n    padding-right: 10rem !important;\n  }\n\n  .pe-lg-10 {\n    padding-right: 12rem !important;\n  }\n\n  .pe-lg-11 {\n    padding-right: 14rem !important;\n  }\n\n  .pe-lg-12 {\n    padding-right: 16rem !important;\n  }\n\n  .pb-lg-0 {\n    padding-bottom: 0 !important;\n  }\n\n  .pb-lg-1 {\n    padding-bottom: 0.25rem !important;\n  }\n\n  .pb-lg-2 {\n    padding-bottom: 0.5rem !important;\n  }\n\n  .pb-lg-3 {\n    padding-bottom: 1rem !important;\n  }\n\n  .pb-lg-4 {\n    padding-bottom: 1.5rem !important;\n  }\n\n  .pb-lg-5 {\n    padding-bottom: 3rem !important;\n  }\n\n  .pb-lg-6 {\n    padding-bottom: 4rem !important;\n  }\n\n  .pb-lg-7 {\n    padding-bottom: 6rem !important;\n  }\n\n  .pb-lg-8 {\n    padding-bottom: 8rem !important;\n  }\n\n  .pb-lg-9 {\n    padding-bottom: 10rem !important;\n  }\n\n  .pb-lg-10 {\n    padding-bottom: 12rem !important;\n  }\n\n  .pb-lg-11 {\n    padding-bottom: 14rem !important;\n  }\n\n  .pb-lg-12 {\n    padding-bottom: 16rem !important;\n  }\n\n  .ps-lg-0 {\n    padding-left: 0 !important;\n  }\n\n  .ps-lg-1 {\n    padding-left: 0.25rem !important;\n  }\n\n  .ps-lg-2 {\n    padding-left: 0.5rem !important;\n  }\n\n  .ps-lg-3 {\n    padding-left: 1rem !important;\n  }\n\n  .ps-lg-4 {\n    padding-left: 1.5rem !important;\n  }\n\n  .ps-lg-5 {\n    padding-left: 3rem !important;\n  }\n\n  .ps-lg-6 {\n    padding-left: 4rem !important;\n  }\n\n  .ps-lg-7 {\n    padding-left: 6rem !important;\n  }\n\n  .ps-lg-8 {\n    padding-left: 8rem !important;\n  }\n\n  .ps-lg-9 {\n    padding-left: 10rem !important;\n  }\n\n  .ps-lg-10 {\n    padding-left: 12rem !important;\n  }\n\n  .ps-lg-11 {\n    padding-left: 14rem !important;\n  }\n\n  .ps-lg-12 {\n    padding-left: 16rem !important;\n  }\n\n  .text-lg-start {\n    text-align: left !important;\n  }\n\n  .text-lg-end {\n    text-align: right !important;\n  }\n\n  .text-lg-center {\n    text-align: center !important;\n  }\n\n  .transform-scale-lg-5 {\n    transform: scale(0.5) !important;\n  }\n\n  .transform-scale-lg-6 {\n    transform: scale(0.6) !important;\n  }\n\n  .transform-scale-lg-7 {\n    transform: scale(0.7) !important;\n  }\n\n  .transform-scale-lg-8 {\n    transform: scale(0.8) !important;\n  }\n\n  .transform-scale-lg-9 {\n    transform: scale(0.9) !important;\n  }\n\n  .transform-scale-lg-10 {\n    transform: scale(1) !important;\n  }\n\n  .border-radius-top-start-lg-0 {\n    border-top-left-radius: 0 !important;\n  }\n\n  .border-radius-top-end-lg-0 {\n    border-top-right-radius: 0 !important;\n  }\n\n  .border-radius-bottom-start-lg-0 {\n    border-bottom-left-radius: 0 !important;\n  }\n\n  .border-radius-bottom-end-lg-0 {\n    border-bottom-right-radius: 0 !important;\n  }\n}\n\n@media (min-width: 1200px) {\n  .float-xl-start {\n    float: left !important;\n  }\n\n  .float-xl-end {\n    float: right !important;\n  }\n\n  .float-xl-none {\n    float: none !important;\n  }\n\n  .d-xl-inline {\n    display: inline !important;\n  }\n\n  .d-xl-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-xl-block {\n    display: block !important;\n  }\n\n  .d-xl-grid {\n    display: grid !important;\n  }\n\n  .d-xl-table {\n    display: table !important;\n  }\n\n  .d-xl-table-row {\n    display: table-row !important;\n  }\n\n  .d-xl-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-xl-flex {\n    display: flex !important;\n  }\n\n  .d-xl-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-xl-none {\n    display: none !important;\n  }\n\n  .border-top-xl {\n    border-top: 1px solid #dee2e6 !important;\n  }\n\n  .border-top-xl-0 {\n    border-top: 0 !important;\n  }\n\n  .border-end-xl {\n    border-right: 1px solid #dee2e6 !important;\n  }\n\n  .border-end-xl-0 {\n    border-right: 0 !important;\n  }\n\n  .border-bottom-xl {\n    border-bottom: 1px solid #dee2e6 !important;\n  }\n\n  .border-bottom-xl-0 {\n    border-bottom: 0 !important;\n  }\n\n  .border-start-xl {\n    border-left: 1px solid #dee2e6 !important;\n  }\n\n  .border-start-xl-0 {\n    border-left: 0 !important;\n  }\n\n  .w-xl-0 {\n    width: 0% !important;\n  }\n\n  .w-xl-1 {\n    width: 1% !important;\n  }\n\n  .w-xl-2 {\n    width: 2% !important;\n  }\n\n  .w-xl-3 {\n    width: 3% !important;\n  }\n\n  .w-xl-4 {\n    width: 4% !important;\n  }\n\n  .w-xl-5 {\n    width: 5% !important;\n  }\n\n  .w-xl-6 {\n    width: 6% !important;\n  }\n\n  .w-xl-7 {\n    width: 7% !important;\n  }\n\n  .w-xl-8 {\n    width: 8% !important;\n  }\n\n  .w-xl-9 {\n    width: 9% !important;\n  }\n\n  .w-xl-10 {\n    width: 10% !important;\n  }\n\n  .w-xl-15 {\n    width: 15% !important;\n  }\n\n  .w-xl-20 {\n    width: 20% !important;\n  }\n\n  .w-xl-25 {\n    width: 25% !important;\n  }\n\n  .w-xl-30 {\n    width: 30% !important;\n  }\n\n  .w-xl-35 {\n    width: 35% !important;\n  }\n\n  .w-xl-40 {\n    width: 40% !important;\n  }\n\n  .w-xl-45 {\n    width: 45% !important;\n  }\n\n  .w-xl-50 {\n    width: 50% !important;\n  }\n\n  .w-xl-55 {\n    width: 55% !important;\n  }\n\n  .w-xl-60 {\n    width: 60% !important;\n  }\n\n  .w-xl-65 {\n    width: 65% !important;\n  }\n\n  .w-xl-70 {\n    width: 70% !important;\n  }\n\n  .w-xl-75 {\n    width: 75% !important;\n  }\n\n  .w-xl-80 {\n    width: 80% !important;\n  }\n\n  .w-xl-85 {\n    width: 85% !important;\n  }\n\n  .w-xl-90 {\n    width: 90% !important;\n  }\n\n  .w-xl-95 {\n    width: 95% !important;\n  }\n\n  .w-xl-100 {\n    width: 100% !important;\n  }\n\n  .w-xl-auto {\n    width: auto !important;\n  }\n\n  .flex-xl-fill {\n    flex: 1 1 auto !important;\n  }\n\n  .flex-xl-row {\n    flex-direction: row !important;\n  }\n\n  .flex-xl-column {\n    flex-direction: column !important;\n  }\n\n  .flex-xl-row-reverse {\n    flex-direction: row-reverse !important;\n  }\n\n  .flex-xl-column-reverse {\n    flex-direction: column-reverse !important;\n  }\n\n  .flex-xl-grow-0 {\n    flex-grow: 0 !important;\n  }\n\n  .flex-xl-grow-1 {\n    flex-grow: 1 !important;\n  }\n\n  .flex-xl-shrink-0 {\n    flex-shrink: 0 !important;\n  }\n\n  .flex-xl-shrink-1 {\n    flex-shrink: 1 !important;\n  }\n\n  .flex-xl-wrap {\n    flex-wrap: wrap !important;\n  }\n\n  .flex-xl-nowrap {\n    flex-wrap: nowrap !important;\n  }\n\n  .flex-xl-wrap-reverse {\n    flex-wrap: wrap-reverse !important;\n  }\n\n  .gap-xl-0 {\n    gap: 0 !important;\n  }\n\n  .gap-xl-1 {\n    gap: 0.25rem !important;\n  }\n\n  .gap-xl-2 {\n    gap: 0.5rem !important;\n  }\n\n  .gap-xl-3 {\n    gap: 1rem !important;\n  }\n\n  .gap-xl-4 {\n    gap: 1.5rem !important;\n  }\n\n  .gap-xl-5 {\n    gap: 3rem !important;\n  }\n\n  .gap-xl-6 {\n    gap: 4rem !important;\n  }\n\n  .gap-xl-7 {\n    gap: 6rem !important;\n  }\n\n  .gap-xl-8 {\n    gap: 8rem !important;\n  }\n\n  .gap-xl-9 {\n    gap: 10rem !important;\n  }\n\n  .gap-xl-10 {\n    gap: 12rem !important;\n  }\n\n  .gap-xl-11 {\n    gap: 14rem !important;\n  }\n\n  .gap-xl-12 {\n    gap: 16rem !important;\n  }\n\n  .justify-content-xl-start {\n    justify-content: flex-start !important;\n  }\n\n  .justify-content-xl-end {\n    justify-content: flex-end !important;\n  }\n\n  .justify-content-xl-center {\n    justify-content: center !important;\n  }\n\n  .justify-content-xl-between {\n    justify-content: space-between !important;\n  }\n\n  .justify-content-xl-around {\n    justify-content: space-around !important;\n  }\n\n  .justify-content-xl-evenly {\n    justify-content: space-evenly !important;\n  }\n\n  .align-items-xl-start {\n    align-items: flex-start !important;\n  }\n\n  .align-items-xl-end {\n    align-items: flex-end !important;\n  }\n\n  .align-items-xl-center {\n    align-items: center !important;\n  }\n\n  .align-items-xl-baseline {\n    align-items: baseline !important;\n  }\n\n  .align-items-xl-stretch {\n    align-items: stretch !important;\n  }\n\n  .align-content-xl-start {\n    align-content: flex-start !important;\n  }\n\n  .align-content-xl-end {\n    align-content: flex-end !important;\n  }\n\n  .align-content-xl-center {\n    align-content: center !important;\n  }\n\n  .align-content-xl-between {\n    align-content: space-between !important;\n  }\n\n  .align-content-xl-around {\n    align-content: space-around !important;\n  }\n\n  .align-content-xl-stretch {\n    align-content: stretch !important;\n  }\n\n  .align-self-xl-auto {\n    align-self: auto !important;\n  }\n\n  .align-self-xl-start {\n    align-self: flex-start !important;\n  }\n\n  .align-self-xl-end {\n    align-self: flex-end !important;\n  }\n\n  .align-self-xl-center {\n    align-self: center !important;\n  }\n\n  .align-self-xl-baseline {\n    align-self: baseline !important;\n  }\n\n  .align-self-xl-stretch {\n    align-self: stretch !important;\n  }\n\n  .order-xl-first {\n    order: -1 !important;\n  }\n\n  .order-xl-0 {\n    order: 0 !important;\n  }\n\n  .order-xl-1 {\n    order: 1 !important;\n  }\n\n  .order-xl-2 {\n    order: 2 !important;\n  }\n\n  .order-xl-3 {\n    order: 3 !important;\n  }\n\n  .order-xl-4 {\n    order: 4 !important;\n  }\n\n  .order-xl-5 {\n    order: 5 !important;\n  }\n\n  .order-xl-last {\n    order: 6 !important;\n  }\n\n  .m-xl-0 {\n    margin: 0 !important;\n  }\n\n  .m-xl-1 {\n    margin: 0.25rem !important;\n  }\n\n  .m-xl-2 {\n    margin: 0.5rem !important;\n  }\n\n  .m-xl-3 {\n    margin: 1rem !important;\n  }\n\n  .m-xl-4 {\n    margin: 1.5rem !important;\n  }\n\n  .m-xl-5 {\n    margin: 3rem !important;\n  }\n\n  .m-xl-6 {\n    margin: 4rem !important;\n  }\n\n  .m-xl-7 {\n    margin: 6rem !important;\n  }\n\n  .m-xl-8 {\n    margin: 8rem !important;\n  }\n\n  .m-xl-9 {\n    margin: 10rem !important;\n  }\n\n  .m-xl-10 {\n    margin: 12rem !important;\n  }\n\n  .m-xl-11 {\n    margin: 14rem !important;\n  }\n\n  .m-xl-12 {\n    margin: 16rem !important;\n  }\n\n  .m-xl-auto {\n    margin: auto !important;\n  }\n\n  .mx-xl-0 {\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n  }\n\n  .mx-xl-1 {\n    margin-right: 0.25rem !important;\n    margin-left: 0.25rem !important;\n  }\n\n  .mx-xl-2 {\n    margin-right: 0.5rem !important;\n    margin-left: 0.5rem !important;\n  }\n\n  .mx-xl-3 {\n    margin-right: 1rem !important;\n    margin-left: 1rem !important;\n  }\n\n  .mx-xl-4 {\n    margin-right: 1.5rem !important;\n    margin-left: 1.5rem !important;\n  }\n\n  .mx-xl-5 {\n    margin-right: 3rem !important;\n    margin-left: 3rem !important;\n  }\n\n  .mx-xl-6 {\n    margin-right: 4rem !important;\n    margin-left: 4rem !important;\n  }\n\n  .mx-xl-7 {\n    margin-right: 6rem !important;\n    margin-left: 6rem !important;\n  }\n\n  .mx-xl-8 {\n    margin-right: 8rem !important;\n    margin-left: 8rem !important;\n  }\n\n  .mx-xl-9 {\n    margin-right: 10rem !important;\n    margin-left: 10rem !important;\n  }\n\n  .mx-xl-10 {\n    margin-right: 12rem !important;\n    margin-left: 12rem !important;\n  }\n\n  .mx-xl-11 {\n    margin-right: 14rem !important;\n    margin-left: 14rem !important;\n  }\n\n  .mx-xl-12 {\n    margin-right: 16rem !important;\n    margin-left: 16rem !important;\n  }\n\n  .mx-xl-auto {\n    margin-right: auto !important;\n    margin-left: auto !important;\n  }\n\n  .my-xl-0 {\n    margin-top: 0 !important;\n    margin-bottom: 0 !important;\n  }\n\n  .my-xl-1 {\n    margin-top: 0.25rem !important;\n    margin-bottom: 0.25rem !important;\n  }\n\n  .my-xl-2 {\n    margin-top: 0.5rem !important;\n    margin-bottom: 0.5rem !important;\n  }\n\n  .my-xl-3 {\n    margin-top: 1rem !important;\n    margin-bottom: 1rem !important;\n  }\n\n  .my-xl-4 {\n    margin-top: 1.5rem !important;\n    margin-bottom: 1.5rem !important;\n  }\n\n  .my-xl-5 {\n    margin-top: 3rem !important;\n    margin-bottom: 3rem !important;\n  }\n\n  .my-xl-6 {\n    margin-top: 4rem !important;\n    margin-bottom: 4rem !important;\n  }\n\n  .my-xl-7 {\n    margin-top: 6rem !important;\n    margin-bottom: 6rem !important;\n  }\n\n  .my-xl-8 {\n    margin-top: 8rem !important;\n    margin-bottom: 8rem !important;\n  }\n\n  .my-xl-9 {\n    margin-top: 10rem !important;\n    margin-bottom: 10rem !important;\n  }\n\n  .my-xl-10 {\n    margin-top: 12rem !important;\n    margin-bottom: 12rem !important;\n  }\n\n  .my-xl-11 {\n    margin-top: 14rem !important;\n    margin-bottom: 14rem !important;\n  }\n\n  .my-xl-12 {\n    margin-top: 16rem !important;\n    margin-bottom: 16rem !important;\n  }\n\n  .my-xl-auto {\n    margin-top: auto !important;\n    margin-bottom: auto !important;\n  }\n\n  .mt-xl-0 {\n    margin-top: 0 !important;\n  }\n\n  .mt-xl-1 {\n    margin-top: 0.25rem !important;\n  }\n\n  .mt-xl-2 {\n    margin-top: 0.5rem !important;\n  }\n\n  .mt-xl-3 {\n    margin-top: 1rem !important;\n  }\n\n  .mt-xl-4 {\n    margin-top: 1.5rem !important;\n  }\n\n  .mt-xl-5 {\n    margin-top: 3rem !important;\n  }\n\n  .mt-xl-6 {\n    margin-top: 4rem !important;\n  }\n\n  .mt-xl-7 {\n    margin-top: 6rem !important;\n  }\n\n  .mt-xl-8 {\n    margin-top: 8rem !important;\n  }\n\n  .mt-xl-9 {\n    margin-top: 10rem !important;\n  }\n\n  .mt-xl-10 {\n    margin-top: 12rem !important;\n  }\n\n  .mt-xl-11 {\n    margin-top: 14rem !important;\n  }\n\n  .mt-xl-12 {\n    margin-top: 16rem !important;\n  }\n\n  .mt-xl-auto {\n    margin-top: auto !important;\n  }\n\n  .me-xl-0 {\n    margin-right: 0 !important;\n  }\n\n  .me-xl-1 {\n    margin-right: 0.25rem !important;\n  }\n\n  .me-xl-2 {\n    margin-right: 0.5rem !important;\n  }\n\n  .me-xl-3 {\n    margin-right: 1rem !important;\n  }\n\n  .me-xl-4 {\n    margin-right: 1.5rem !important;\n  }\n\n  .me-xl-5 {\n    margin-right: 3rem !important;\n  }\n\n  .me-xl-6 {\n    margin-right: 4rem !important;\n  }\n\n  .me-xl-7 {\n    margin-right: 6rem !important;\n  }\n\n  .me-xl-8 {\n    margin-right: 8rem !important;\n  }\n\n  .me-xl-9 {\n    margin-right: 10rem !important;\n  }\n\n  .me-xl-10 {\n    margin-right: 12rem !important;\n  }\n\n  .me-xl-11 {\n    margin-right: 14rem !important;\n  }\n\n  .me-xl-12 {\n    margin-right: 16rem !important;\n  }\n\n  .me-xl-auto {\n    margin-right: auto !important;\n  }\n\n  .mb-xl-0 {\n    margin-bottom: 0 !important;\n  }\n\n  .mb-xl-1 {\n    margin-bottom: 0.25rem !important;\n  }\n\n  .mb-xl-2 {\n    margin-bottom: 0.5rem !important;\n  }\n\n  .mb-xl-3 {\n    margin-bottom: 1rem !important;\n  }\n\n  .mb-xl-4 {\n    margin-bottom: 1.5rem !important;\n  }\n\n  .mb-xl-5 {\n    margin-bottom: 3rem !important;\n  }\n\n  .mb-xl-6 {\n    margin-bottom: 4rem !important;\n  }\n\n  .mb-xl-7 {\n    margin-bottom: 6rem !important;\n  }\n\n  .mb-xl-8 {\n    margin-bottom: 8rem !important;\n  }\n\n  .mb-xl-9 {\n    margin-bottom: 10rem !important;\n  }\n\n  .mb-xl-10 {\n    margin-bottom: 12rem !important;\n  }\n\n  .mb-xl-11 {\n    margin-bottom: 14rem !important;\n  }\n\n  .mb-xl-12 {\n    margin-bottom: 16rem !important;\n  }\n\n  .mb-xl-auto {\n    margin-bottom: auto !important;\n  }\n\n  .ms-xl-0 {\n    margin-left: 0 !important;\n  }\n\n  .ms-xl-1 {\n    margin-left: 0.25rem !important;\n  }\n\n  .ms-xl-2 {\n    margin-left: 0.5rem !important;\n  }\n\n  .ms-xl-3 {\n    margin-left: 1rem !important;\n  }\n\n  .ms-xl-4 {\n    margin-left: 1.5rem !important;\n  }\n\n  .ms-xl-5 {\n    margin-left: 3rem !important;\n  }\n\n  .ms-xl-6 {\n    margin-left: 4rem !important;\n  }\n\n  .ms-xl-7 {\n    margin-left: 6rem !important;\n  }\n\n  .ms-xl-8 {\n    margin-left: 8rem !important;\n  }\n\n  .ms-xl-9 {\n    margin-left: 10rem !important;\n  }\n\n  .ms-xl-10 {\n    margin-left: 12rem !important;\n  }\n\n  .ms-xl-11 {\n    margin-left: 14rem !important;\n  }\n\n  .ms-xl-12 {\n    margin-left: 16rem !important;\n  }\n\n  .ms-xl-auto {\n    margin-left: auto !important;\n  }\n\n  .m-xl-n1 {\n    margin: -0.25rem !important;\n  }\n\n  .m-xl-n2 {\n    margin: -0.5rem !important;\n  }\n\n  .m-xl-n3 {\n    margin: -1rem !important;\n  }\n\n  .m-xl-n4 {\n    margin: -1.5rem !important;\n  }\n\n  .m-xl-n5 {\n    margin: -3rem !important;\n  }\n\n  .m-xl-n6 {\n    margin: -4rem !important;\n  }\n\n  .m-xl-n7 {\n    margin: -6rem !important;\n  }\n\n  .m-xl-n8 {\n    margin: -8rem !important;\n  }\n\n  .m-xl-n9 {\n    margin: -10rem !important;\n  }\n\n  .m-xl-n10 {\n    margin: -12rem !important;\n  }\n\n  .m-xl-n11 {\n    margin: -14rem !important;\n  }\n\n  .m-xl-n12 {\n    margin: -16rem !important;\n  }\n\n  .mx-xl-n1 {\n    margin-right: -0.25rem !important;\n    margin-left: -0.25rem !important;\n  }\n\n  .mx-xl-n2 {\n    margin-right: -0.5rem !important;\n    margin-left: -0.5rem !important;\n  }\n\n  .mx-xl-n3 {\n    margin-right: -1rem !important;\n    margin-left: -1rem !important;\n  }\n\n  .mx-xl-n4 {\n    margin-right: -1.5rem !important;\n    margin-left: -1.5rem !important;\n  }\n\n  .mx-xl-n5 {\n    margin-right: -3rem !important;\n    margin-left: -3rem !important;\n  }\n\n  .mx-xl-n6 {\n    margin-right: -4rem !important;\n    margin-left: -4rem !important;\n  }\n\n  .mx-xl-n7 {\n    margin-right: -6rem !important;\n    margin-left: -6rem !important;\n  }\n\n  .mx-xl-n8 {\n    margin-right: -8rem !important;\n    margin-left: -8rem !important;\n  }\n\n  .mx-xl-n9 {\n    margin-right: -10rem !important;\n    margin-left: -10rem !important;\n  }\n\n  .mx-xl-n10 {\n    margin-right: -12rem !important;\n    margin-left: -12rem !important;\n  }\n\n  .mx-xl-n11 {\n    margin-right: -14rem !important;\n    margin-left: -14rem !important;\n  }\n\n  .mx-xl-n12 {\n    margin-right: -16rem !important;\n    margin-left: -16rem !important;\n  }\n\n  .my-xl-n1 {\n    margin-top: -0.25rem !important;\n    margin-bottom: -0.25rem !important;\n  }\n\n  .my-xl-n2 {\n    margin-top: -0.5rem !important;\n    margin-bottom: -0.5rem !important;\n  }\n\n  .my-xl-n3 {\n    margin-top: -1rem !important;\n    margin-bottom: -1rem !important;\n  }\n\n  .my-xl-n4 {\n    margin-top: -1.5rem !important;\n    margin-bottom: -1.5rem !important;\n  }\n\n  .my-xl-n5 {\n    margin-top: -3rem !important;\n    margin-bottom: -3rem !important;\n  }\n\n  .my-xl-n6 {\n    margin-top: -4rem !important;\n    margin-bottom: -4rem !important;\n  }\n\n  .my-xl-n7 {\n    margin-top: -6rem !important;\n    margin-bottom: -6rem !important;\n  }\n\n  .my-xl-n8 {\n    margin-top: -8rem !important;\n    margin-bottom: -8rem !important;\n  }\n\n  .my-xl-n9 {\n    margin-top: -10rem !important;\n    margin-bottom: -10rem !important;\n  }\n\n  .my-xl-n10 {\n    margin-top: -12rem !important;\n    margin-bottom: -12rem !important;\n  }\n\n  .my-xl-n11 {\n    margin-top: -14rem !important;\n    margin-bottom: -14rem !important;\n  }\n\n  .my-xl-n12 {\n    margin-top: -16rem !important;\n    margin-bottom: -16rem !important;\n  }\n\n  .mt-xl-n1 {\n    margin-top: -0.25rem !important;\n  }\n\n  .mt-xl-n2 {\n    margin-top: -0.5rem !important;\n  }\n\n  .mt-xl-n3 {\n    margin-top: -1rem !important;\n  }\n\n  .mt-xl-n4 {\n    margin-top: -1.5rem !important;\n  }\n\n  .mt-xl-n5 {\n    margin-top: -3rem !important;\n  }\n\n  .mt-xl-n6 {\n    margin-top: -4rem !important;\n  }\n\n  .mt-xl-n7 {\n    margin-top: -6rem !important;\n  }\n\n  .mt-xl-n8 {\n    margin-top: -8rem !important;\n  }\n\n  .mt-xl-n9 {\n    margin-top: -10rem !important;\n  }\n\n  .mt-xl-n10 {\n    margin-top: -12rem !important;\n  }\n\n  .mt-xl-n11 {\n    margin-top: -14rem !important;\n  }\n\n  .mt-xl-n12 {\n    margin-top: -16rem !important;\n  }\n\n  .me-xl-n1 {\n    margin-right: -0.25rem !important;\n  }\n\n  .me-xl-n2 {\n    margin-right: -0.5rem !important;\n  }\n\n  .me-xl-n3 {\n    margin-right: -1rem !important;\n  }\n\n  .me-xl-n4 {\n    margin-right: -1.5rem !important;\n  }\n\n  .me-xl-n5 {\n    margin-right: -3rem !important;\n  }\n\n  .me-xl-n6 {\n    margin-right: -4rem !important;\n  }\n\n  .me-xl-n7 {\n    margin-right: -6rem !important;\n  }\n\n  .me-xl-n8 {\n    margin-right: -8rem !important;\n  }\n\n  .me-xl-n9 {\n    margin-right: -10rem !important;\n  }\n\n  .me-xl-n10 {\n    margin-right: -12rem !important;\n  }\n\n  .me-xl-n11 {\n    margin-right: -14rem !important;\n  }\n\n  .me-xl-n12 {\n    margin-right: -16rem !important;\n  }\n\n  .mb-xl-n1 {\n    margin-bottom: -0.25rem !important;\n  }\n\n  .mb-xl-n2 {\n    margin-bottom: -0.5rem !important;\n  }\n\n  .mb-xl-n3 {\n    margin-bottom: -1rem !important;\n  }\n\n  .mb-xl-n4 {\n    margin-bottom: -1.5rem !important;\n  }\n\n  .mb-xl-n5 {\n    margin-bottom: -3rem !important;\n  }\n\n  .mb-xl-n6 {\n    margin-bottom: -4rem !important;\n  }\n\n  .mb-xl-n7 {\n    margin-bottom: -6rem !important;\n  }\n\n  .mb-xl-n8 {\n    margin-bottom: -8rem !important;\n  }\n\n  .mb-xl-n9 {\n    margin-bottom: -10rem !important;\n  }\n\n  .mb-xl-n10 {\n    margin-bottom: -12rem !important;\n  }\n\n  .mb-xl-n11 {\n    margin-bottom: -14rem !important;\n  }\n\n  .mb-xl-n12 {\n    margin-bottom: -16rem !important;\n  }\n\n  .ms-xl-n1 {\n    margin-left: -0.25rem !important;\n  }\n\n  .ms-xl-n2 {\n    margin-left: -0.5rem !important;\n  }\n\n  .ms-xl-n3 {\n    margin-left: -1rem !important;\n  }\n\n  .ms-xl-n4 {\n    margin-left: -1.5rem !important;\n  }\n\n  .ms-xl-n5 {\n    margin-left: -3rem !important;\n  }\n\n  .ms-xl-n6 {\n    margin-left: -4rem !important;\n  }\n\n  .ms-xl-n7 {\n    margin-left: -6rem !important;\n  }\n\n  .ms-xl-n8 {\n    margin-left: -8rem !important;\n  }\n\n  .ms-xl-n9 {\n    margin-left: -10rem !important;\n  }\n\n  .ms-xl-n10 {\n    margin-left: -12rem !important;\n  }\n\n  .ms-xl-n11 {\n    margin-left: -14rem !important;\n  }\n\n  .ms-xl-n12 {\n    margin-left: -16rem !important;\n  }\n\n  .p-xl-0 {\n    padding: 0 !important;\n  }\n\n  .p-xl-1 {\n    padding: 0.25rem !important;\n  }\n\n  .p-xl-2 {\n    padding: 0.5rem !important;\n  }\n\n  .p-xl-3 {\n    padding: 1rem !important;\n  }\n\n  .p-xl-4 {\n    padding: 1.5rem !important;\n  }\n\n  .p-xl-5 {\n    padding: 3rem !important;\n  }\n\n  .p-xl-6 {\n    padding: 4rem !important;\n  }\n\n  .p-xl-7 {\n    padding: 6rem !important;\n  }\n\n  .p-xl-8 {\n    padding: 8rem !important;\n  }\n\n  .p-xl-9 {\n    padding: 10rem !important;\n  }\n\n  .p-xl-10 {\n    padding: 12rem !important;\n  }\n\n  .p-xl-11 {\n    padding: 14rem !important;\n  }\n\n  .p-xl-12 {\n    padding: 16rem !important;\n  }\n\n  .px-xl-0 {\n    padding-right: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .px-xl-1 {\n    padding-right: 0.25rem !important;\n    padding-left: 0.25rem !important;\n  }\n\n  .px-xl-2 {\n    padding-right: 0.5rem !important;\n    padding-left: 0.5rem !important;\n  }\n\n  .px-xl-3 {\n    padding-right: 1rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .px-xl-4 {\n    padding-right: 1.5rem !important;\n    padding-left: 1.5rem !important;\n  }\n\n  .px-xl-5 {\n    padding-right: 3rem !important;\n    padding-left: 3rem !important;\n  }\n\n  .px-xl-6 {\n    padding-right: 4rem !important;\n    padding-left: 4rem !important;\n  }\n\n  .px-xl-7 {\n    padding-right: 6rem !important;\n    padding-left: 6rem !important;\n  }\n\n  .px-xl-8 {\n    padding-right: 8rem !important;\n    padding-left: 8rem !important;\n  }\n\n  .px-xl-9 {\n    padding-right: 10rem !important;\n    padding-left: 10rem !important;\n  }\n\n  .px-xl-10 {\n    padding-right: 12rem !important;\n    padding-left: 12rem !important;\n  }\n\n  .px-xl-11 {\n    padding-right: 14rem !important;\n    padding-left: 14rem !important;\n  }\n\n  .px-xl-12 {\n    padding-right: 16rem !important;\n    padding-left: 16rem !important;\n  }\n\n  .py-xl-0 {\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n  }\n\n  .py-xl-1 {\n    padding-top: 0.25rem !important;\n    padding-bottom: 0.25rem !important;\n  }\n\n  .py-xl-2 {\n    padding-top: 0.5rem !important;\n    padding-bottom: 0.5rem !important;\n  }\n\n  .py-xl-3 {\n    padding-top: 1rem !important;\n    padding-bottom: 1rem !important;\n  }\n\n  .py-xl-4 {\n    padding-top: 1.5rem !important;\n    padding-bottom: 1.5rem !important;\n  }\n\n  .py-xl-5 {\n    padding-top: 3rem !important;\n    padding-bottom: 3rem !important;\n  }\n\n  .py-xl-6 {\n    padding-top: 4rem !important;\n    padding-bottom: 4rem !important;\n  }\n\n  .py-xl-7 {\n    padding-top: 6rem !important;\n    padding-bottom: 6rem !important;\n  }\n\n  .py-xl-8 {\n    padding-top: 8rem !important;\n    padding-bottom: 8rem !important;\n  }\n\n  .py-xl-9 {\n    padding-top: 10rem !important;\n    padding-bottom: 10rem !important;\n  }\n\n  .py-xl-10 {\n    padding-top: 12rem !important;\n    padding-bottom: 12rem !important;\n  }\n\n  .py-xl-11 {\n    padding-top: 14rem !important;\n    padding-bottom: 14rem !important;\n  }\n\n  .py-xl-12 {\n    padding-top: 16rem !important;\n    padding-bottom: 16rem !important;\n  }\n\n  .pt-xl-0 {\n    padding-top: 0 !important;\n  }\n\n  .pt-xl-1 {\n    padding-top: 0.25rem !important;\n  }\n\n  .pt-xl-2 {\n    padding-top: 0.5rem !important;\n  }\n\n  .pt-xl-3 {\n    padding-top: 1rem !important;\n  }\n\n  .pt-xl-4 {\n    padding-top: 1.5rem !important;\n  }\n\n  .pt-xl-5 {\n    padding-top: 3rem !important;\n  }\n\n  .pt-xl-6 {\n    padding-top: 4rem !important;\n  }\n\n  .pt-xl-7 {\n    padding-top: 6rem !important;\n  }\n\n  .pt-xl-8 {\n    padding-top: 8rem !important;\n  }\n\n  .pt-xl-9 {\n    padding-top: 10rem !important;\n  }\n\n  .pt-xl-10 {\n    padding-top: 12rem !important;\n  }\n\n  .pt-xl-11 {\n    padding-top: 14rem !important;\n  }\n\n  .pt-xl-12 {\n    padding-top: 16rem !important;\n  }\n\n  .pe-xl-0 {\n    padding-right: 0 !important;\n  }\n\n  .pe-xl-1 {\n    padding-right: 0.25rem !important;\n  }\n\n  .pe-xl-2 {\n    padding-right: 0.5rem !important;\n  }\n\n  .pe-xl-3 {\n    padding-right: 1rem !important;\n  }\n\n  .pe-xl-4 {\n    padding-right: 1.5rem !important;\n  }\n\n  .pe-xl-5 {\n    padding-right: 3rem !important;\n  }\n\n  .pe-xl-6 {\n    padding-right: 4rem !important;\n  }\n\n  .pe-xl-7 {\n    padding-right: 6rem !important;\n  }\n\n  .pe-xl-8 {\n    padding-right: 8rem !important;\n  }\n\n  .pe-xl-9 {\n    padding-right: 10rem !important;\n  }\n\n  .pe-xl-10 {\n    padding-right: 12rem !important;\n  }\n\n  .pe-xl-11 {\n    padding-right: 14rem !important;\n  }\n\n  .pe-xl-12 {\n    padding-right: 16rem !important;\n  }\n\n  .pb-xl-0 {\n    padding-bottom: 0 !important;\n  }\n\n  .pb-xl-1 {\n    padding-bottom: 0.25rem !important;\n  }\n\n  .pb-xl-2 {\n    padding-bottom: 0.5rem !important;\n  }\n\n  .pb-xl-3 {\n    padding-bottom: 1rem !important;\n  }\n\n  .pb-xl-4 {\n    padding-bottom: 1.5rem !important;\n  }\n\n  .pb-xl-5 {\n    padding-bottom: 3rem !important;\n  }\n\n  .pb-xl-6 {\n    padding-bottom: 4rem !important;\n  }\n\n  .pb-xl-7 {\n    padding-bottom: 6rem !important;\n  }\n\n  .pb-xl-8 {\n    padding-bottom: 8rem !important;\n  }\n\n  .pb-xl-9 {\n    padding-bottom: 10rem !important;\n  }\n\n  .pb-xl-10 {\n    padding-bottom: 12rem !important;\n  }\n\n  .pb-xl-11 {\n    padding-bottom: 14rem !important;\n  }\n\n  .pb-xl-12 {\n    padding-bottom: 16rem !important;\n  }\n\n  .ps-xl-0 {\n    padding-left: 0 !important;\n  }\n\n  .ps-xl-1 {\n    padding-left: 0.25rem !important;\n  }\n\n  .ps-xl-2 {\n    padding-left: 0.5rem !important;\n  }\n\n  .ps-xl-3 {\n    padding-left: 1rem !important;\n  }\n\n  .ps-xl-4 {\n    padding-left: 1.5rem !important;\n  }\n\n  .ps-xl-5 {\n    padding-left: 3rem !important;\n  }\n\n  .ps-xl-6 {\n    padding-left: 4rem !important;\n  }\n\n  .ps-xl-7 {\n    padding-left: 6rem !important;\n  }\n\n  .ps-xl-8 {\n    padding-left: 8rem !important;\n  }\n\n  .ps-xl-9 {\n    padding-left: 10rem !important;\n  }\n\n  .ps-xl-10 {\n    padding-left: 12rem !important;\n  }\n\n  .ps-xl-11 {\n    padding-left: 14rem !important;\n  }\n\n  .ps-xl-12 {\n    padding-left: 16rem !important;\n  }\n\n  .text-xl-start {\n    text-align: left !important;\n  }\n\n  .text-xl-end {\n    text-align: right !important;\n  }\n\n  .text-xl-center {\n    text-align: center !important;\n  }\n\n  .transform-scale-xl-5 {\n    transform: scale(0.5) !important;\n  }\n\n  .transform-scale-xl-6 {\n    transform: scale(0.6) !important;\n  }\n\n  .transform-scale-xl-7 {\n    transform: scale(0.7) !important;\n  }\n\n  .transform-scale-xl-8 {\n    transform: scale(0.8) !important;\n  }\n\n  .transform-scale-xl-9 {\n    transform: scale(0.9) !important;\n  }\n\n  .transform-scale-xl-10 {\n    transform: scale(1) !important;\n  }\n\n  .border-radius-top-start-xl-0 {\n    border-top-left-radius: 0 !important;\n  }\n\n  .border-radius-top-end-xl-0 {\n    border-top-right-radius: 0 !important;\n  }\n\n  .border-radius-bottom-start-xl-0 {\n    border-bottom-left-radius: 0 !important;\n  }\n\n  .border-radius-bottom-end-xl-0 {\n    border-bottom-right-radius: 0 !important;\n  }\n}\n\n@media (min-width: 1400px) {\n  .float-xxl-start {\n    float: left !important;\n  }\n\n  .float-xxl-end {\n    float: right !important;\n  }\n\n  .float-xxl-none {\n    float: none !important;\n  }\n\n  .d-xxl-inline {\n    display: inline !important;\n  }\n\n  .d-xxl-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-xxl-block {\n    display: block !important;\n  }\n\n  .d-xxl-grid {\n    display: grid !important;\n  }\n\n  .d-xxl-table {\n    display: table !important;\n  }\n\n  .d-xxl-table-row {\n    display: table-row !important;\n  }\n\n  .d-xxl-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-xxl-flex {\n    display: flex !important;\n  }\n\n  .d-xxl-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-xxl-none {\n    display: none !important;\n  }\n\n  .border-top-xxl {\n    border-top: 1px solid #dee2e6 !important;\n  }\n\n  .border-top-xxl-0 {\n    border-top: 0 !important;\n  }\n\n  .border-end-xxl {\n    border-right: 1px solid #dee2e6 !important;\n  }\n\n  .border-end-xxl-0 {\n    border-right: 0 !important;\n  }\n\n  .border-bottom-xxl {\n    border-bottom: 1px solid #dee2e6 !important;\n  }\n\n  .border-bottom-xxl-0 {\n    border-bottom: 0 !important;\n  }\n\n  .border-start-xxl {\n    border-left: 1px solid #dee2e6 !important;\n  }\n\n  .border-start-xxl-0 {\n    border-left: 0 !important;\n  }\n\n  .w-xxl-0 {\n    width: 0% !important;\n  }\n\n  .w-xxl-1 {\n    width: 1% !important;\n  }\n\n  .w-xxl-2 {\n    width: 2% !important;\n  }\n\n  .w-xxl-3 {\n    width: 3% !important;\n  }\n\n  .w-xxl-4 {\n    width: 4% !important;\n  }\n\n  .w-xxl-5 {\n    width: 5% !important;\n  }\n\n  .w-xxl-6 {\n    width: 6% !important;\n  }\n\n  .w-xxl-7 {\n    width: 7% !important;\n  }\n\n  .w-xxl-8 {\n    width: 8% !important;\n  }\n\n  .w-xxl-9 {\n    width: 9% !important;\n  }\n\n  .w-xxl-10 {\n    width: 10% !important;\n  }\n\n  .w-xxl-15 {\n    width: 15% !important;\n  }\n\n  .w-xxl-20 {\n    width: 20% !important;\n  }\n\n  .w-xxl-25 {\n    width: 25% !important;\n  }\n\n  .w-xxl-30 {\n    width: 30% !important;\n  }\n\n  .w-xxl-35 {\n    width: 35% !important;\n  }\n\n  .w-xxl-40 {\n    width: 40% !important;\n  }\n\n  .w-xxl-45 {\n    width: 45% !important;\n  }\n\n  .w-xxl-50 {\n    width: 50% !important;\n  }\n\n  .w-xxl-55 {\n    width: 55% !important;\n  }\n\n  .w-xxl-60 {\n    width: 60% !important;\n  }\n\n  .w-xxl-65 {\n    width: 65% !important;\n  }\n\n  .w-xxl-70 {\n    width: 70% !important;\n  }\n\n  .w-xxl-75 {\n    width: 75% !important;\n  }\n\n  .w-xxl-80 {\n    width: 80% !important;\n  }\n\n  .w-xxl-85 {\n    width: 85% !important;\n  }\n\n  .w-xxl-90 {\n    width: 90% !important;\n  }\n\n  .w-xxl-95 {\n    width: 95% !important;\n  }\n\n  .w-xxl-100 {\n    width: 100% !important;\n  }\n\n  .w-xxl-auto {\n    width: auto !important;\n  }\n\n  .flex-xxl-fill {\n    flex: 1 1 auto !important;\n  }\n\n  .flex-xxl-row {\n    flex-direction: row !important;\n  }\n\n  .flex-xxl-column {\n    flex-direction: column !important;\n  }\n\n  .flex-xxl-row-reverse {\n    flex-direction: row-reverse !important;\n  }\n\n  .flex-xxl-column-reverse {\n    flex-direction: column-reverse !important;\n  }\n\n  .flex-xxl-grow-0 {\n    flex-grow: 0 !important;\n  }\n\n  .flex-xxl-grow-1 {\n    flex-grow: 1 !important;\n  }\n\n  .flex-xxl-shrink-0 {\n    flex-shrink: 0 !important;\n  }\n\n  .flex-xxl-shrink-1 {\n    flex-shrink: 1 !important;\n  }\n\n  .flex-xxl-wrap {\n    flex-wrap: wrap !important;\n  }\n\n  .flex-xxl-nowrap {\n    flex-wrap: nowrap !important;\n  }\n\n  .flex-xxl-wrap-reverse {\n    flex-wrap: wrap-reverse !important;\n  }\n\n  .gap-xxl-0 {\n    gap: 0 !important;\n  }\n\n  .gap-xxl-1 {\n    gap: 0.25rem !important;\n  }\n\n  .gap-xxl-2 {\n    gap: 0.5rem !important;\n  }\n\n  .gap-xxl-3 {\n    gap: 1rem !important;\n  }\n\n  .gap-xxl-4 {\n    gap: 1.5rem !important;\n  }\n\n  .gap-xxl-5 {\n    gap: 3rem !important;\n  }\n\n  .gap-xxl-6 {\n    gap: 4rem !important;\n  }\n\n  .gap-xxl-7 {\n    gap: 6rem !important;\n  }\n\n  .gap-xxl-8 {\n    gap: 8rem !important;\n  }\n\n  .gap-xxl-9 {\n    gap: 10rem !important;\n  }\n\n  .gap-xxl-10 {\n    gap: 12rem !important;\n  }\n\n  .gap-xxl-11 {\n    gap: 14rem !important;\n  }\n\n  .gap-xxl-12 {\n    gap: 16rem !important;\n  }\n\n  .justify-content-xxl-start {\n    justify-content: flex-start !important;\n  }\n\n  .justify-content-xxl-end {\n    justify-content: flex-end !important;\n  }\n\n  .justify-content-xxl-center {\n    justify-content: center !important;\n  }\n\n  .justify-content-xxl-between {\n    justify-content: space-between !important;\n  }\n\n  .justify-content-xxl-around {\n    justify-content: space-around !important;\n  }\n\n  .justify-content-xxl-evenly {\n    justify-content: space-evenly !important;\n  }\n\n  .align-items-xxl-start {\n    align-items: flex-start !important;\n  }\n\n  .align-items-xxl-end {\n    align-items: flex-end !important;\n  }\n\n  .align-items-xxl-center {\n    align-items: center !important;\n  }\n\n  .align-items-xxl-baseline {\n    align-items: baseline !important;\n  }\n\n  .align-items-xxl-stretch {\n    align-items: stretch !important;\n  }\n\n  .align-content-xxl-start {\n    align-content: flex-start !important;\n  }\n\n  .align-content-xxl-end {\n    align-content: flex-end !important;\n  }\n\n  .align-content-xxl-center {\n    align-content: center !important;\n  }\n\n  .align-content-xxl-between {\n    align-content: space-between !important;\n  }\n\n  .align-content-xxl-around {\n    align-content: space-around !important;\n  }\n\n  .align-content-xxl-stretch {\n    align-content: stretch !important;\n  }\n\n  .align-self-xxl-auto {\n    align-self: auto !important;\n  }\n\n  .align-self-xxl-start {\n    align-self: flex-start !important;\n  }\n\n  .align-self-xxl-end {\n    align-self: flex-end !important;\n  }\n\n  .align-self-xxl-center {\n    align-self: center !important;\n  }\n\n  .align-self-xxl-baseline {\n    align-self: baseline !important;\n  }\n\n  .align-self-xxl-stretch {\n    align-self: stretch !important;\n  }\n\n  .order-xxl-first {\n    order: -1 !important;\n  }\n\n  .order-xxl-0 {\n    order: 0 !important;\n  }\n\n  .order-xxl-1 {\n    order: 1 !important;\n  }\n\n  .order-xxl-2 {\n    order: 2 !important;\n  }\n\n  .order-xxl-3 {\n    order: 3 !important;\n  }\n\n  .order-xxl-4 {\n    order: 4 !important;\n  }\n\n  .order-xxl-5 {\n    order: 5 !important;\n  }\n\n  .order-xxl-last {\n    order: 6 !important;\n  }\n\n  .m-xxl-0 {\n    margin: 0 !important;\n  }\n\n  .m-xxl-1 {\n    margin: 0.25rem !important;\n  }\n\n  .m-xxl-2 {\n    margin: 0.5rem !important;\n  }\n\n  .m-xxl-3 {\n    margin: 1rem !important;\n  }\n\n  .m-xxl-4 {\n    margin: 1.5rem !important;\n  }\n\n  .m-xxl-5 {\n    margin: 3rem !important;\n  }\n\n  .m-xxl-6 {\n    margin: 4rem !important;\n  }\n\n  .m-xxl-7 {\n    margin: 6rem !important;\n  }\n\n  .m-xxl-8 {\n    margin: 8rem !important;\n  }\n\n  .m-xxl-9 {\n    margin: 10rem !important;\n  }\n\n  .m-xxl-10 {\n    margin: 12rem !important;\n  }\n\n  .m-xxl-11 {\n    margin: 14rem !important;\n  }\n\n  .m-xxl-12 {\n    margin: 16rem !important;\n  }\n\n  .m-xxl-auto {\n    margin: auto !important;\n  }\n\n  .mx-xxl-0 {\n    margin-right: 0 !important;\n    margin-left: 0 !important;\n  }\n\n  .mx-xxl-1 {\n    margin-right: 0.25rem !important;\n    margin-left: 0.25rem !important;\n  }\n\n  .mx-xxl-2 {\n    margin-right: 0.5rem !important;\n    margin-left: 0.5rem !important;\n  }\n\n  .mx-xxl-3 {\n    margin-right: 1rem !important;\n    margin-left: 1rem !important;\n  }\n\n  .mx-xxl-4 {\n    margin-right: 1.5rem !important;\n    margin-left: 1.5rem !important;\n  }\n\n  .mx-xxl-5 {\n    margin-right: 3rem !important;\n    margin-left: 3rem !important;\n  }\n\n  .mx-xxl-6 {\n    margin-right: 4rem !important;\n    margin-left: 4rem !important;\n  }\n\n  .mx-xxl-7 {\n    margin-right: 6rem !important;\n    margin-left: 6rem !important;\n  }\n\n  .mx-xxl-8 {\n    margin-right: 8rem !important;\n    margin-left: 8rem !important;\n  }\n\n  .mx-xxl-9 {\n    margin-right: 10rem !important;\n    margin-left: 10rem !important;\n  }\n\n  .mx-xxl-10 {\n    margin-right: 12rem !important;\n    margin-left: 12rem !important;\n  }\n\n  .mx-xxl-11 {\n    margin-right: 14rem !important;\n    margin-left: 14rem !important;\n  }\n\n  .mx-xxl-12 {\n    margin-right: 16rem !important;\n    margin-left: 16rem !important;\n  }\n\n  .mx-xxl-auto {\n    margin-right: auto !important;\n    margin-left: auto !important;\n  }\n\n  .my-xxl-0 {\n    margin-top: 0 !important;\n    margin-bottom: 0 !important;\n  }\n\n  .my-xxl-1 {\n    margin-top: 0.25rem !important;\n    margin-bottom: 0.25rem !important;\n  }\n\n  .my-xxl-2 {\n    margin-top: 0.5rem !important;\n    margin-bottom: 0.5rem !important;\n  }\n\n  .my-xxl-3 {\n    margin-top: 1rem !important;\n    margin-bottom: 1rem !important;\n  }\n\n  .my-xxl-4 {\n    margin-top: 1.5rem !important;\n    margin-bottom: 1.5rem !important;\n  }\n\n  .my-xxl-5 {\n    margin-top: 3rem !important;\n    margin-bottom: 3rem !important;\n  }\n\n  .my-xxl-6 {\n    margin-top: 4rem !important;\n    margin-bottom: 4rem !important;\n  }\n\n  .my-xxl-7 {\n    margin-top: 6rem !important;\n    margin-bottom: 6rem !important;\n  }\n\n  .my-xxl-8 {\n    margin-top: 8rem !important;\n    margin-bottom: 8rem !important;\n  }\n\n  .my-xxl-9 {\n    margin-top: 10rem !important;\n    margin-bottom: 10rem !important;\n  }\n\n  .my-xxl-10 {\n    margin-top: 12rem !important;\n    margin-bottom: 12rem !important;\n  }\n\n  .my-xxl-11 {\n    margin-top: 14rem !important;\n    margin-bottom: 14rem !important;\n  }\n\n  .my-xxl-12 {\n    margin-top: 16rem !important;\n    margin-bottom: 16rem !important;\n  }\n\n  .my-xxl-auto {\n    margin-top: auto !important;\n    margin-bottom: auto !important;\n  }\n\n  .mt-xxl-0 {\n    margin-top: 0 !important;\n  }\n\n  .mt-xxl-1 {\n    margin-top: 0.25rem !important;\n  }\n\n  .mt-xxl-2 {\n    margin-top: 0.5rem !important;\n  }\n\n  .mt-xxl-3 {\n    margin-top: 1rem !important;\n  }\n\n  .mt-xxl-4 {\n    margin-top: 1.5rem !important;\n  }\n\n  .mt-xxl-5 {\n    margin-top: 3rem !important;\n  }\n\n  .mt-xxl-6 {\n    margin-top: 4rem !important;\n  }\n\n  .mt-xxl-7 {\n    margin-top: 6rem !important;\n  }\n\n  .mt-xxl-8 {\n    margin-top: 8rem !important;\n  }\n\n  .mt-xxl-9 {\n    margin-top: 10rem !important;\n  }\n\n  .mt-xxl-10 {\n    margin-top: 12rem !important;\n  }\n\n  .mt-xxl-11 {\n    margin-top: 14rem !important;\n  }\n\n  .mt-xxl-12 {\n    margin-top: 16rem !important;\n  }\n\n  .mt-xxl-auto {\n    margin-top: auto !important;\n  }\n\n  .me-xxl-0 {\n    margin-right: 0 !important;\n  }\n\n  .me-xxl-1 {\n    margin-right: 0.25rem !important;\n  }\n\n  .me-xxl-2 {\n    margin-right: 0.5rem !important;\n  }\n\n  .me-xxl-3 {\n    margin-right: 1rem !important;\n  }\n\n  .me-xxl-4 {\n    margin-right: 1.5rem !important;\n  }\n\n  .me-xxl-5 {\n    margin-right: 3rem !important;\n  }\n\n  .me-xxl-6 {\n    margin-right: 4rem !important;\n  }\n\n  .me-xxl-7 {\n    margin-right: 6rem !important;\n  }\n\n  .me-xxl-8 {\n    margin-right: 8rem !important;\n  }\n\n  .me-xxl-9 {\n    margin-right: 10rem !important;\n  }\n\n  .me-xxl-10 {\n    margin-right: 12rem !important;\n  }\n\n  .me-xxl-11 {\n    margin-right: 14rem !important;\n  }\n\n  .me-xxl-12 {\n    margin-right: 16rem !important;\n  }\n\n  .me-xxl-auto {\n    margin-right: auto !important;\n  }\n\n  .mb-xxl-0 {\n    margin-bottom: 0 !important;\n  }\n\n  .mb-xxl-1 {\n    margin-bottom: 0.25rem !important;\n  }\n\n  .mb-xxl-2 {\n    margin-bottom: 0.5rem !important;\n  }\n\n  .mb-xxl-3 {\n    margin-bottom: 1rem !important;\n  }\n\n  .mb-xxl-4 {\n    margin-bottom: 1.5rem !important;\n  }\n\n  .mb-xxl-5 {\n    margin-bottom: 3rem !important;\n  }\n\n  .mb-xxl-6 {\n    margin-bottom: 4rem !important;\n  }\n\n  .mb-xxl-7 {\n    margin-bottom: 6rem !important;\n  }\n\n  .mb-xxl-8 {\n    margin-bottom: 8rem !important;\n  }\n\n  .mb-xxl-9 {\n    margin-bottom: 10rem !important;\n  }\n\n  .mb-xxl-10 {\n    margin-bottom: 12rem !important;\n  }\n\n  .mb-xxl-11 {\n    margin-bottom: 14rem !important;\n  }\n\n  .mb-xxl-12 {\n    margin-bottom: 16rem !important;\n  }\n\n  .mb-xxl-auto {\n    margin-bottom: auto !important;\n  }\n\n  .ms-xxl-0 {\n    margin-left: 0 !important;\n  }\n\n  .ms-xxl-1 {\n    margin-left: 0.25rem !important;\n  }\n\n  .ms-xxl-2 {\n    margin-left: 0.5rem !important;\n  }\n\n  .ms-xxl-3 {\n    margin-left: 1rem !important;\n  }\n\n  .ms-xxl-4 {\n    margin-left: 1.5rem !important;\n  }\n\n  .ms-xxl-5 {\n    margin-left: 3rem !important;\n  }\n\n  .ms-xxl-6 {\n    margin-left: 4rem !important;\n  }\n\n  .ms-xxl-7 {\n    margin-left: 6rem !important;\n  }\n\n  .ms-xxl-8 {\n    margin-left: 8rem !important;\n  }\n\n  .ms-xxl-9 {\n    margin-left: 10rem !important;\n  }\n\n  .ms-xxl-10 {\n    margin-left: 12rem !important;\n  }\n\n  .ms-xxl-11 {\n    margin-left: 14rem !important;\n  }\n\n  .ms-xxl-12 {\n    margin-left: 16rem !important;\n  }\n\n  .ms-xxl-auto {\n    margin-left: auto !important;\n  }\n\n  .m-xxl-n1 {\n    margin: -0.25rem !important;\n  }\n\n  .m-xxl-n2 {\n    margin: -0.5rem !important;\n  }\n\n  .m-xxl-n3 {\n    margin: -1rem !important;\n  }\n\n  .m-xxl-n4 {\n    margin: -1.5rem !important;\n  }\n\n  .m-xxl-n5 {\n    margin: -3rem !important;\n  }\n\n  .m-xxl-n6 {\n    margin: -4rem !important;\n  }\n\n  .m-xxl-n7 {\n    margin: -6rem !important;\n  }\n\n  .m-xxl-n8 {\n    margin: -8rem !important;\n  }\n\n  .m-xxl-n9 {\n    margin: -10rem !important;\n  }\n\n  .m-xxl-n10 {\n    margin: -12rem !important;\n  }\n\n  .m-xxl-n11 {\n    margin: -14rem !important;\n  }\n\n  .m-xxl-n12 {\n    margin: -16rem !important;\n  }\n\n  .mx-xxl-n1 {\n    margin-right: -0.25rem !important;\n    margin-left: -0.25rem !important;\n  }\n\n  .mx-xxl-n2 {\n    margin-right: -0.5rem !important;\n    margin-left: -0.5rem !important;\n  }\n\n  .mx-xxl-n3 {\n    margin-right: -1rem !important;\n    margin-left: -1rem !important;\n  }\n\n  .mx-xxl-n4 {\n    margin-right: -1.5rem !important;\n    margin-left: -1.5rem !important;\n  }\n\n  .mx-xxl-n5 {\n    margin-right: -3rem !important;\n    margin-left: -3rem !important;\n  }\n\n  .mx-xxl-n6 {\n    margin-right: -4rem !important;\n    margin-left: -4rem !important;\n  }\n\n  .mx-xxl-n7 {\n    margin-right: -6rem !important;\n    margin-left: -6rem !important;\n  }\n\n  .mx-xxl-n8 {\n    margin-right: -8rem !important;\n    margin-left: -8rem !important;\n  }\n\n  .mx-xxl-n9 {\n    margin-right: -10rem !important;\n    margin-left: -10rem !important;\n  }\n\n  .mx-xxl-n10 {\n    margin-right: -12rem !important;\n    margin-left: -12rem !important;\n  }\n\n  .mx-xxl-n11 {\n    margin-right: -14rem !important;\n    margin-left: -14rem !important;\n  }\n\n  .mx-xxl-n12 {\n    margin-right: -16rem !important;\n    margin-left: -16rem !important;\n  }\n\n  .my-xxl-n1 {\n    margin-top: -0.25rem !important;\n    margin-bottom: -0.25rem !important;\n  }\n\n  .my-xxl-n2 {\n    margin-top: -0.5rem !important;\n    margin-bottom: -0.5rem !important;\n  }\n\n  .my-xxl-n3 {\n    margin-top: -1rem !important;\n    margin-bottom: -1rem !important;\n  }\n\n  .my-xxl-n4 {\n    margin-top: -1.5rem !important;\n    margin-bottom: -1.5rem !important;\n  }\n\n  .my-xxl-n5 {\n    margin-top: -3rem !important;\n    margin-bottom: -3rem !important;\n  }\n\n  .my-xxl-n6 {\n    margin-top: -4rem !important;\n    margin-bottom: -4rem !important;\n  }\n\n  .my-xxl-n7 {\n    margin-top: -6rem !important;\n    margin-bottom: -6rem !important;\n  }\n\n  .my-xxl-n8 {\n    margin-top: -8rem !important;\n    margin-bottom: -8rem !important;\n  }\n\n  .my-xxl-n9 {\n    margin-top: -10rem !important;\n    margin-bottom: -10rem !important;\n  }\n\n  .my-xxl-n10 {\n    margin-top: -12rem !important;\n    margin-bottom: -12rem !important;\n  }\n\n  .my-xxl-n11 {\n    margin-top: -14rem !important;\n    margin-bottom: -14rem !important;\n  }\n\n  .my-xxl-n12 {\n    margin-top: -16rem !important;\n    margin-bottom: -16rem !important;\n  }\n\n  .mt-xxl-n1 {\n    margin-top: -0.25rem !important;\n  }\n\n  .mt-xxl-n2 {\n    margin-top: -0.5rem !important;\n  }\n\n  .mt-xxl-n3 {\n    margin-top: -1rem !important;\n  }\n\n  .mt-xxl-n4 {\n    margin-top: -1.5rem !important;\n  }\n\n  .mt-xxl-n5 {\n    margin-top: -3rem !important;\n  }\n\n  .mt-xxl-n6 {\n    margin-top: -4rem !important;\n  }\n\n  .mt-xxl-n7 {\n    margin-top: -6rem !important;\n  }\n\n  .mt-xxl-n8 {\n    margin-top: -8rem !important;\n  }\n\n  .mt-xxl-n9 {\n    margin-top: -10rem !important;\n  }\n\n  .mt-xxl-n10 {\n    margin-top: -12rem !important;\n  }\n\n  .mt-xxl-n11 {\n    margin-top: -14rem !important;\n  }\n\n  .mt-xxl-n12 {\n    margin-top: -16rem !important;\n  }\n\n  .me-xxl-n1 {\n    margin-right: -0.25rem !important;\n  }\n\n  .me-xxl-n2 {\n    margin-right: -0.5rem !important;\n  }\n\n  .me-xxl-n3 {\n    margin-right: -1rem !important;\n  }\n\n  .me-xxl-n4 {\n    margin-right: -1.5rem !important;\n  }\n\n  .me-xxl-n5 {\n    margin-right: -3rem !important;\n  }\n\n  .me-xxl-n6 {\n    margin-right: -4rem !important;\n  }\n\n  .me-xxl-n7 {\n    margin-right: -6rem !important;\n  }\n\n  .me-xxl-n8 {\n    margin-right: -8rem !important;\n  }\n\n  .me-xxl-n9 {\n    margin-right: -10rem !important;\n  }\n\n  .me-xxl-n10 {\n    margin-right: -12rem !important;\n  }\n\n  .me-xxl-n11 {\n    margin-right: -14rem !important;\n  }\n\n  .me-xxl-n12 {\n    margin-right: -16rem !important;\n  }\n\n  .mb-xxl-n1 {\n    margin-bottom: -0.25rem !important;\n  }\n\n  .mb-xxl-n2 {\n    margin-bottom: -0.5rem !important;\n  }\n\n  .mb-xxl-n3 {\n    margin-bottom: -1rem !important;\n  }\n\n  .mb-xxl-n4 {\n    margin-bottom: -1.5rem !important;\n  }\n\n  .mb-xxl-n5 {\n    margin-bottom: -3rem !important;\n  }\n\n  .mb-xxl-n6 {\n    margin-bottom: -4rem !important;\n  }\n\n  .mb-xxl-n7 {\n    margin-bottom: -6rem !important;\n  }\n\n  .mb-xxl-n8 {\n    margin-bottom: -8rem !important;\n  }\n\n  .mb-xxl-n9 {\n    margin-bottom: -10rem !important;\n  }\n\n  .mb-xxl-n10 {\n    margin-bottom: -12rem !important;\n  }\n\n  .mb-xxl-n11 {\n    margin-bottom: -14rem !important;\n  }\n\n  .mb-xxl-n12 {\n    margin-bottom: -16rem !important;\n  }\n\n  .ms-xxl-n1 {\n    margin-left: -0.25rem !important;\n  }\n\n  .ms-xxl-n2 {\n    margin-left: -0.5rem !important;\n  }\n\n  .ms-xxl-n3 {\n    margin-left: -1rem !important;\n  }\n\n  .ms-xxl-n4 {\n    margin-left: -1.5rem !important;\n  }\n\n  .ms-xxl-n5 {\n    margin-left: -3rem !important;\n  }\n\n  .ms-xxl-n6 {\n    margin-left: -4rem !important;\n  }\n\n  .ms-xxl-n7 {\n    margin-left: -6rem !important;\n  }\n\n  .ms-xxl-n8 {\n    margin-left: -8rem !important;\n  }\n\n  .ms-xxl-n9 {\n    margin-left: -10rem !important;\n  }\n\n  .ms-xxl-n10 {\n    margin-left: -12rem !important;\n  }\n\n  .ms-xxl-n11 {\n    margin-left: -14rem !important;\n  }\n\n  .ms-xxl-n12 {\n    margin-left: -16rem !important;\n  }\n\n  .p-xxl-0 {\n    padding: 0 !important;\n  }\n\n  .p-xxl-1 {\n    padding: 0.25rem !important;\n  }\n\n  .p-xxl-2 {\n    padding: 0.5rem !important;\n  }\n\n  .p-xxl-3 {\n    padding: 1rem !important;\n  }\n\n  .p-xxl-4 {\n    padding: 1.5rem !important;\n  }\n\n  .p-xxl-5 {\n    padding: 3rem !important;\n  }\n\n  .p-xxl-6 {\n    padding: 4rem !important;\n  }\n\n  .p-xxl-7 {\n    padding: 6rem !important;\n  }\n\n  .p-xxl-8 {\n    padding: 8rem !important;\n  }\n\n  .p-xxl-9 {\n    padding: 10rem !important;\n  }\n\n  .p-xxl-10 {\n    padding: 12rem !important;\n  }\n\n  .p-xxl-11 {\n    padding: 14rem !important;\n  }\n\n  .p-xxl-12 {\n    padding: 16rem !important;\n  }\n\n  .px-xxl-0 {\n    padding-right: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .px-xxl-1 {\n    padding-right: 0.25rem !important;\n    padding-left: 0.25rem !important;\n  }\n\n  .px-xxl-2 {\n    padding-right: 0.5rem !important;\n    padding-left: 0.5rem !important;\n  }\n\n  .px-xxl-3 {\n    padding-right: 1rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .px-xxl-4 {\n    padding-right: 1.5rem !important;\n    padding-left: 1.5rem !important;\n  }\n\n  .px-xxl-5 {\n    padding-right: 3rem !important;\n    padding-left: 3rem !important;\n  }\n\n  .px-xxl-6 {\n    padding-right: 4rem !important;\n    padding-left: 4rem !important;\n  }\n\n  .px-xxl-7 {\n    padding-right: 6rem !important;\n    padding-left: 6rem !important;\n  }\n\n  .px-xxl-8 {\n    padding-right: 8rem !important;\n    padding-left: 8rem !important;\n  }\n\n  .px-xxl-9 {\n    padding-right: 10rem !important;\n    padding-left: 10rem !important;\n  }\n\n  .px-xxl-10 {\n    padding-right: 12rem !important;\n    padding-left: 12rem !important;\n  }\n\n  .px-xxl-11 {\n    padding-right: 14rem !important;\n    padding-left: 14rem !important;\n  }\n\n  .px-xxl-12 {\n    padding-right: 16rem !important;\n    padding-left: 16rem !important;\n  }\n\n  .py-xxl-0 {\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n  }\n\n  .py-xxl-1 {\n    padding-top: 0.25rem !important;\n    padding-bottom: 0.25rem !important;\n  }\n\n  .py-xxl-2 {\n    padding-top: 0.5rem !important;\n    padding-bottom: 0.5rem !important;\n  }\n\n  .py-xxl-3 {\n    padding-top: 1rem !important;\n    padding-bottom: 1rem !important;\n  }\n\n  .py-xxl-4 {\n    padding-top: 1.5rem !important;\n    padding-bottom: 1.5rem !important;\n  }\n\n  .py-xxl-5 {\n    padding-top: 3rem !important;\n    padding-bottom: 3rem !important;\n  }\n\n  .py-xxl-6 {\n    padding-top: 4rem !important;\n    padding-bottom: 4rem !important;\n  }\n\n  .py-xxl-7 {\n    padding-top: 6rem !important;\n    padding-bottom: 6rem !important;\n  }\n\n  .py-xxl-8 {\n    padding-top: 8rem !important;\n    padding-bottom: 8rem !important;\n  }\n\n  .py-xxl-9 {\n    padding-top: 10rem !important;\n    padding-bottom: 10rem !important;\n  }\n\n  .py-xxl-10 {\n    padding-top: 12rem !important;\n    padding-bottom: 12rem !important;\n  }\n\n  .py-xxl-11 {\n    padding-top: 14rem !important;\n    padding-bottom: 14rem !important;\n  }\n\n  .py-xxl-12 {\n    padding-top: 16rem !important;\n    padding-bottom: 16rem !important;\n  }\n\n  .pt-xxl-0 {\n    padding-top: 0 !important;\n  }\n\n  .pt-xxl-1 {\n    padding-top: 0.25rem !important;\n  }\n\n  .pt-xxl-2 {\n    padding-top: 0.5rem !important;\n  }\n\n  .pt-xxl-3 {\n    padding-top: 1rem !important;\n  }\n\n  .pt-xxl-4 {\n    padding-top: 1.5rem !important;\n  }\n\n  .pt-xxl-5 {\n    padding-top: 3rem !important;\n  }\n\n  .pt-xxl-6 {\n    padding-top: 4rem !important;\n  }\n\n  .pt-xxl-7 {\n    padding-top: 6rem !important;\n  }\n\n  .pt-xxl-8 {\n    padding-top: 8rem !important;\n  }\n\n  .pt-xxl-9 {\n    padding-top: 10rem !important;\n  }\n\n  .pt-xxl-10 {\n    padding-top: 12rem !important;\n  }\n\n  .pt-xxl-11 {\n    padding-top: 14rem !important;\n  }\n\n  .pt-xxl-12 {\n    padding-top: 16rem !important;\n  }\n\n  .pe-xxl-0 {\n    padding-right: 0 !important;\n  }\n\n  .pe-xxl-1 {\n    padding-right: 0.25rem !important;\n  }\n\n  .pe-xxl-2 {\n    padding-right: 0.5rem !important;\n  }\n\n  .pe-xxl-3 {\n    padding-right: 1rem !important;\n  }\n\n  .pe-xxl-4 {\n    padding-right: 1.5rem !important;\n  }\n\n  .pe-xxl-5 {\n    padding-right: 3rem !important;\n  }\n\n  .pe-xxl-6 {\n    padding-right: 4rem !important;\n  }\n\n  .pe-xxl-7 {\n    padding-right: 6rem !important;\n  }\n\n  .pe-xxl-8 {\n    padding-right: 8rem !important;\n  }\n\n  .pe-xxl-9 {\n    padding-right: 10rem !important;\n  }\n\n  .pe-xxl-10 {\n    padding-right: 12rem !important;\n  }\n\n  .pe-xxl-11 {\n    padding-right: 14rem !important;\n  }\n\n  .pe-xxl-12 {\n    padding-right: 16rem !important;\n  }\n\n  .pb-xxl-0 {\n    padding-bottom: 0 !important;\n  }\n\n  .pb-xxl-1 {\n    padding-bottom: 0.25rem !important;\n  }\n\n  .pb-xxl-2 {\n    padding-bottom: 0.5rem !important;\n  }\n\n  .pb-xxl-3 {\n    padding-bottom: 1rem !important;\n  }\n\n  .pb-xxl-4 {\n    padding-bottom: 1.5rem !important;\n  }\n\n  .pb-xxl-5 {\n    padding-bottom: 3rem !important;\n  }\n\n  .pb-xxl-6 {\n    padding-bottom: 4rem !important;\n  }\n\n  .pb-xxl-7 {\n    padding-bottom: 6rem !important;\n  }\n\n  .pb-xxl-8 {\n    padding-bottom: 8rem !important;\n  }\n\n  .pb-xxl-9 {\n    padding-bottom: 10rem !important;\n  }\n\n  .pb-xxl-10 {\n    padding-bottom: 12rem !important;\n  }\n\n  .pb-xxl-11 {\n    padding-bottom: 14rem !important;\n  }\n\n  .pb-xxl-12 {\n    padding-bottom: 16rem !important;\n  }\n\n  .ps-xxl-0 {\n    padding-left: 0 !important;\n  }\n\n  .ps-xxl-1 {\n    padding-left: 0.25rem !important;\n  }\n\n  .ps-xxl-2 {\n    padding-left: 0.5rem !important;\n  }\n\n  .ps-xxl-3 {\n    padding-left: 1rem !important;\n  }\n\n  .ps-xxl-4 {\n    padding-left: 1.5rem !important;\n  }\n\n  .ps-xxl-5 {\n    padding-left: 3rem !important;\n  }\n\n  .ps-xxl-6 {\n    padding-left: 4rem !important;\n  }\n\n  .ps-xxl-7 {\n    padding-left: 6rem !important;\n  }\n\n  .ps-xxl-8 {\n    padding-left: 8rem !important;\n  }\n\n  .ps-xxl-9 {\n    padding-left: 10rem !important;\n  }\n\n  .ps-xxl-10 {\n    padding-left: 12rem !important;\n  }\n\n  .ps-xxl-11 {\n    padding-left: 14rem !important;\n  }\n\n  .ps-xxl-12 {\n    padding-left: 16rem !important;\n  }\n\n  .text-xxl-start {\n    text-align: left !important;\n  }\n\n  .text-xxl-end {\n    text-align: right !important;\n  }\n\n  .text-xxl-center {\n    text-align: center !important;\n  }\n\n  .transform-scale-xxl-5 {\n    transform: scale(0.5) !important;\n  }\n\n  .transform-scale-xxl-6 {\n    transform: scale(0.6) !important;\n  }\n\n  .transform-scale-xxl-7 {\n    transform: scale(0.7) !important;\n  }\n\n  .transform-scale-xxl-8 {\n    transform: scale(0.8) !important;\n  }\n\n  .transform-scale-xxl-9 {\n    transform: scale(0.9) !important;\n  }\n\n  .transform-scale-xxl-10 {\n    transform: scale(1) !important;\n  }\n\n  .border-radius-top-start-xxl-0 {\n    border-top-left-radius: 0 !important;\n  }\n\n  .border-radius-top-end-xxl-0 {\n    border-top-right-radius: 0 !important;\n  }\n\n  .border-radius-bottom-start-xxl-0 {\n    border-bottom-left-radius: 0 !important;\n  }\n\n  .border-radius-bottom-end-xxl-0 {\n    border-bottom-right-radius: 0 !important;\n  }\n}\n\n@media (min-width: 1200px) {\n  .fs-1 {\n    font-size: 3rem !important;\n  }\n\n  .fs-2 {\n    font-size: 2.25rem !important;\n  }\n\n  .fs-3 {\n    font-size: 1.875rem !important;\n  }\n\n  .fs-4 {\n    font-size: 1.5rem !important;\n  }\n}\n\n@media print {\n  .d-print-inline {\n    display: inline !important;\n  }\n\n  .d-print-inline-block {\n    display: inline-block !important;\n  }\n\n  .d-print-block {\n    display: block !important;\n  }\n\n  .d-print-grid {\n    display: grid !important;\n  }\n\n  .d-print-table {\n    display: table !important;\n  }\n\n  .d-print-table-row {\n    display: table-row !important;\n  }\n\n  .d-print-table-cell {\n    display: table-cell !important;\n  }\n\n  .d-print-flex {\n    display: flex !important;\n  }\n\n  .d-print-inline-flex {\n    display: inline-flex !important;\n  }\n\n  .d-print-none {\n    display: none !important;\n  }\n}\n\n/*!\n\n=========================================================\n* Soft UI Dashboard - v1.0.3\n=========================================================\n\n* Product Page: https://www.creative-tim.com/product/soft-ui-dashboard\n* Copyright 2021 Creative Tim (https://www.creative-tim.com)\n* Licensed under MIT (site.license)\n\n* Coded by www.creative-tim.com\n\n=========================================================\n\n* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\n*/\n.alert-primary {\n  background-image: linear-gradient(310deg, #7928CA 0%, #d6006c 100%);\n}\n\n.alert-secondary {\n  background-image: linear-gradient(310deg, #627594 0%, #8ca1cb 100%);\n}\n\n.alert-success {\n  background-image: linear-gradient(310deg, #17ad37 0%, #84dc14 100%);\n}\n\n.alert-info {\n  background-image: linear-gradient(310deg, #2152ff 0%, #02c6f3 100%);\n}\n\n.alert-warning {\n  background-image: linear-gradient(310deg, #f53939 0%, #fac60b 100%);\n}\n\n.alert-danger {\n  background-image: linear-gradient(310deg, #ea0606 0%, #ff3d59 100%);\n}\n\n.alert-light {\n  background-image: linear-gradient(310deg, #CED4DA 0%, #d1dae6 100%);\n}\n\n.alert-dark {\n  background-image: linear-gradient(310deg, #141727 0%, #2c3154 100%);\n}\n\n.btn-close:focus {\n  box-shadow: none;\n}\n\n.alert-dismissible .btn-close {\n  background-image: none;\n}\n\n.avatar {\n  color: #fff;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 1rem;\n  border-radius: 0.75rem;\n  height: 48px;\n  width: 48px;\n  transition: all .2s ease-in-out;\n}\n\n.avatar img {\n  width: 100%;\n}\n\n.avatar+.avatar-content {\n  display: inline-block;\n  margin-left: 0.75rem;\n}\n\n.avatar.avatar-raised {\n  margin-top: -24px;\n}\n\n.avatar.avatar-scale-up:hover {\n  transform: scale(1.2);\n}\n\n.active .avatar.avatar-scale-up {\n  transform: scale(1.2);\n}\n\n.avatar-xxl {\n  width: 110px !important;\n  height: 110px !important;\n}\n\n.avatar-xxl.avatar-raised {\n  margin-top: -55px;\n}\n\n.avatar-xl {\n  width: 74px !important;\n  height: 74px !important;\n}\n\n.avatar-xl.avatar-raised {\n  margin-top: -37px;\n}\n\n.avatar-lg {\n  width: 58px !important;\n  height: 58px !important;\n  font-size: 0.875rem;\n}\n\n.avatar-lg.avatar-raised {\n  margin-top: -29px;\n}\n\n.avatar-sm {\n  width: 36px !important;\n  height: 36px !important;\n  font-size: 0.875rem;\n}\n\n.avatar-sm.avatar-raised {\n  margin-top: -18px;\n}\n\n.avatar-xs {\n  width: 24px !important;\n  height: 24px !important;\n  font-size: 0.75rem;\n}\n\n.avatar-xs.avatar-raised {\n  margin-top: -12px;\n}\n\n.avatar-group .avatar {\n  position: relative;\n  z-index: 2;\n  border: 2px solid #fff;\n}\n\n.avatar-group .avatar:hover {\n  z-index: 3;\n}\n\n.avatar-group .avatar+.avatar {\n  margin-left: -1rem;\n}\n\n.badge.bg-primary {\n  background: #cb0c9f;\n}\n\n.badge.bg-secondary {\n  background: #8392AB;\n}\n\n.badge.bg-success {\n  background: #82d616;\n}\n\n.badge.bg-info {\n  background: #17c1e8;\n}\n\n.badge.bg-warning {\n  background: #fbcf33;\n}\n\n.badge.bg-danger {\n  background: #ea0606;\n}\n\n.badge.bg-light {\n  background: #e9ecef;\n}\n\n.badge.bg-dark {\n  background: #344767;\n}\n\n.badge.bg-white {\n  background: #fff;\n}\n\n.badge {\n  text-transform: uppercase;\n}\n\n.btn {\n  margin-bottom: 1rem;\n  letter-spacing: -0.025rem;\n  text-transform: uppercase;\n  box-shadow: 0 4px 7px -1px rgba(0, 0, 0, 0.11), 0 2px 4px -1px rgba(0, 0, 0, 0.07);\n  background-size: 150%;\n  background-position-x: 25%;\n}\n\n.btn:not([class*=\"btn-outline-\"]) {\n  border: 0;\n}\n\n.btn:active,\n.btn:active:focus,\n.btn:active:hover {\n  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.09), 0 2px 3px -1px rgba(0, 0, 0, 0.07);\n  transform: scale(1);\n  opacity: 0.85;\n}\n\n.btn:hover:not(.btn-icon-only) {\n  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.09), 0 2px 3px -1px rgba(0, 0, 0, 0.07);\n  transform: scale(1.02);\n}\n\n.btn.bg-white:hover {\n  color: #67748e;\n}\n\n.btn.btn-link {\n  box-shadow: none;\n  font-weight: 700;\n}\n\n.btn.btn-link:hover,\n.btn.btn-link:focus {\n  box-shadow: none;\n}\n\n.btn.btn-round {\n  border-radius: 1.875rem;\n}\n\n.btn.btn-icon-only {\n  width: 2.375rem;\n  height: 2.375rem;\n  padding: 0.7rem 0.7rem;\n}\n\n.btn.btn-sm.btn-icon-only,\n.btn-group-sm>.btn.btn-icon-only {\n  width: 1.5875rem;\n  height: 1.5875rem;\n  padding: 0.3rem 0.3rem;\n}\n\n.btn.btn-sm i,\n.btn-group-sm>.btn i {\n  font-size: 0.5rem;\n}\n\n.btn.btn-lg.btn-icon-only,\n.btn-group-lg>.btn.btn-icon-only {\n  width: 3.25rem;\n  height: 3.25rem;\n  padding: 1rem 1rem;\n}\n\n.btn.btn-lg i,\n.btn-group-lg>.btn i {\n  font-size: 1.2rem;\n  position: relative;\n  top: 2px;\n}\n\n.btn.btn-rounded {\n  border-radius: 1.875rem;\n}\n\n.btn-check:checked+.btn svg .color-background {\n  fill: #fff;\n}\n\n.btn-check:checked+.btn:hover svg .color-background {\n  fill: #344767;\n}\n\n.icon-move-right i {\n  transition: all 0.2s cubic-bezier(0.34, 1.61, 0.7, 1.3);\n}\n\n.icon-move-right:hover i,\n.icon-move-right:focus i {\n  transform: translateX(5px);\n}\n\n.icon-move-left i {\n  transition: all 0.2s cubic-bezier(0.34, 1.61, 0.7, 1.3);\n}\n\n.icon-move-left:hover i,\n.icon-move-left:focus i {\n  transform: translateX(-5px);\n}\n\n.btn-primary:hover,\n.btn.bg-gradient-primary:hover {\n  background-color: #cb0c9f;\n  border-color: #cb0c9f;\n}\n\n.btn-primary .btn.bg-outline-primary,\n.btn.bg-gradient-primary .btn.bg-outline-primary {\n  border: 1px solid #cb0c9f;\n}\n\n.btn-primary:not(:disabled):not(.disabled).active,\n.btn-primary:not(:disabled):not(.disabled):active,\n.show>.btn-primary.dropdown-toggle,\n.btn.bg-gradient-primary:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-primary:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-primary.dropdown-toggle {\n  color: color-yiq(#cb0c9f);\n  background-color: #cb0c9f;\n}\n\n.btn-primary.focus,\n.btn-primary:focus,\n.btn.bg-gradient-primary.focus,\n.btn.bg-gradient-primary:focus {\n  color: #fff;\n}\n\n.btn-outline-primary {\n  box-shadow: none;\n}\n\n.btn-outline-primary:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #cb0c9f;\n}\n\n.btn-secondary:hover,\n.btn.bg-gradient-secondary:hover {\n  background-color: #8392AB;\n  border-color: #8392AB;\n}\n\n.btn-secondary .btn.bg-outline-secondary,\n.btn.bg-gradient-secondary .btn.bg-outline-secondary {\n  border: 1px solid #8392AB;\n}\n\n.btn-secondary:not(:disabled):not(.disabled).active,\n.btn-secondary:not(:disabled):not(.disabled):active,\n.show>.btn-secondary.dropdown-toggle,\n.btn.bg-gradient-secondary:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-secondary:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-secondary.dropdown-toggle {\n  color: color-yiq(#8392AB);\n  background-color: #8392AB;\n}\n\n.btn-secondary.focus,\n.btn-secondary:focus,\n.btn.bg-gradient-secondary.focus,\n.btn.bg-gradient-secondary:focus {\n  color: #fff;\n}\n\n.btn-outline-secondary {\n  box-shadow: none;\n}\n\n.btn-outline-secondary:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #8392AB;\n}\n\n.btn-success:hover,\n.btn.bg-gradient-success:hover {\n  background-color: #82d616;\n  border-color: #82d616;\n}\n\n.btn-success .btn.bg-outline-success,\n.btn.bg-gradient-success .btn.bg-outline-success {\n  border: 1px solid #82d616;\n}\n\n.btn-success:not(:disabled):not(.disabled).active,\n.btn-success:not(:disabled):not(.disabled):active,\n.show>.btn-success.dropdown-toggle,\n.btn.bg-gradient-success:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-success:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-success.dropdown-toggle {\n  color: color-yiq(#82d616);\n  background-color: #82d616;\n}\n\n.btn-success.focus,\n.btn-success:focus,\n.btn.bg-gradient-success.focus,\n.btn.bg-gradient-success:focus {\n  color: #fff;\n}\n\n.btn-outline-success {\n  box-shadow: none;\n}\n\n.btn-outline-success:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #82d616;\n}\n\n.btn-info:hover,\n.btn.bg-gradient-info:hover {\n  background-color: #17c1e8;\n  border-color: #17c1e8;\n}\n\n.btn-info .btn.bg-outline-info,\n.btn.bg-gradient-info .btn.bg-outline-info {\n  border: 1px solid #17c1e8;\n}\n\n.btn-info:not(:disabled):not(.disabled).active,\n.btn-info:not(:disabled):not(.disabled):active,\n.show>.btn-info.dropdown-toggle,\n.btn.bg-gradient-info:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-info:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-info.dropdown-toggle {\n  color: color-yiq(#17c1e8);\n  background-color: #17c1e8;\n}\n\n.btn-info.focus,\n.btn-info:focus,\n.btn.bg-gradient-info.focus,\n.btn.bg-gradient-info:focus {\n  color: #fff;\n}\n\n.btn-outline-info {\n  box-shadow: none;\n}\n\n.btn-outline-info:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #17c1e8;\n}\n\n.btn-warning:hover,\n.btn.bg-gradient-warning:hover {\n  background-color: #fbcf33;\n  border-color: #fbcf33;\n}\n\n.btn-warning .btn.bg-outline-warning,\n.btn.bg-gradient-warning .btn.bg-outline-warning {\n  border: 1px solid #fbcf33;\n}\n\n.btn-warning:not(:disabled):not(.disabled).active,\n.btn-warning:not(:disabled):not(.disabled):active,\n.show>.btn-warning.dropdown-toggle,\n.btn.bg-gradient-warning:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-warning:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-warning.dropdown-toggle {\n  color: color-yiq(#fbcf33);\n  background-color: #fbcf33;\n}\n\n.btn-warning.focus,\n.btn-warning:focus,\n.btn.bg-gradient-warning.focus,\n.btn.bg-gradient-warning:focus {\n  color: #fff;\n}\n\n.btn-outline-warning {\n  box-shadow: none;\n}\n\n.btn-outline-warning:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #fbcf33;\n}\n\n.btn-danger:hover,\n.btn.bg-gradient-danger:hover {\n  background-color: #ea0606;\n  border-color: #ea0606;\n}\n\n.btn-danger .btn.bg-outline-danger,\n.btn.bg-gradient-danger .btn.bg-outline-danger {\n  border: 1px solid #ea0606;\n}\n\n.btn-danger:not(:disabled):not(.disabled).active,\n.btn-danger:not(:disabled):not(.disabled):active,\n.show>.btn-danger.dropdown-toggle,\n.btn.bg-gradient-danger:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-danger:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-danger.dropdown-toggle {\n  color: color-yiq(#ea0606);\n  background-color: #ea0606;\n}\n\n.btn-danger.focus,\n.btn-danger:focus,\n.btn.bg-gradient-danger.focus,\n.btn.bg-gradient-danger:focus {\n  color: #fff;\n}\n\n.btn-outline-danger {\n  box-shadow: none;\n}\n\n.btn-outline-danger:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #ea0606;\n}\n\n.btn-light:hover,\n.btn.bg-gradient-light:hover {\n  background-color: #e9ecef;\n  border-color: #e9ecef;\n}\n\n.btn-light .btn.bg-outline-light,\n.btn.bg-gradient-light .btn.bg-outline-light {\n  border: 1px solid #e9ecef;\n}\n\n.btn-light:not(:disabled):not(.disabled).active,\n.btn-light:not(:disabled):not(.disabled):active,\n.show>.btn-light.dropdown-toggle,\n.btn.bg-gradient-light:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-light:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-light.dropdown-toggle {\n  color: color-yiq(#e9ecef);\n  background-color: #e9ecef;\n}\n\n.btn-outline-light {\n  box-shadow: none;\n}\n\n.btn-outline-light:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #e9ecef;\n}\n\n.btn-dark:hover,\n.btn.bg-gradient-dark:hover {\n  background-color: #344767;\n  border-color: #344767;\n}\n\n.btn-dark .btn.bg-outline-dark,\n.btn.bg-gradient-dark .btn.bg-outline-dark {\n  border: 1px solid #344767;\n}\n\n.btn-dark:not(:disabled):not(.disabled).active,\n.btn-dark:not(:disabled):not(.disabled):active,\n.show>.btn-dark.dropdown-toggle,\n.btn.bg-gradient-dark:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-dark:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-dark.dropdown-toggle {\n  color: color-yiq(#344767);\n  background-color: #344767;\n}\n\n.btn-dark.focus,\n.btn-dark:focus,\n.btn.bg-gradient-dark.focus,\n.btn.bg-gradient-dark:focus {\n  color: #fff;\n}\n\n.btn-outline-dark {\n  box-shadow: none;\n}\n\n.btn-outline-dark:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #344767;\n}\n\n.btn-white:hover,\n.btn.bg-gradient-white:hover {\n  background-color: #fff;\n  border-color: #fff;\n}\n\n.btn-white .btn.bg-outline-white,\n.btn.bg-gradient-white .btn.bg-outline-white {\n  border: 1px solid #fff;\n}\n\n.btn-white:not(:disabled):not(.disabled).active,\n.btn-white:not(:disabled):not(.disabled):active,\n.show>.btn-white.dropdown-toggle,\n.btn.bg-gradient-white:not(:disabled):not(.disabled).active,\n.btn.bg-gradient-white:not(:disabled):not(.disabled):active,\n.show>.btn.bg-gradient-white.dropdown-toggle {\n  color: color-yiq(#fff);\n  background-color: #fff;\n}\n\n.btn-outline-white {\n  box-shadow: none;\n}\n\n.btn-outline-white:hover:not(.active) {\n  background-color: transparent;\n  opacity: .75;\n  box-shadow: none;\n  color: #fff;\n}\n\n.btn-outline-white {\n  border-color: rgba(255, 255, 255, 0.75);\n  background: rgba(255, 255, 255, 0.1);\n}\n\n.btn-primary,\n.btn.bg-gradient-primary {\n  color: #fff;\n}\n\n.btn-primary:hover,\n.btn.bg-gradient-primary:hover {\n  color: #fff;\n}\n\n.btn-secondary,\n.btn.bg-gradient-secondary {\n  color: #fff;\n}\n\n.btn-secondary:hover,\n.btn.bg-gradient-secondary:hover {\n  color: #fff;\n}\n\n.btn-danger,\n.btn.bg-gradient-danger {\n  color: #fff;\n}\n\n.btn-danger:hover,\n.btn.bg-gradient-danger:hover {\n  color: #fff;\n}\n\n.btn-info,\n.btn.bg-gradient-info {\n  color: #fff;\n}\n\n.btn-info:hover,\n.btn.bg-gradient-info:hover {\n  color: #fff;\n}\n\n.btn-success,\n.btn.bg-gradient-success {\n  color: #fff;\n}\n\n.btn-success:hover,\n.btn.bg-gradient-success:hover {\n  color: #fff;\n}\n\n.btn-warning,\n.btn.bg-gradient-warning {\n  color: #fff;\n}\n\n.btn-warning:hover,\n.btn.bg-gradient-warning:hover {\n  color: #fff;\n}\n\n.btn-dark,\n.btn.bg-gradient-dark {\n  color: #fff;\n}\n\n.btn-dark:hover,\n.btn.bg-gradient-dark:hover {\n  color: #fff;\n}\n\n.btn-light,\n.btn.bg-gradient-light {\n  color: #3A416F;\n}\n\n.btn-light:hover,\n.btn.bg-gradient-light:hover {\n  color: #3A416F;\n}\n\n.breadcrumb-item {\n  font-size: 0.875rem;\n}\n\n.breadcrumb-item.text-white::before {\n  color: #fff;\n}\n\n.breadcrumb-dark {\n  background-color: #344767;\n}\n\n.breadcrumb-dark .breadcrumb-item {\n  font-weight: 600;\n}\n\n.breadcrumb-dark .breadcrumb-item a {\n  color: #f8f9fa;\n}\n\n.breadcrumb-dark .breadcrumb-item a:hover {\n  color: #fff;\n}\n\n.breadcrumb-dark .breadcrumb-item+.breadcrumb-item::before {\n  color: #adb5bd;\n}\n\n.breadcrumb-dark .breadcrumb-item.active {\n  color: #dee2e6;\n}\n\n.breadcrumb-links {\n  padding: 0;\n  margin: 0;\n  background: transparent;\n}\n\n.card {\n  box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);\n}\n\n.card .card-header {\n  padding: 1.5rem;\n}\n\n.card .card-body {\n  font-family: \"Open Sans\";\n  padding: 1.5rem;\n}\n\n.card.card-plain {\n  background-color: transparent;\n  box-shadow: none;\n}\n\n.card .card-footer {\n  padding: 1.5rem;\n  background-color: transparent;\n}\n\n.author {\n  display: flex;\n}\n\n.author .name>span {\n  line-height: 1.571;\n  font-weight: 600;\n  font-size: 0.875rem;\n  color: #3A416F;\n}\n\n.author .stats {\n  font-size: 0.875rem;\n  font-weight: 400;\n}\n\n.card.card-background {\n  align-items: center;\n}\n\n.card.card-background .full-background {\n  background-position: 50%;\n  background-size: cover;\n  margin-bottom: 30px;\n  width: 100%;\n  height: 100%;\n  position: absolute;\n  border-radius: 1rem;\n}\n\n.card.card-background .card-body {\n  color: #fff;\n  position: relative;\n  z-index: 2;\n}\n\n.card.card-background .card-body .content-center,\n.card.card-background .card-body .content-left {\n  min-height: 330px;\n  max-width: 450px;\n  padding-top: 60px;\n  padding-bottom: 60px;\n}\n\n.card.card-background .card-body .content-center {\n  text-align: center;\n}\n\n.card.card-background .card-body.body-left {\n  width: 90%;\n}\n\n.card.card-background .card-body .author .name span,\n.card.card-background .card-body .author .name .stats {\n  color: #fff;\n}\n\n.card.card-background:after {\n  position: absolute;\n  top: 0;\n  bottom: 0;\n  left: 0;\n  height: 100%;\n  width: 100%;\n  z-index: 1;\n  display: block;\n  content: \"\";\n  background: rgba(0, 0, 0, 0.4);\n  border-radius: 1rem;\n}\n\n.card.card-background.card-background-mask-primary:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-primary:after {\n  background-image: linear-gradient(310deg, #7928CA 0%, #FF0080 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-secondary:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-secondary:after {\n  background-image: linear-gradient(310deg, #627594 0%, #A8B8D8 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-success:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-success:after {\n  background-image: linear-gradient(310deg, #17ad37 0%, #98ec2d 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-info:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-info:after {\n  background-image: linear-gradient(310deg, #2152ff 0%, #21d4fd 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-warning:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-warning:after {\n  background-image: linear-gradient(310deg, #f53939 0%, #fbcf33 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-danger:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-danger:after {\n  background-image: linear-gradient(310deg, #ea0606 0%, #ff667c 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-light:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-light:after {\n  background-image: linear-gradient(310deg, #CED4DA 0%, #EBEFF4 100%);\n  opacity: .85;\n}\n\n.card.card-background.card-background-mask-dark:before {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.card.card-background.card-background-mask-dark:after {\n  background-image: linear-gradient(310deg, #141727 0%, #3A416F 100%);\n  opacity: .85;\n}\n\n.card.card-background .card-category {\n  font-size: 0.875rem;\n  font-weight: 600;\n}\n\n.card.card-background .card-description {\n  margin-top: 24px;\n  margin-bottom: 24px;\n}\n\n@media (min-width: 992px) {\n\n  .dropdown .dropdown-menu,\n  .dropup .dropdown-menu,\n  .dropstart .dropdown-menu,\n  .dropend .dropdown-menu {\n    box-shadow: 0 8px 26px -4px rgba(20, 20, 20, 0.15), 0 8px 9px -5px rgba(20, 20, 20, 0.06);\n    transition: visibility 0.25s, opacity 0.25s, transform 0.25s;\n    cursor: pointer;\n  }\n\n  .dropdown .dropdown-toggle:after,\n  .dropup .dropdown-toggle:after,\n  .dropstart .dropdown-toggle:after,\n  .dropend .dropdown-toggle:after {\n    content: \"\\f107\";\n    font: normal normal normal 14px/1 FontAwesome;\n    border: none;\n    vertical-align: middle;\n    font-weight: 600;\n  }\n\n  .dropdown .dropdown-toggle.show:after,\n  .dropup .dropdown-toggle.show:after,\n  .dropstart .dropdown-toggle.show:after,\n  .dropend .dropdown-toggle.show:after {\n    transform: rotate(180deg);\n  }\n\n  .dropdown .dropdown-toggle:after,\n  .dropup .dropdown-toggle:after,\n  .dropstart .dropdown-toggle:after,\n  .dropend .dropdown-toggle:after {\n    transition: 0.3s ease;\n  }\n\n  .dropdown.dropdown-hover .dropdown-menu,\n  .dropdown .dropdown-menu {\n    display: block;\n    opacity: 0;\n    top: 0;\n    transform-origin: 50% 0;\n    pointer-events: none;\n    transform: perspective(999px) rotateX(-10deg) translateZ(0) translate3d(0px, 37px, 0px) !important;\n    -webkit-backface-visibility: hidden;\n    backface-visibility: hidden;\n    will-change: transform, box-shadow;\n  }\n\n  .dropdown.dropdown-hover:hover>.dropdown-menu,\n  .dropdown .dropdown-menu.show {\n    opacity: 1;\n    pointer-events: auto;\n    visibility: visible;\n    transform: perspective(999px) rotateX(0deg) translateZ(0) translate3d(0, 37px, 5px) !important;\n  }\n\n  .dropdown.dropdown-hover:hover>.dropdown-menu:before,\n  .dropdown .dropdown-menu.show:before {\n    top: -20px;\n  }\n\n  .dropdown.dropdown-hover:after {\n    content: '';\n    position: absolute;\n    left: 0;\n    bottom: -24px;\n    width: 100%;\n    height: 100%;\n  }\n\n  .dropdown:not(.dropdown-hover) .dropdown-menu {\n    margin-top: 8px !important;\n  }\n\n  .dropdown .dropdown-menu:before {\n    font-family: \"FontAwesome\";\n    content: \"\\f0d8\";\n    position: absolute;\n    top: 0;\n    left: 28px;\n    right: auto;\n    font-size: 22px;\n    color: #fff;\n    transition: top 0.35s ease;\n  }\n\n  .dropdown .dropdown-item .arrow {\n    transform: rotate(-90deg);\n  }\n\n  .dropdown-item {\n    transition: background-color 0.3s ease, color 0.3s ease;\n  }\n}\n\n@media (max-width: 991.98px) {\n  .dropdown:not(.nav-item) .dropdown-menu {\n    display: block;\n    opacity: 0;\n    top: 0;\n    transform-origin: 50% 0;\n    pointer-events: none;\n    transform: perspective(999px) rotateX(-10deg) translateZ(0) translate3d(0px, 37px, 0px) !important;\n    transition: visibility 0.25s, opacity 0.25s, transform 0.25s;\n    -webkit-backface-visibility: hidden;\n    backface-visibility: hidden;\n    will-change: transform, box-shadow;\n    box-shadow: 0 8px 26px -4px rgba(20, 20, 20, 0.15), 0 8px 9px -5px rgba(20, 20, 20, 0.06);\n  }\n\n  .dropdown:not(.nav-item) .dropdown-menu:before {\n    font-family: \"FontAwesome\";\n    content: \"\\f0d8\";\n    position: absolute;\n    top: 0;\n    left: 28px;\n    right: auto;\n    font-size: 22px;\n    color: #fff;\n    transition: top 0.35s ease;\n  }\n\n  .dropdown:not(.nav-item):not(.dropdown-hover) .dropdown-menu {\n    margin-top: 8px !important;\n  }\n\n  .dropdown:not(.nav-item) .dropdown-menu.show {\n    opacity: 1;\n    pointer-events: auto;\n    visibility: visible;\n    transform: perspective(999px) rotateX(0deg) translateZ(0) translate3d(0, 37px, 5px) !important;\n  }\n\n  .dropdown:not(.nav-item) .dropdown-menu.show:before {\n    top: -20px;\n  }\n\n  .dropdown.nav-item .dropdown-menu {\n    background-color: transparent;\n    overflow: scroll;\n  }\n\n  .dropdown.nav-item .dropdown-menu-animation {\n    display: block;\n    height: 0;\n    transition: all .35s ease;\n    padding-top: 0 !important;\n    padding-bottom: 0 !important;\n    opacity: 0;\n  }\n\n  .dropdown.nav-item .dropdown-menu-animation.show {\n    height: 250px;\n    opacity: 1;\n  }\n}\n\n.dropdown-menu li {\n  position: relative;\n}\n\n.dropdown.dropdown-subitem:after {\n  left: 100%;\n  bottom: 0;\n  width: 50%;\n}\n\n.dropdown .dropdown-menu .dropdown-item+.dropdown-menu:before {\n  transform: rotate(-90deg);\n  left: 0;\n  top: 0;\n  z-index: -1;\n  transition: left .35s ease;\n}\n\n.dropdown .dropdown-menu.dropdown-menu-end {\n  right: 0 !important;\n  left: auto !important;\n}\n\n.dropdown .dropdown-menu.dropdown-menu-end:before {\n  right: 28px;\n  left: auto;\n}\n\n.dropdown.dropdown-subitem:hover .dropdown-item+.dropdown-menu:before {\n  left: -8px;\n}\n\n.dropdown>.dropdown-menu .dropdown-item+.dropdown-menu {\n  transform: perspective(999px) rotateX(0deg) translateZ(0) translate3d(0, 0px, 5px) !important;\n}\n\n.dropdown .dropdown-menu .dropdown-item+.dropdown-menu {\n  right: -197px;\n  left: auto;\n  top: 0;\n}\n\n.dropdown-image {\n  background-size: cover;\n}\n\n@media (min-width: 992px) {\n  .dropdown-xl {\n    min-width: 40rem;\n  }\n\n  .dropdown-lg {\n    min-width: 23rem;\n  }\n\n  .dropdown-md {\n    min-width: 15rem;\n  }\n}\n\n@media (max-width: 1199.98px) {\n  .dropdown-lg-responsive {\n    min-width: 19rem;\n  }\n}\n\n.dropup .dropdown-menu {\n  box-shadow: 0 8px 26px -4px rgba(20, 20, 20, 0.15), 0 8px 9px -5px rgba(20, 20, 20, 0.06);\n  transition: visibility 0.25s, opacity 0.25s, transform 0.25s;\n  cursor: pointer;\n  top: auto !important;\n  bottom: 100% !important;\n  margin-bottom: 0.5rem !important;\n  display: block;\n  opacity: 0;\n  transform-origin: bottom;\n  pointer-events: none;\n  transform: perspective(999px) rotateX(12deg) translateZ(0) translate3d(0px, 0px, 0px) !important;\n  -webkit-backface-visibility: hidden;\n  backface-visibility: hidden;\n  will-change: transform, box-shadow;\n}\n\n.dropup .dropdown-menu.show {\n  pointer-events: auto;\n  transform: perspective(999px) rotateX(0deg) translateZ(0) translate3d(1px, 0px, 5px) !important;\n  opacity: 1;\n}\n\n.dropup .dropdown-menu.show:after {\n  bottom: -20px;\n}\n\n.dropup .dropdown-menu:after {\n  font-family: \"FontAwesome\";\n  content: \"\\f0d7\";\n  position: absolute;\n  z-index: -1;\n  bottom: 22px;\n  left: 28px;\n  right: auto;\n  font-size: 22px;\n  color: #fff;\n  transition: bottom 0.35s ease;\n}\n\n.page-header {\n  padding: 0;\n  position: relative;\n  overflow: hidden;\n  display: flex;\n  align-items: center;\n  background-size: cover;\n  background-position: 50%;\n}\n\n.page-header .container {\n  z-index: 1;\n}\n\n.oblique {\n  transform: skewX(-10deg);\n  overflow: hidden;\n  width: 60%;\n  right: -10rem;\n  border-bottom-left-radius: 0.75rem;\n}\n\n.oblique .oblique-image {\n  transform: skewX(10deg);\n}\n\n.fixed-plugin .fixed-plugin-button {\n  background: #fff;\n  border-radius: 50%;\n  bottom: 30px;\n  right: 30px;\n  font-size: 1.25rem;\n  z-index: 990;\n  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.16);\n  cursor: pointer;\n}\n\n.fixed-plugin .fixed-plugin-button i {\n  pointer-events: none;\n}\n\n.fixed-plugin .card {\n  position: fixed !important;\n  right: -360px;\n  top: 0;\n  height: 100%;\n  left: auto !important;\n  transform: unset !important;\n  width: 360px;\n  border-radius: 0;\n  padding: 0 10px;\n  transition: .2s ease;\n  z-index: 1020;\n}\n\n.fixed-plugin .badge {\n  border: 1px solid #fff;\n  border-radius: 50%;\n  cursor: pointer;\n  display: inline-block;\n  height: 23px;\n  margin-right: 5px;\n  position: relative;\n  width: 23px;\n  transition: all 0.2s ease-in-out;\n}\n\n.fixed-plugin .badge:hover,\n.fixed-plugin .badge.active {\n  border-color: #344767;\n}\n\n.fixed-plugin .btn.bg-gradient-primary:not(:disabled):not(.disabled) {\n  border: 1px solid transparent;\n}\n\n.fixed-plugin .btn.bg-gradient-primary:not(:disabled):not(.disabled):not(.active) {\n  background-color: transparent;\n  background-image: none;\n  border: 1px solid #cb0c9f;\n  color: #cb0c9f;\n}\n\n.fixed-plugin.show .card {\n  right: 0;\n}\n\n.input-group {\n  border-radius: 0.5rem;\n}\n\n.input-group,\n.input-group .input-group-text {\n  transition: box-shadow 0.15s ease, border-color 0.15s ease;\n}\n\n.input-group> :not(:first-child):not(.dropdown-menu) {\n  margin-left: 0;\n}\n\n.input-group .form-control:focus {\n  border-left: 1px solid #e293d3 !important;\n  border-right: 1px solid #e293d3 !important;\n}\n\n.input-group .form-control:not(:first-child) {\n  border-left: 0;\n  padding-left: 0;\n}\n\n.input-group .form-control:not(:last-child) {\n  border-right: 0;\n  padding-right: 0;\n}\n\n.input-group .form-control+.input-group-text {\n  border-left: 0;\n  border-right: 1px solid #d2d6da;\n}\n\n.input-group .input-group-text {\n  border-right: 0;\n}\n\n.form-group {\n  margin-bottom: 1rem;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"checkbox\"],\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"] {\n  border: 1px solid #cbd3da;\n  margin-top: 0.25rem;\n  position: relative;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"checkbox\"]:checked,\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"]:checked {\n  border: 0;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"checkbox\"]:after {\n  transition: opacity 0.25s ease-in-out;\n  font-family: \"FontAwesome\";\n  content: \"\\f00c\";\n  width: 100%;\n  height: 100%;\n  color: #fff;\n  position: absolute;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  font-size: 0.67rem;\n  opacity: 0;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"checkbox\"]:checked:after {\n  opacity: 1;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"] {\n  transition: border 0s;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"]:after {\n  transition: opacity 0.25s ease-in-out;\n  content: \"\";\n  position: absolute;\n  width: 0.4375rem;\n  height: 0.4375rem;\n  border-radius: 50%;\n  background-color: #fff;\n  opacity: 0;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"]:checked {\n  padding: 6px;\n}\n\n.form-check:not(.form-switch) .form-check-input[type=\"radio\"]:checked:after {\n  opacity: 1;\n}\n\n.form-check-label,\n.form-check-input[type=\"checkbox\"] {\n  cursor: pointer;\n}\n\n.form-check-label {\n  font-size: 0.875rem;\n  font-weight: 400;\n}\n\n.form-check-input {\n  -webkit-appearance: none;\n  -moz-appearance: none;\n  appearance: none;\n}\n\n.form-switch .form-check-input {\n  border: 1px solid #e9ecef;\n  position: relative;\n  background-color: rgba(58, 65, 111, 0.1);\n  height: 1.25em;\n}\n\n.form-switch .form-check-input:after {\n  transition: transform 0.25s ease-in-out, background-color 0.25s ease-in-out;\n  content: \"\";\n  width: 1rem;\n  height: 1rem;\n  border-radius: 50%;\n  position: absolute;\n  background-color: #fff;\n  transform: translateX(1px);\n  box-shadow: 0 0.25rem 0.375rem -0.0625rem rgba(20, 20, 20, 0.12), 0 0.125rem 0.25rem -0.0625rem rgba(20, 20, 20, 0.07);\n  top: 1px;\n}\n\n.form-switch .form-check-input:checked:after {\n  transform: translateX(21px);\n}\n\n.form-switch .form-check-input:checked {\n  border-color: rgba(58, 65, 111, 0.95);\n  background-color: rgba(58, 65, 111, 0.95);\n}\n\n.form-select {\n  transition: box-shadow 0.15s ease, border-color 0.15s ease;\n}\n\nlabel,\n.form-label {\n  font-size: 0.75rem;\n  font-weight: 700;\n  margin-bottom: 0.5rem;\n  color: #344767;\n  margin-left: 0.25rem;\n}\n\n.form-control.is-invalid:focus {\n  box-shadow: 0 0 0 2px rgba(253, 92, 112, 0.6);\n}\n\n.form-control.is-valid:focus {\n  box-shadow: 0 0 0 2px rgba(102, 212, 50, 0.65);\n}\n\n.footer .nav-link {\n  color: #344767;\n  font-weight: 400;\n  font-size: 0.875rem;\n  padding-top: 0;\n  padding-bottom: 0.25rem;\n}\n\n.footer .nav-link:hover {\n  opacity: 1 !important;\n  transition: opacity 0.3 ease;\n}\n\n.bg-gradient-primary {\n  background-image: linear-gradient(310deg, #7928CA 0%, #FF0080 100%);\n}\n\n.bg-gradient-secondary {\n  background-image: linear-gradient(310deg, #627594 0%, #A8B8D8 100%);\n}\n\n.bg-gradient-success {\n  background-image: linear-gradient(310deg, #17ad37 0%, #98ec2d 100%);\n}\n\n.bg-gradient-info {\n  background-image: linear-gradient(310deg, #2152ff 0%, #21d4fd 100%);\n}\n\n.bg-gradient-warning {\n  background-image: linear-gradient(310deg, #f53939 0%, #fbcf33 100%);\n}\n\n.bg-gradient-danger {\n  background-image: linear-gradient(310deg, #ea0606 0%, #ff667c 100%);\n}\n\n.bg-gradient-light {\n  background-image: linear-gradient(310deg, #CED4DA 0%, #EBEFF4 100%);\n}\n\n.bg-gradient-dark {\n  background-image: linear-gradient(310deg, #141727 0%, #3A416F 100%);\n}\n\n.bg-gradient-faded-primary {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(203, 12, 159, 0.6) 0, #9b0979 100%);\n}\n\n.bg-gradient-faded-secondary {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(131, 146, 171, 0.6) 0, #657796 100%);\n}\n\n.bg-gradient-faded-success {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(130, 214, 22, 0.6) 0, #66a811 100%);\n}\n\n.bg-gradient-faded-info {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(23, 193, 232, 0.6) 0, #129aba 100%);\n}\n\n.bg-gradient-faded-warning {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(251, 207, 51, 0.6) 0, #f6c105 100%);\n}\n\n.bg-gradient-faded-danger {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(234, 6, 6, 0.6) 0, #b80505 100%);\n}\n\n.bg-gradient-faded-light {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(233, 236, 239, 0.6) 0, #cbd3da 100%);\n}\n\n.bg-gradient-faded-dark {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(52, 71, 103, 0.6) 0, #233045 100%);\n}\n\n.bg-gradient-faded-white {\n  background-image: radial-gradient(370px circle at 80% 50%, rgba(255, 255, 255, 0.6) 0, #e6e6e6 100%);\n}\n\n.bg-gradient-faded-primary-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(203, 12, 159, 0.3) 0, #cb0c9f 100%);\n}\n\n.bg-gradient-faded-secondary-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(131, 146, 171, 0.3) 0, #8392AB 100%);\n}\n\n.bg-gradient-faded-success-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(130, 214, 22, 0.3) 0, #82d616 100%);\n}\n\n.bg-gradient-faded-info-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(23, 193, 232, 0.3) 0, #17c1e8 100%);\n}\n\n.bg-gradient-faded-warning-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(251, 207, 51, 0.3) 0, #fbcf33 100%);\n}\n\n.bg-gradient-faded-danger-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(234, 6, 6, 0.3) 0, #ea0606 100%);\n}\n\n.bg-gradient-faded-light-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(233, 236, 239, 0.3) 0, #e9ecef 100%);\n}\n\n.bg-gradient-faded-dark-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(52, 71, 103, 0.3) 0, #344767 100%);\n}\n\n.bg-gradient-faded-white-vertical {\n  background-image: radial-gradient(200px circle at 50% 70%, rgba(255, 255, 255, 0.3) 0, #fff 100%);\n}\n\n.icon-shape {\n  width: 48px;\n  height: 48px;\n  background-position: center;\n  border-radius: 0.75rem;\n}\n\n.icon-shape i {\n  color: #fff;\n  opacity: 0.8;\n  top: 11px;\n  position: relative;\n}\n\n.icon-shape .ni {\n  top: 14px;\n}\n\n.icon-xxs {\n  width: 20px;\n  height: 20px;\n}\n\n.icon-xxs i {\n  top: -4px;\n  font-size: .5rem;\n}\n\n.icon-xs {\n  width: 24px;\n  height: 24px;\n}\n\n.icon-xs i {\n  top: -4px;\n  font-size: .5rem;\n}\n\n.icon-sm {\n  width: 32px;\n  height: 32px;\n}\n\n.icon-sm i {\n  top: 2px;\n  font-size: .65rem;\n}\n\n.icon-md {\n  width: 48px;\n  height: 48px;\n}\n\n.icon-md i {\n  top: 22%;\n  font-size: 0.875rem;\n}\n\n.icon-md.icon-striped {\n  background-position-x: 85px;\n  background-position-y: 85px;\n}\n\n.icon-md.icon-striped i {\n  top: 11%;\n  margin-left: -10px;\n  font-size: 0.875rem;\n}\n\n.icon-lg {\n  width: 64px;\n  height: 64px;\n}\n\n.icon-lg i {\n  top: 31%;\n  font-size: 1.25rem;\n}\n\n.icon-lg.icon-striped {\n  background-position-x: 111px;\n  background-position-y: 111px;\n}\n\n.icon-lg.icon-striped i {\n  top: 21%;\n  margin-left: -15px;\n}\n\n.icon-xl {\n  width: 100px;\n  height: 100px;\n  border-radius: 0.75rem;\n}\n\n.icon-xl i {\n  top: 37%;\n  font-size: 1.6rem;\n}\n\n.icon-xl.icon-striped {\n  background-position-x: 80px;\n  background-position-y: 80px;\n}\n\n.icon-xl.icon-striped i {\n  top: 30%;\n  margin-left: -15px;\n}\n\n.info-horizontal {\n  text-align: left !important;\n}\n\n.info-horizontal .icon {\n  float: left;\n}\n\n.info-horizontal .description {\n  overflow: hidden;\n}\n\nsvg.text-primary .color-foreground {\n  fill: #7928CA;\n}\n\nsvg.text-primary .color-background {\n  fill: #FF0080;\n}\n\nsvg.text-secondary .color-foreground {\n  fill: #627594;\n}\n\nsvg.text-secondary .color-background {\n  fill: #A8B8D8;\n}\n\nsvg.text-info .color-foreground {\n  fill: #2152ff;\n}\n\nsvg.text-info .color-background {\n  fill: #21d4fd;\n}\n\nsvg.text-warning .color-foreground {\n  fill: #f53939;\n}\n\nsvg.text-warning .color-background {\n  fill: #fbcf33;\n}\n\nsvg.text-danger .color-foreground {\n  fill: #ea0606;\n}\n\nsvg.text-danger .color-background {\n  fill: #ff667c;\n}\n\nsvg.text-success .color-foreground {\n  fill: #17ad37;\n}\n\nsvg.text-success .color-background {\n  fill: #98ec2d;\n}\n\nsvg.text-dark .color-foreground {\n  fill: #141727;\n}\n\nsvg.text-dark .color-background {\n  fill: #3A416F;\n}\n\n.blur {\n  box-shadow: inset 0px 0px 2px #fefefed1;\n  -webkit-backdrop-filter: saturate(200%) blur(30px);\n  backdrop-filter: saturate(200%) blur(30px);\n  background-color: rgba(255, 255, 255, 0.8) !important;\n}\n\n.blur.saturation-less {\n  -webkit-backdrop-filter: saturate(20%) blur(30px);\n  backdrop-filter: saturate(20%) blur(30px);\n}\n\n.blur.blur-rounded {\n  border-radius: 40px;\n}\n\n.blur.blur-light {\n  background-color: rgba(255, 255, 255, 0.4);\n}\n\n.blur.blur-dark {\n  background-color: rgba(0, 0, 0, 0.3);\n}\n\n.shadow-blur {\n  box-shadow: inset 0 0px 1px 1px rgba(254, 254, 254, 0.9), 0 20px 27px 0 rgba(0, 0, 0, 0.05) !important;\n}\n\n.shadow-card {\n  box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05) !important;\n}\n\n.navbar-blur {\n  -webkit-backdrop-filter: saturate(200%) blur(30px);\n  backdrop-filter: saturate(200%) blur(30px);\n  background-color: rgba(255, 255, 255, 0.58) !important;\n}\n\n.blur-section {\n  -webkit-backdrop-filter: saturate(200%) blur(30px);\n  backdrop-filter: saturate(200%) blur(30px);\n}\n\n.blur-section.blur-gradient-primary {\n  background-image: linear-gradient(310deg, rgba(121, 40, 202, 0.95) 0%, rgba(255, 0, 128, 0.95) 100%);\n}\n\n*.move-on-hover {\n  transition: 0.2s ease-out;\n  overflow: hidden;\n  transform-origin: 50% 0;\n  transform-origin: 50% 0;\n  transform: perspective(999px) rotateX(0deg) translate3d(0, 0, 0);\n  -webkit-backface-visibility: hidden;\n  backface-visibility: hidden;\n  will-change: transform, box-shadow;\n}\n\n*.move-on-hover:hover {\n  transform: perspective(999px) rotateX(7deg) translate3d(0px, -4px, 5px);\n}\n\n*.gradient-animation {\n  background: linear-gradient(-45deg, #2152ff, #ea0606, #fbcf33, #7928CA, #344767);\n  background-size: 400% 400% !important;\n  -webkit-animation: gradient 10s ease infinite;\n          animation: gradient 10s ease infinite;\n}\n\nhr.vertical {\n  position: absolute;\n  background-color: transparent;\n  height: 100%;\n  right: 0;\n  top: 0;\n  width: 1px;\n}\n\nhr.vertical.light {\n  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), white, rgba(255, 255, 255, 0));\n}\n\nhr.vertical.dark {\n  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0));\n}\n\nhr.vertical.gray-light {\n  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));\n}\n\nhr.horizontal {\n  background-color: transparent;\n}\n\nhr.horizontal.light {\n  background-image: linear-gradient(to right, rgba(255, 255, 255, 0), white, rgba(255, 255, 255, 0));\n}\n\nhr.horizontal.dark {\n  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0));\n}\n\nhr.horizontal.gray-light {\n  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));\n}\n\n.lock-size {\n  width: 1.7rem;\n  height: 1.7rem;\n}\n\n.border-radius-xs {\n  border-radius: 0.125rem;\n}\n\n.border-radius-sm {\n  border-radius: 0.25rem;\n}\n\n.border-radius-md {\n  border-radius: 0.5rem;\n}\n\n.border-radius-lg {\n  border-radius: 0.75rem;\n}\n\n.border-radius-xl {\n  border-radius: 1rem;\n}\n\n.border-radius-2xl {\n  border-radius: 1.5rem;\n}\n\n.border-radius-section {\n  border-radius: 10rem;\n}\n\n.border-bottom-end-radius-0 {\n  border-bottom-right-radius: 0;\n}\n\n.border-top-end-radius-0 {\n  border-top-right-radius: 0;\n}\n\n.border-bottom-start-radius-0 {\n  border-bottom-left-radius: 0;\n}\n\n.border-top-start-radius-0 {\n  border-top-left-radius: 0;\n}\n\n.border-dashed {\n  border-style: dashed;\n}\n\n.z-index-sticky {\n  z-index: 1020;\n}\n\n.waves {\n  position: relative;\n  width: 100%;\n  height: 16vh;\n  margin-bottom: -7px;\n  /*Fix for safari gap*/\n  min-height: 100px;\n  max-height: 150px;\n}\n\n.waves.waves-sm {\n  height: 50px;\n  min-height: 50px;\n}\n\n.waves.no-animation .moving-waves>use {\n  -webkit-animation: none;\n          animation: none;\n}\n\n.wave-rotate {\n  transform: rotate(180deg);\n}\n\n/* Animation for the waves */\n.moving-waves>use {\n  -webkit-animation: move-forever 40s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;\n          animation: move-forever 40s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;\n}\n\n.moving-waves>use:nth-child(1) {\n  -webkit-animation-delay: -2s;\n          animation-delay: -2s;\n  -webkit-animation-duration: 11s;\n          animation-duration: 11s;\n}\n\n.moving-waves>use:nth-child(2) {\n  -webkit-animation-delay: -4s;\n          animation-delay: -4s;\n  -webkit-animation-duration: 13s;\n          animation-duration: 13s;\n}\n\n.moving-waves>use:nth-child(3) {\n  -webkit-animation-delay: -3s;\n          animation-delay: -3s;\n  -webkit-animation-duration: 15s;\n          animation-duration: 15s;\n}\n\n.moving-waves>use:nth-child(4) {\n  -webkit-animation-delay: -4s;\n          animation-delay: -4s;\n  -webkit-animation-duration: 20s;\n          animation-duration: 20s;\n}\n\n.moving-waves>use:nth-child(5) {\n  -webkit-animation-delay: -4s;\n          animation-delay: -4s;\n  -webkit-animation-duration: 25s;\n          animation-duration: 25s;\n}\n\n.moving-waves>use:nth-child(6) {\n  -webkit-animation-delay: -3s;\n          animation-delay: -3s;\n  -webkit-animation-duration: 30s;\n          animation-duration: 30s;\n}\n\n@-webkit-keyframes move-forever {\n  0% {\n    transform: translate3d(-90px, 0, 0);\n  }\n\n  100% {\n    transform: translate3d(85px, 0, 0);\n  }\n}\n\n@keyframes move-forever {\n  0% {\n    transform: translate3d(-90px, 0, 0);\n  }\n\n  100% {\n    transform: translate3d(85px, 0, 0);\n  }\n}\n\n/*Shrinking for mobile*/\n@media (max-width: 767.98px) {\n  .waves {\n    height: 40px;\n    min-height: 40px;\n  }\n\n  hr.horizontal {\n    background-color: transparent;\n  }\n\n  hr.horizontal:not(.dark) {\n    background-image: linear-gradient(to right, rgba(255, 255, 255, 0), white, rgba(255, 255, 255, 0));\n  }\n\n  hr.horizontal.vertical {\n    transform: rotate(90deg);\n  }\n\n  hr.horizontal.dark {\n    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0));\n  }\n}\n\n.overflow-visible {\n  overflow: visible !important;\n}\n\n.popover .popover-header {\n  font-weight: 600;\n}\n\n.bg-cover {\n  background-size: cover;\n}\n\n.mask {\n  position: absolute;\n  background-size: cover;\n  background-position: center center;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  opacity: 0.8;\n}\n\n.cursor-pointer {\n  cursor: pointer;\n}\n\n.transform-translate-50 {\n  transform: translate(0, -50%);\n}\n\n@media (min-width: 992px) {\n  .virtual-reality .sidenav {\n    margin-top: 1.5rem;\n    -webkit-animation-name: fadeInBottom;\n            animation-name: fadeInBottom;\n    -webkit-animation-fill-mode: both;\n            animation-fill-mode: both;\n    -webkit-animation-duration: 1.5s;\n            animation-duration: 1.5s;\n    transform: scale(0.6);\n    background: #fff;\n    left: 18% !important;\n    position: absolute;\n  }\n}\n\n.navbar {\n  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.16);\n}\n\n.navbar .navbar-brand {\n  color: #344767;\n  font-size: 0.875rem;\n}\n\n.navbar .nav-link {\n  color: #344767;\n  padding: 0.5rem 1rem;\n  font-weight: 400;\n  font-size: 0.875rem;\n}\n\n.navbar.navbar-absolute {\n  position: absolute;\n  width: 100%;\n  z-index: 1;\n}\n\n.navbar.navbar-transparent .nav-link,\n.navbar.navbar-transparent .nav-link i {\n  color: #fff;\n}\n\n.navbar.navbar-transparent .nav-link:hover,\n.navbar.navbar-transparent .nav-link:focus {\n  color: rgba(255, 255, 255, 0.75);\n}\n\n.navbar.navbar-transparent .navbar-toggler .navbar-toggler-icon .navbar-toggler-bar {\n  background: #fff;\n}\n\n.navbar.navbar-transparent .navbar-collapse {\n  border-radius: 1rem;\n}\n\n.navbar.navbar-dark .navbar-collapse.show .dropdown-header.text-dark,\n.navbar.navbar-dark .navbar-collapse.collapsing .dropdown-header.text-dark {\n  color: #fff !important;\n}\n\n.navbar .sidenav-toggler-inner {\n  width: 18px;\n}\n\n.navbar .sidenav-toggler-inner .sidenav-toggler-line {\n  transition: all 0.15s ease;\n  background: #67748e;\n  border-radius: 0.125rem;\n  position: relative;\n  display: block;\n  height: 2px;\n}\n\n.navbar .sidenav-toggler-inner .sidenav-toggler-line:not(:last-child) {\n  margin-bottom: 3px;\n}\n\n.g-sidenav-show.g-sidenav-pinned .navbar .sidenav-toggler-inner .sidenav-toggler-line:first-child,\n.g-sidenav-show.g-sidenav-pinned .navbar .sidenav-toggler-inner .sidenav-toggler-line:last-child {\n  width: 13px;\n  transform: translateX(5px);\n}\n\n.navbar-light {\n  background-color: #fff !important;\n}\n\n.navbar-light .navbar-toggler {\n  border: none;\n}\n\n.navbar-light .navbar-toggler:focus {\n  box-shadow: none;\n}\n\n.navbar-toggler .navbar-toggler-icon {\n  background-image: none;\n}\n\n.navbar-toggler .navbar-toggler-icon .navbar-toggler-bar {\n  display: block;\n  position: relative;\n  width: 22px;\n  height: 1px;\n  border-radius: 1px;\n  background: #6c757d;\n  transition: all 0.2s;\n  margin: 0 auto;\n}\n\n.navbar-toggler .navbar-toggler-icon .navbar-toggler-bar.bar2,\n.navbar-toggler .navbar-toggler-icon .navbar-toggler-bar.bar3 {\n  margin-top: 7px;\n}\n\n.navbar-toggler[aria-expanded=\"true\"] .navbar-toggler-bar.bar1 {\n  transform: rotate(45deg);\n  transform-origin: 10% 10%;\n  margin-top: 4px;\n}\n\n.navbar-toggler[aria-expanded=\"true\"] .navbar-toggler-bar.bar2 {\n  opacity: 0;\n}\n\n.navbar-toggler[aria-expanded=\"true\"] .navbar-toggler-bar.bar3 {\n  transform: rotate(-45deg);\n  transform-origin: 10% 90%;\n  margin-top: 3px;\n}\n\n@media (max-width: 991.98px) {\n  .navbar.navbar-transparent .navbar-collapse {\n    padding-top: 0.5rem;\n    padding-bottom: 0.5rem;\n  }\n\n  .navbar.navbar-transparent .navbar-collapse.collapsing {\n    background: #fff;\n  }\n\n  .navbar.navbar-transparent .navbar-collapse.show {\n    background: #fff;\n  }\n\n  .navbar.navbar-transparent .navbar-collapse.show .nav-link,\n  .navbar.navbar-transparent .navbar-collapse.show i {\n    color: #344767;\n  }\n\n  .g-sidenav-show .navbar:not(.sidenav).navbar-main .navbar-collapse {\n    display: flex !important;\n    flex-basis: auto;\n  }\n\n  .g-sidenav-show .navbar:not(.sidenav).navbar-main .navbar-nav {\n    flex-direction: row;\n  }\n}\n\n@media (max-width: 767.98px) {\n  .navbar-collapse {\n    position: relative;\n  }\n\n  .navbar-collapse .navbar-nav {\n    width: 100%;\n  }\n\n  .navbar-collapse .navbar-nav .nav-item.dropdown {\n    position: static;\n  }\n\n  .navbar-collapse .navbar-nav .nav-item.dropdown .dropdown-menu {\n    left: 0;\n    right: 0;\n  }\n\n  .navbar-collapse .navbar-nav .nav-item.dropdown .dropdown-menu.show:before {\n    content: none;\n  }\n}\n\n@media (max-width: 575.98px) {\n  .navbar-nav .nav-item.dropdown .dropdown-menu {\n    left: 0;\n    right: auto;\n  }\n}\n\n.navbar-vertical .navbar-brand>img,\n.navbar-vertical .navbar-brand-img {\n  max-width: 100%;\n  max-height: 2rem;\n}\n\n.navbar-vertical .navbar-nav .nav-link {\n  padding-left: 1rem;\n  padding-right: 1rem;\n  font-weight: 500;\n  color: #67748e;\n}\n\n.navbar-vertical .navbar-nav .nav-link>i {\n  min-width: 1.8rem;\n  font-size: 0.9375rem;\n  line-height: 1.5rem;\n}\n\n.navbar-vertical .navbar-nav .nav-link .dropdown-menu {\n  border: none;\n}\n\n.navbar-vertical .navbar-nav .nav-link .dropdown-menu .dropdown-menu {\n  margin-left: 0.5rem;\n}\n\n.navbar-vertical .navbar-nav .nav-sm .nav-link {\n  font-size: 0.8125rem;\n}\n\n.navbar-vertical .navbar-nav .nav-link {\n  display: flex;\n  align-items: center;\n  white-space: nowrap;\n}\n\n.navbar-vertical .navbar-heading {\n  padding-top: 0.5rem;\n  padding-bottom: 0.5rem;\n  font-size: 0.75rem;\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n}\n\n.navbar-vertical.navbar-expand-xs {\n  display: block;\n  position: fixed;\n  top: 0;\n  bottom: 0;\n  width: 100%;\n  max-width: 15.625rem !important;\n  overflow-y: auto;\n  padding: 0;\n  box-shadow: none;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-collapse {\n  display: block;\n  overflow: auto;\n  height: calc(100vh - 360px);\n}\n\n.navbar-vertical.navbar-expand-xs>[class*=\"container\"] {\n  flex-direction: column;\n  align-items: stretch;\n  min-height: 100%;\n  padding-left: 0;\n  padding-right: 0;\n}\n\n@media all and (-ms-high-contrast: none),\n(-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-xs>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n.navbar-vertical.navbar-expand-xs.fixed-start {\n  left: 0;\n}\n\n.navbar-vertical.navbar-expand-xs.fixed-end {\n  right: 0;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-link {\n  padding-top: 0.675rem;\n  padding-bottom: 0.675rem;\n  margin: 0 1rem;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-link .nav-link-text,\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-link .sidenav-mini-icon,\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-link .sidenav-normal,\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-link i {\n  pointer-events: none;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav-item {\n  width: 100%;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav>.nav-item {\n  margin-top: 0.125rem;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav>.nav-item .icon .ni {\n  top: 0;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n  fill: #3A416F;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n  fill: #141727;\n}\n\n.navbar-vertical.navbar-expand-xs .lavalamp-object {\n  width: calc(100% - 1rem) !important;\n  background: theme-color(\"primary\");\n  color: color-yiq(#cb0c9f);\n  margin-right: 0.5rem;\n  margin-left: 0.5rem;\n  padding-left: 1rem;\n  padding-right: 1rem;\n  border-radius: 0.25rem;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav .nav-link {\n  padding-top: 0.45rem;\n  padding-bottom: 0.45rem;\n  padding-left: 15px;\n}\n\n.navbar-vertical.navbar-expand-xs .navbar-nav .nav .nav-link>span.sidenav-normal {\n  transition: all 0.1s ease 0s;\n}\n\n@media (min-width: 576px) {\n  .navbar-vertical.navbar-expand-sm {\n    display: block;\n    position: fixed;\n    top: 0;\n    bottom: 0;\n    width: 100%;\n    max-width: 15.625rem !important;\n    overflow-y: auto;\n    padding: 0;\n    box-shadow: none;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-collapse {\n    display: block;\n    overflow: auto;\n    height: calc(100vh - 360px);\n  }\n\n  .navbar-vertical.navbar-expand-sm>[class*=\"container\"] {\n    flex-direction: column;\n    align-items: stretch;\n    min-height: 100%;\n    padding-left: 0;\n    padding-right: 0;\n  }\n}\n\n@media all and (min-width: 576px) and (-ms-high-contrast: none),\n(min-width: 576px) and (-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-sm>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n@media (min-width: 576px) {\n  .navbar-vertical.navbar-expand-sm.fixed-start {\n    left: 0;\n  }\n\n  .navbar-vertical.navbar-expand-sm.fixed-end {\n    right: 0;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-link {\n    padding-top: 0.675rem;\n    padding-bottom: 0.675rem;\n    margin: 0 1rem;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-link .nav-link-text,\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-link .sidenav-mini-icon,\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-link .sidenav-normal,\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-link i {\n    pointer-events: none;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav-item {\n    width: 100%;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav>.nav-item {\n    margin-top: 0.125rem;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav>.nav-item .icon .ni {\n    top: 0;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n    fill: #3A416F;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n    fill: #141727;\n  }\n\n  .navbar-vertical.navbar-expand-sm .lavalamp-object {\n    width: calc(100% - 1rem) !important;\n    background: theme-color(\"primary\");\n    color: color-yiq(#cb0c9f);\n    margin-right: 0.5rem;\n    margin-left: 0.5rem;\n    padding-left: 1rem;\n    padding-right: 1rem;\n    border-radius: 0.25rem;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav .nav-link {\n    padding-top: 0.45rem;\n    padding-bottom: 0.45rem;\n    padding-left: 15px;\n  }\n\n  .navbar-vertical.navbar-expand-sm .navbar-nav .nav .nav-link>span.sidenav-normal {\n    transition: all 0.1s ease 0s;\n  }\n}\n\n@media (min-width: 768px) {\n  .navbar-vertical.navbar-expand-md {\n    display: block;\n    position: fixed;\n    top: 0;\n    bottom: 0;\n    width: 100%;\n    max-width: 15.625rem !important;\n    overflow-y: auto;\n    padding: 0;\n    box-shadow: none;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-collapse {\n    display: block;\n    overflow: auto;\n    height: calc(100vh - 360px);\n  }\n\n  .navbar-vertical.navbar-expand-md>[class*=\"container\"] {\n    flex-direction: column;\n    align-items: stretch;\n    min-height: 100%;\n    padding-left: 0;\n    padding-right: 0;\n  }\n}\n\n@media all and (min-width: 768px) and (-ms-high-contrast: none),\n(min-width: 768px) and (-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-md>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n@media (min-width: 768px) {\n  .navbar-vertical.navbar-expand-md.fixed-start {\n    left: 0;\n  }\n\n  .navbar-vertical.navbar-expand-md.fixed-end {\n    right: 0;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-link {\n    padding-top: 0.675rem;\n    padding-bottom: 0.675rem;\n    margin: 0 1rem;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-link .nav-link-text,\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-link .sidenav-mini-icon,\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-link .sidenav-normal,\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-link i {\n    pointer-events: none;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav-item {\n    width: 100%;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav>.nav-item {\n    margin-top: 0.125rem;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav>.nav-item .icon .ni {\n    top: 0;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n    fill: #3A416F;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n    fill: #141727;\n  }\n\n  .navbar-vertical.navbar-expand-md .lavalamp-object {\n    width: calc(100% - 1rem) !important;\n    background: theme-color(\"primary\");\n    color: color-yiq(#cb0c9f);\n    margin-right: 0.5rem;\n    margin-left: 0.5rem;\n    padding-left: 1rem;\n    padding-right: 1rem;\n    border-radius: 0.25rem;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav .nav-link {\n    padding-top: 0.45rem;\n    padding-bottom: 0.45rem;\n    padding-left: 15px;\n  }\n\n  .navbar-vertical.navbar-expand-md .navbar-nav .nav .nav-link>span.sidenav-normal {\n    transition: all 0.1s ease 0s;\n  }\n}\n\n@media (min-width: 992px) {\n  .navbar-vertical.navbar-expand-lg {\n    display: block;\n    position: fixed;\n    top: 0;\n    bottom: 0;\n    width: 100%;\n    max-width: 15.625rem !important;\n    overflow-y: auto;\n    padding: 0;\n    box-shadow: none;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-collapse {\n    display: block;\n    overflow: auto;\n    height: calc(100vh - 360px);\n  }\n\n  .navbar-vertical.navbar-expand-lg>[class*=\"container\"] {\n    flex-direction: column;\n    align-items: stretch;\n    min-height: 100%;\n    padding-left: 0;\n    padding-right: 0;\n  }\n}\n\n@media all and (min-width: 992px) and (-ms-high-contrast: none),\n(min-width: 992px) and (-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-lg>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n@media (min-width: 992px) {\n  .navbar-vertical.navbar-expand-lg.fixed-start {\n    left: 0;\n  }\n\n  .navbar-vertical.navbar-expand-lg.fixed-end {\n    right: 0;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-link {\n    padding-top: 0.675rem;\n    padding-bottom: 0.675rem;\n    margin: 0 1rem;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-link .nav-link-text,\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-link .sidenav-mini-icon,\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-link .sidenav-normal,\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-link i {\n    pointer-events: none;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav-item {\n    width: 100%;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav>.nav-item {\n    margin-top: 0.125rem;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav>.nav-item .icon .ni {\n    top: 0;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n    fill: #3A416F;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n    fill: #141727;\n  }\n\n  .navbar-vertical.navbar-expand-lg .lavalamp-object {\n    width: calc(100% - 1rem) !important;\n    background: theme-color(\"primary\");\n    color: color-yiq(#cb0c9f);\n    margin-right: 0.5rem;\n    margin-left: 0.5rem;\n    padding-left: 1rem;\n    padding-right: 1rem;\n    border-radius: 0.25rem;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav .nav-link {\n    padding-top: 0.45rem;\n    padding-bottom: 0.45rem;\n    padding-left: 15px;\n  }\n\n  .navbar-vertical.navbar-expand-lg .navbar-nav .nav .nav-link>span.sidenav-normal {\n    transition: all 0.1s ease 0s;\n  }\n}\n\n@media (min-width: 1200px) {\n  .navbar-vertical.navbar-expand-xl {\n    display: block;\n    position: fixed;\n    top: 0;\n    bottom: 0;\n    width: 100%;\n    max-width: 15.625rem !important;\n    overflow-y: auto;\n    padding: 0;\n    box-shadow: none;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-collapse {\n    display: block;\n    overflow: auto;\n    height: calc(100vh - 360px);\n  }\n\n  .navbar-vertical.navbar-expand-xl>[class*=\"container\"] {\n    flex-direction: column;\n    align-items: stretch;\n    min-height: 100%;\n    padding-left: 0;\n    padding-right: 0;\n  }\n}\n\n@media all and (min-width: 1200px) and (-ms-high-contrast: none),\n(min-width: 1200px) and (-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-xl>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n@media (min-width: 1200px) {\n  .navbar-vertical.navbar-expand-xl.fixed-start {\n    left: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xl.fixed-end {\n    right: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-link {\n    padding-top: 0.675rem;\n    padding-bottom: 0.675rem;\n    margin: 0 1rem;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-link .nav-link-text,\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-link .sidenav-mini-icon,\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-link .sidenav-normal,\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-link i {\n    pointer-events: none;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav-item {\n    width: 100%;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav>.nav-item {\n    margin-top: 0.125rem;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav>.nav-item .icon .ni {\n    top: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n    fill: #3A416F;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n    fill: #141727;\n  }\n\n  .navbar-vertical.navbar-expand-xl .lavalamp-object {\n    width: calc(100% - 1rem) !important;\n    background: theme-color(\"primary\");\n    color: color-yiq(#cb0c9f);\n    margin-right: 0.5rem;\n    margin-left: 0.5rem;\n    padding-left: 1rem;\n    padding-right: 1rem;\n    border-radius: 0.25rem;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav .nav-link {\n    padding-top: 0.45rem;\n    padding-bottom: 0.45rem;\n    padding-left: 15px;\n  }\n\n  .navbar-vertical.navbar-expand-xl .navbar-nav .nav .nav-link>span.sidenav-normal {\n    transition: all 0.1s ease 0s;\n  }\n}\n\n@media (min-width: 1400px) {\n  .navbar-vertical.navbar-expand-xxl {\n    display: block;\n    position: fixed;\n    top: 0;\n    bottom: 0;\n    width: 100%;\n    max-width: 15.625rem !important;\n    overflow-y: auto;\n    padding: 0;\n    box-shadow: none;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-collapse {\n    display: block;\n    overflow: auto;\n    height: calc(100vh - 360px);\n  }\n\n  .navbar-vertical.navbar-expand-xxl>[class*=\"container\"] {\n    flex-direction: column;\n    align-items: stretch;\n    min-height: 100%;\n    padding-left: 0;\n    padding-right: 0;\n  }\n}\n\n@media all and (min-width: 1400px) and (-ms-high-contrast: none),\n(min-width: 1400px) and (-ms-high-contrast: active) {\n  .navbar-vertical.navbar-expand-xxl>[class*=\"container\"] {\n    min-height: none;\n    height: 100%;\n  }\n}\n\n@media (min-width: 1400px) {\n  .navbar-vertical.navbar-expand-xxl.fixed-start {\n    left: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xxl.fixed-end {\n    right: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-link {\n    padding-top: 0.675rem;\n    padding-bottom: 0.675rem;\n    margin: 0 1rem;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-link .nav-link-text,\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-link .sidenav-mini-icon,\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-link .sidenav-normal,\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-link i {\n    pointer-events: none;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav-item {\n    width: 100%;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav>.nav-item {\n    margin-top: 0.125rem;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav>.nav-item .icon .ni {\n    top: 0;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav>.nav-item>.nav-link .icon svg .color-background {\n    fill: #3A416F;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav>.nav-item>.nav-link .icon svg .color-foreground {\n    fill: #141727;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .lavalamp-object {\n    width: calc(100% - 1rem) !important;\n    background: theme-color(\"primary\");\n    color: color-yiq(#cb0c9f);\n    margin-right: 0.5rem;\n    margin-left: 0.5rem;\n    padding-left: 1rem;\n    padding-right: 1rem;\n    border-radius: 0.25rem;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav .nav-link {\n    padding-top: 0.45rem;\n    padding-bottom: 0.45rem;\n    padding-left: 15px;\n  }\n\n  .navbar-vertical.navbar-expand-xxl .navbar-nav .nav .nav-link>span.sidenav-normal {\n    transition: all 0.1s ease 0s;\n  }\n}\n\n.sidenav[data-color=\"primary\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #cb0c9f 0%, #cb0c9f 100%);\n}\n\n.sidenav[data-color=\"secondary\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #8392AB 0%, #8392AB 100%);\n}\n\n.sidenav[data-color=\"success\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #82d616 0%, #82d616 100%);\n}\n\n.sidenav[data-color=\"info\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #17c1e8 0%, #17c1e8 100%);\n}\n\n.sidenav[data-color=\"warning\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #fbcf33 0%, #fbcf33 100%);\n}\n\n.sidenav[data-color=\"danger\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #ea0606 0%, #ea0606 100%);\n}\n\n.sidenav[data-color=\"light\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #e9ecef 0%, #e9ecef 100%);\n}\n\n.sidenav[data-color=\"dark\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #344767 0%, #344767 100%);\n}\n\n.sidenav[data-color=\"white\"] .navbar-nav>.nav-item>.nav-link.active .icon {\n  background-image: linear-gradient(310deg, #fff 0%, #fff 100%);\n}\n\n.main-content,\n.sidenav {\n  transition: all 0.2s ease-in-out;\n}\n\n.sidenav {\n  z-index: 990;\n}\n\n.sidenav .navbar-brand,\n.sidenav .navbar-heading {\n  display: block;\n}\n\n@media (min-width: 1200px) {\n  .sidenav:hover {\n    max-width: 15.625rem;\n  }\n\n  .sidenav .sidenav-toggler {\n    padding: 1.5rem;\n  }\n\n  .sidenav.fixed-start+.main-content {\n    margin-left: 17.125rem;\n  }\n\n  .sidenav.fixed-end+.main-content {\n    margin-right: 17.125rem;\n  }\n}\n\n.sidenav .navbar-heading .docs-mini {\n  padding-left: 3px;\n}\n\n.sidenav .navbar-heading {\n  transition: all 0.1s ease;\n}\n\n.sidenav .navbar-brand {\n  padding: 1.5rem 2rem;\n}\n\n.sidenav-header {\n  height: 4.875rem;\n}\n\n.sidenav-footer .card.card-background:after {\n  opacity: 0.65;\n}\n\n.g-sidenav-show .sidenav .nav-item .collapse {\n  height: auto;\n  transition: all 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .g-sidenav-show .sidenav .nav-item .collapse {\n    transition: none;\n  }\n}\n\n.g-sidenav-show .sidenav .nav-link-text {\n  transition: 0.3s ease;\n  opacity: 1;\n}\n\n@media (max-width: 1199.98px) {\n  .g-sidenav-show.rtl .sidenav {\n    transform: translateX(17.125rem);\n  }\n\n  .g-sidenav-show:not(.rtl) .sidenav {\n    transform: translateX(-17.125rem);\n  }\n\n  .g-sidenav-show .sidenav.fixed-start+.main-content {\n    margin-left: 0 !important;\n  }\n\n  .g-sidenav-show.g-sidenav-pinned .sidenav {\n    transform: translateX(0);\n  }\n}\n\n.navbar-vertical.bg-white {\n  box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);\n}\n\n.navbar-vertical.bg-white .navbar-nav .nav-link.active {\n  box-shadow: none;\n}\n\n.navbar-vertical.bg-white .navbar-nav .nav-link .icon {\n  background-image: linear-gradient(310deg, #e9ecef 0%, #e9ecef 100%);\n}\n\n.navbar-vertical .navbar-nav .nav-link.active {\n  font-weight: 600;\n  box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);\n  border-radius: 0.5rem;\n}\n\n.navbar-vertical .navbar-nav>.nav-item .nav-link.active {\n  color: #344767;\n  background-color: #fff;\n}\n\n.navbar-vertical .navbar-nav>.nav-item .nav-link.active .icon {\n  background-image: linear-gradient(310deg, #cb0c9f 0%, #cb0c9f 100%);\n}\n\n.navbar-vertical .navbar-nav>.nav-item .nav-link.active .icon svg .color-background,\n.navbar-vertical .navbar-nav>.nav-item .nav-link.active .icon svg .color-foreground {\n  fill: #fff;\n}\n\n.navbar-main {\n  transition: box-shadow 0.25s ease-in, background-color 0.25s ease-in;\n}\n\n.navbar-main.fixed-top {\n  width: calc(100% - (15.625rem + 1.5rem * 3));\n}\n\n.navbar-main.fixed-top+[class*=\"container\"] {\n  margin-top: 7.1875rem !important;\n}\n\n.navbar-vertical .navbar-nav .nav-link[data-bs-toggle=\"collapse\"]:after {\n  display: inline-block;\n  font-style: normal;\n  font-variant: normal;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  font-family: 'Font Awesome 5 Free';\n  font-weight: 700;\n  content: \"\\f107\";\n  margin-left: auto;\n  color: rgba(58, 65, 111, 0.5);\n  transition: all 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .navbar-vertical .navbar-nav .nav-link[data-bs-toggle=\"collapse\"]:after {\n    transition: none;\n  }\n}\n\n.navbar-vertical .navbar-nav .nav-link[data-bs-toggle=\"collapse\"][aria-expanded=\"true\"]:after {\n  color: #3A416F;\n  transform: rotate(180deg);\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav {\n  transition: all 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n\n  .navbar-vertical .navbar-nav .nav-item .collapse .nav,\n  .navbar-vertical .navbar-nav .nav-item .collapsing .nav {\n    transition: none;\n  }\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item .nav-link,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item .nav-link {\n  position: relative;\n  background-color: transparent;\n  box-shadow: none;\n  color: rgba(58, 65, 111, 0.5);\n  margin-left: 1.35rem;\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item .nav-link:before,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item .nav-link:before {\n  content: \"\";\n  position: absolute;\n  left: -18px;\n  top: 50%;\n  transform: translate(0, -50%);\n  height: 5px;\n  width: 5px;\n  border-radius: 1.5rem;\n  background: rgba(58, 65, 111, 0.5);\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item .nav-link.active,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item .nav-link.active {\n  color: #3A416F;\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item .nav-link.active:before,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item .nav-link.active:before {\n  height: 8px;\n  width: 8px;\n  background: #3A416F;\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item.active .nav-link,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item.active .nav-link {\n  color: #3A416F;\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item.active .nav-link:before,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item.active .nav-link:before {\n  height: 8px;\n  width: 8px;\n  background: #3A416F;\n}\n\n.navbar-vertical .navbar-nav .nav-item .collapse .nav .nav-item .nav-item .nav-link:before,\n.navbar-vertical .navbar-nav .nav-item .collapsing .nav .nav-item .nav-item .nav-link:before {\n  content: none;\n}\n\n.navbar-vertical.blur .navbar-nav>.nav-item .nav-link {\n  background-color: transparent;\n  box-shadow: none;\n}\n\n.navbar-vertical .navbar-brand .navbar-brand-img,\n.navbar-vertical .navbar-brand span {\n  transition: all 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n\n  .navbar-vertical .navbar-brand .navbar-brand-img,\n  .navbar-vertical .navbar-brand span {\n    transition: none;\n  }\n}\n\n.navbar-vertical .nav-item .nav-link span.sidenav-mini-icon {\n  transition: all 0.2s ease-in-out;\n  text-align: center;\n  width: 0;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .navbar-vertical .nav-item .nav-link span.sidenav-mini-icon {\n    transition: none;\n  }\n}\n\n.navbar-vertical .docs-info {\n  transition: all 0.2s ease-in-out;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .navbar-vertical .docs-info {\n    transition: none;\n  }\n}\n\n.g-sidenav-show:not(.g-sidenav-hidden) .navbar-vertical .nav-item .nav-link span.sidenav-mini-icon {\n  opacity: 0;\n}\n\n@media (min-width: 1200px) {\n  .navbar-vertical .navbar-nav .nav-item .nav-link .icon {\n    padding: 10px;\n  }\n\n  .g-sidenav-hidden.rtl .main-content {\n    margin-right: 6rem !important;\n  }\n\n  .g-sidenav-hidden.rtl .main-content .navbar-vertical:hover {\n    max-width: 15.625rem !important;\n  }\n\n  .g-sidenav-hidden.rtl .sidenav:hover+.main-content {\n    margin-right: 17.125rem !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical {\n    max-width: 6rem !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical.fixed-start+.main-content {\n    margin-left: 7.5rem;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .navbar-brand img {\n    width: auto !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .navbar-brand span {\n    opacity: 0;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .nav-link .icon {\n    padding: 10px;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .nav-link .nav-link-text,\n  .g-sidenav-hidden .navbar-vertical .nav-item .nav-link .sidenav-normal {\n    opacity: 0;\n    width: 0;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .nav-link .sidenav-mini-icon {\n    min-width: 1.8rem;\n    margin-left: 0.15rem;\n    opacity: 1;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .nav-link[data-bs-toggle=\"collapse\"]:after {\n    content: \"\";\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .collapse .nav {\n    margin-left: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .collapse .nav .nav-item .nav-link {\n    margin-left: 1rem;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .collapse .nav .nav-item .nav-link:before {\n    content: none;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .nav-item .collapse .nav .nav-item .nav-link[data-bs-toggle=\"collapse\"]:after {\n    content: \"\\f107\";\n  }\n\n  .g-sidenav-hidden .navbar-vertical .card.card-background .icon-shape {\n    margin-bottom: 0 !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical .card.card-background .docs-info {\n    opacity: 0;\n    width: 0;\n    height: 0;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover {\n    max-width: 15.625rem !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover.fixed-start+.main-content {\n    margin-left: 17.125rem;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .navbar-brand span {\n    opacity: 1;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .nav-link .nav-link-text,\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .nav-link .sidenav-normal {\n    opacity: 1;\n    width: auto;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .nav-link .sidenav-mini-icon {\n    opacity: 0;\n    width: 0;\n    min-width: 0;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .nav-link[data-bs-toggle=\"collapse\"]:after {\n    content: \"\\f107\";\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav {\n    margin-left: 1.5rem !important;\n    padding-left: 1rem !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .nav-link {\n    margin-left: 1.35rem;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .nav-link:before {\n    content: \"\";\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .collapse .nav,\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .collapsing .nav {\n    margin-left: 0 !important;\n    padding-left: 0 !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .collapse .nav .nav-item .nav-link:before,\n  .g-sidenav-hidden .navbar-vertical:hover .nav-item .collapse .nav .nav-item .collapsing .nav .nav-item .nav-link:before {\n    content: none;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .card.card-background .icon-shape {\n    margin-bottom: 1rem !important;\n  }\n\n  .g-sidenav-hidden .navbar-vertical:hover .card.card-background .docs-info {\n    opacity: 1;\n    width: auto;\n    height: auto;\n  }\n}\n\n.nav.nav-pills {\n  background: #f8f9fa;\n  border-radius: 0.75rem;\n  position: relative;\n}\n\n.nav.nav-pills.nav-pills-vertical {\n  border-radius: 1.1875rem;\n}\n\n.nav.nav-pills.nav-pills-vertical .nav-link.active {\n  border-radius: 0.875rem;\n}\n\n.nav.nav-pills .nav-link {\n  z-index: 3;\n  color: #344767;\n  border-radius: 0.5rem;\n  background-color: inherit;\n}\n\n.nav.nav-pills .nav-link.active {\n  -webkit-animation: 0.2s ease;\n          animation: 0.2s ease;\n}\n\n.nav.nav-pills .nav-link:hover:not(.active) {\n  color: #344767;\n}\n\n.nav.nav-pills.nav-pills-primary {\n  background: #fff;\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-primary .nav-link.active {\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-primary .moving-tab .nav-link.active {\n  background: #7928CA;\n  color: #7928CA;\n}\n\n.nav.nav-pills.nav-pills-info {\n  background: #fff;\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-info .nav-link.active {\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-info .moving-tab .nav-link.active {\n  background: #2152ff;\n  color: #2152ff;\n}\n\n.nav.nav-pills.nav-pills-success {\n  background: #fff;\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-success .nav-link.active {\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-success .moving-tab .nav-link.active {\n  background: #17ad37;\n  color: #17ad37;\n}\n\n.nav.nav-pills.nav-pills-warning {\n  background: #fff;\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-warning .nav-link.active {\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-warning .moving-tab .nav-link.active {\n  background: #f53939;\n  color: #f53939;\n}\n\n.nav.nav-pills.nav-pills-danger {\n  background: #fff;\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-danger .nav-link.active {\n  color: #fff;\n}\n\n.nav.nav-pills.nav-pills-danger .moving-tab .nav-link.active {\n  background: #ea0606;\n  color: #ea0606;\n}\n\n.nav.nav-pills .nav-item {\n  z-index: 3;\n}\n\n.moving-tab {\n  z-index: 1 !important;\n}\n\n.moving-tab .nav-link {\n  color: #fff;\n  transition: .2s ease;\n  border-radius: 0.5rem;\n}\n\n.moving-tab .nav-link.active {\n  color: #fff;\n  font-weight: 600;\n  box-shadow: 0px 1px 5px 1px #ddd;\n  -webkit-animation: 0.2s ease;\n          animation: 0.2s ease;\n  background: #fff;\n}\n\n.moving-tab .nav-link:hover:not(.active) {\n  color: #344767;\n}\n\n.page-item.active .page-link {\n  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.09), 0 2px 3px -1px rgba(0, 0, 0, 0.07);\n}\n\n.page-item .page-link,\n.page-item span {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: #8392AB;\n  padding: 0;\n  margin: 0 3px;\n  border-radius: 50% !important;\n  width: 36px;\n  height: 36px;\n  font-size: 0.875rem;\n}\n\n.pagination-lg .page-item .page-link,\n.pagination-lg .page-item span {\n  width: 46px;\n  height: 46px;\n  line-height: 46px;\n}\n\n.pagination-sm .page-item .page-link,\n.pagination-sm .page-item span {\n  width: 30px;\n  height: 30px;\n  line-height: 30px;\n}\n\n.pagination.pagination-primary .page-item.active>.page-link,\n.pagination.pagination-primary .page-item.active>.page-link:focus,\n.pagination.pagination-primary .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #7928CA 0%, #FF0080 100%);\n  border: none;\n}\n\n.pagination.pagination-secondary .page-item.active>.page-link,\n.pagination.pagination-secondary .page-item.active>.page-link:focus,\n.pagination.pagination-secondary .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #627594 0%, #A8B8D8 100%);\n  border: none;\n}\n\n.pagination.pagination-success .page-item.active>.page-link,\n.pagination.pagination-success .page-item.active>.page-link:focus,\n.pagination.pagination-success .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #17ad37 0%, #98ec2d 100%);\n  border: none;\n}\n\n.pagination.pagination-info .page-item.active>.page-link,\n.pagination.pagination-info .page-item.active>.page-link:focus,\n.pagination.pagination-info .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #2152ff 0%, #21d4fd 100%);\n  border: none;\n}\n\n.pagination.pagination-warning .page-item.active>.page-link,\n.pagination.pagination-warning .page-item.active>.page-link:focus,\n.pagination.pagination-warning .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #f53939 0%, #fbcf33 100%);\n  border: none;\n}\n\n.pagination.pagination-danger .page-item.active>.page-link,\n.pagination.pagination-danger .page-item.active>.page-link:focus,\n.pagination.pagination-danger .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #ea0606 0%, #ff667c 100%);\n  border: none;\n}\n\n.pagination.pagination-light .page-item.active>.page-link,\n.pagination.pagination-light .page-item.active>.page-link:focus,\n.pagination.pagination-light .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #CED4DA 0%, #EBEFF4 100%);\n  border: none;\n}\n\n.pagination.pagination-dark .page-item.active>.page-link,\n.pagination.pagination-dark .page-item.active>.page-link:focus,\n.pagination.pagination-dark .page-item.active>.page-link:hover {\n  background-image: linear-gradient(310deg, #141727 0%, #3A416F 100%);\n  border: none;\n}\n\n.popover {\n  box-shadow: 0 0.3125rem 0.625rem 0 rgba(0, 0, 0, 0.12);\n}\n\n.popover .popover-header {\n  font-weight: 600;\n}\n\n.progress-bar {\n  height: 6px;\n  border-radius: 0.25rem;\n  margin-top: -2px;\n}\n\n.progress {\n  overflow: visible;\n}\n\n.progress.progress-sm {\n  height: 4px;\n}\n\n.progress.progress-lg {\n  height: 20px;\n}\n\n.rtl .breadcrumb .breadcrumb-item+.breadcrumb-item::before {\n  float: right;\n  padding-left: 0.5rem;\n  padding-right: 0;\n}\n\n.rtl .sidenav .navbar-nav {\n  width: 100%;\n  padding-right: 0;\n}\n\n.rtl .fixed-plugin .fixed-plugin-button {\n  left: 30px;\n  right: auto;\n}\n\n.rtl .fixed-plugin .card {\n  left: -360px !important;\n  right: auto;\n}\n\n.rtl .fixed-plugin.show .card {\n  right: auto;\n  left: 0 !important;\n}\n\n.rtl .timeline .timeline-content {\n  margin-right: 45px;\n  margin-left: 0;\n}\n\n.rtl .timeline .timeline-step {\n  transform: translateX(50%);\n}\n\n.rtl .timeline.timeline-one-side:before {\n  right: 1rem;\n}\n\n.rtl .timeline.timeline-one-side .timeline-step {\n  right: 1rem;\n}\n\n.rtl .form-check.form-switch .form-check-input:after {\n  transform: translateX(-1px);\n}\n\n.rtl .form-check.form-switch .form-check-input:checked:after {\n  transform: translateX(-21px);\n}\n\n.rtl .avatar-group .avatar+.avatar {\n  margin-left: 0;\n  margin-right: -1rem;\n}\n\n.rtl .dropdown .dropdown-menu {\n  left: 0;\n}\n\n.rtl .input-group .input-group-text {\n  border-left: 0;\n  border-top-left-radius: 0;\n  border-bottom-left-radius: 0;\n  border-right: 1px solid #d2d6da;\n}\n\n.rtl .input-group> :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {\n  margin-right: -1px;\n  border-top-right-radius: 0;\n  border-bottom-right-radius: 0;\n  border-top-left-radius: 0.5rem;\n  border-bottom-left-radius: 0.5rem;\n  border-right: 0;\n  border-left: 1px solid #d2d6da;\n}\n\n.rtl .input-group:not(.has-validation)>.dropdown-toggle:nth-last-child(n + 3),\n.rtl .input-group:not(.has-validation)> :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu) {\n  border-top-right-radius: 0.5rem;\n  border-bottom-right-radius: 0.5rem;\n}\n\n.btn.btn-facebook {\n  background-color: #3b5998;\n  color: #fff;\n}\n\n.btn.btn-facebook:focus,\n.btn.btn-facebook:hover {\n  background-color: #344e86;\n  color: #fff;\n}\n\n.btn.btn-facebook:active,\n.btn.btn-facebook:focus,\n.btn.btn-facebook:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-facebook.btn-simple {\n  color: #344e86;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-facebook.btn-simple:hover,\n.btn.btn-facebook.btn-simple:focus,\n.btn.btn-facebook.btn-simple:hover:focus,\n.btn.btn-facebook.btn-simple:active,\n.btn.btn-facebook.btn-simple:hover:focus:active {\n  color: #344e86;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-facebook.btn-neutral {\n  color: #3b5998;\n  background-color: #fff;\n}\n\n.btn.btn-facebook.btn-neutral:hover,\n.btn.btn-facebook.btn-neutral:focus,\n.btn.btn-facebook.btn-neutral:active {\n  color: #344e86;\n}\n\n.btn.btn-twitter {\n  background-color: #55acee;\n  color: #fff;\n}\n\n.btn.btn-twitter:focus,\n.btn.btn-twitter:hover {\n  background-color: #3ea1ec;\n  color: #fff;\n}\n\n.btn.btn-twitter:active,\n.btn.btn-twitter:focus,\n.btn.btn-twitter:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-twitter.btn-simple {\n  color: #3ea1ec;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-twitter.btn-simple:hover,\n.btn.btn-twitter.btn-simple:focus,\n.btn.btn-twitter.btn-simple:hover:focus,\n.btn.btn-twitter.btn-simple:active,\n.btn.btn-twitter.btn-simple:hover:focus:active {\n  color: #3ea1ec;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-twitter.btn-neutral {\n  color: #55acee;\n  background-color: #fff;\n}\n\n.btn.btn-twitter.btn-neutral:hover,\n.btn.btn-twitter.btn-neutral:focus,\n.btn.btn-twitter.btn-neutral:active {\n  color: #3ea1ec;\n}\n\n.btn.btn-pinterest {\n  background-color: #cc2127;\n  color: #fff;\n}\n\n.btn.btn-pinterest:focus,\n.btn.btn-pinterest:hover {\n  background-color: #b21d22;\n  color: #fff;\n}\n\n.btn.btn-pinterest:active,\n.btn.btn-pinterest:focus,\n.btn.btn-pinterest:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-pinterest.btn-simple {\n  color: #b21d22;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-pinterest.btn-simple:hover,\n.btn.btn-pinterest.btn-simple:focus,\n.btn.btn-pinterest.btn-simple:hover:focus,\n.btn.btn-pinterest.btn-simple:active,\n.btn.btn-pinterest.btn-simple:hover:focus:active {\n  color: #b21d22;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-pinterest.btn-neutral {\n  color: #cc2127;\n  background-color: #fff;\n}\n\n.btn.btn-pinterest.btn-neutral:hover,\n.btn.btn-pinterest.btn-neutral:focus,\n.btn.btn-pinterest.btn-neutral:active {\n  color: #b21d22;\n}\n\n.btn.btn-linkedin {\n  background-color: #0077B5;\n  color: #fff;\n}\n\n.btn.btn-linkedin:focus,\n.btn.btn-linkedin:hover {\n  background-color: #00669c;\n  color: #fff;\n}\n\n.btn.btn-linkedin:active,\n.btn.btn-linkedin:focus,\n.btn.btn-linkedin:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-linkedin.btn-simple {\n  color: #00669c;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-linkedin.btn-simple:hover,\n.btn.btn-linkedin.btn-simple:focus,\n.btn.btn-linkedin.btn-simple:hover:focus,\n.btn.btn-linkedin.btn-simple:active,\n.btn.btn-linkedin.btn-simple:hover:focus:active {\n  color: #00669c;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-linkedin.btn-neutral {\n  color: #0077B5;\n  background-color: #fff;\n}\n\n.btn.btn-linkedin.btn-neutral:hover,\n.btn.btn-linkedin.btn-neutral:focus,\n.btn.btn-linkedin.btn-neutral:active {\n  color: #00669c;\n}\n\n.btn.btn-dribbble {\n  background-color: #ea4c89;\n  color: #fff;\n}\n\n.btn.btn-dribbble:focus,\n.btn.btn-dribbble:hover {\n  background-color: #e73177;\n  color: #fff;\n}\n\n.btn.btn-dribbble:active,\n.btn.btn-dribbble:focus,\n.btn.btn-dribbble:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-dribbble.btn-simple {\n  color: #e73177;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-dribbble.btn-simple:hover,\n.btn.btn-dribbble.btn-simple:focus,\n.btn.btn-dribbble.btn-simple:hover:focus,\n.btn.btn-dribbble.btn-simple:active,\n.btn.btn-dribbble.btn-simple:hover:focus:active {\n  color: #e73177;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-dribbble.btn-neutral {\n  color: #ea4c89;\n  background-color: #fff;\n}\n\n.btn.btn-dribbble.btn-neutral:hover,\n.btn.btn-dribbble.btn-neutral:focus,\n.btn.btn-dribbble.btn-neutral:active {\n  color: #e73177;\n}\n\n.btn.btn-github {\n  background-color: #24292E;\n  color: #fff;\n}\n\n.btn.btn-github:focus,\n.btn.btn-github:hover {\n  background-color: #171a1d;\n  color: #fff;\n}\n\n.btn.btn-github:active,\n.btn.btn-github:focus,\n.btn.btn-github:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-github.btn-simple {\n  color: #171a1d;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-github.btn-simple:hover,\n.btn.btn-github.btn-simple:focus,\n.btn.btn-github.btn-simple:hover:focus,\n.btn.btn-github.btn-simple:active,\n.btn.btn-github.btn-simple:hover:focus:active {\n  color: #171a1d;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-github.btn-neutral {\n  color: #24292E;\n  background-color: #fff;\n}\n\n.btn.btn-github.btn-neutral:hover,\n.btn.btn-github.btn-neutral:focus,\n.btn.btn-github.btn-neutral:active {\n  color: #171a1d;\n}\n\n.btn.btn-youtube {\n  background-color: #e52d27;\n  color: #fff;\n}\n\n.btn.btn-youtube:focus,\n.btn.btn-youtube:hover {\n  background-color: #d41f1a;\n  color: #fff;\n}\n\n.btn.btn-youtube:active,\n.btn.btn-youtube:focus,\n.btn.btn-youtube:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-youtube.btn-simple {\n  color: #d41f1a;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-youtube.btn-simple:hover,\n.btn.btn-youtube.btn-simple:focus,\n.btn.btn-youtube.btn-simple:hover:focus,\n.btn.btn-youtube.btn-simple:active,\n.btn.btn-youtube.btn-simple:hover:focus:active {\n  color: #d41f1a;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-youtube.btn-neutral {\n  color: #e52d27;\n  background-color: #fff;\n}\n\n.btn.btn-youtube.btn-neutral:hover,\n.btn.btn-youtube.btn-neutral:focus,\n.btn.btn-youtube.btn-neutral:active {\n  color: #d41f1a;\n}\n\n.btn.btn-instagram {\n  background-color: #125688;\n  color: #fff;\n}\n\n.btn.btn-instagram:focus,\n.btn.btn-instagram:hover {\n  background-color: #0e456d;\n  color: #fff;\n}\n\n.btn.btn-instagram:active,\n.btn.btn-instagram:focus,\n.btn.btn-instagram:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-instagram.btn-simple {\n  color: #0e456d;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-instagram.btn-simple:hover,\n.btn.btn-instagram.btn-simple:focus,\n.btn.btn-instagram.btn-simple:hover:focus,\n.btn.btn-instagram.btn-simple:active,\n.btn.btn-instagram.btn-simple:hover:focus:active {\n  color: #0e456d;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-instagram.btn-neutral {\n  color: #125688;\n  background-color: #fff;\n}\n\n.btn.btn-instagram.btn-neutral:hover,\n.btn.btn-instagram.btn-neutral:focus,\n.btn.btn-instagram.btn-neutral:active {\n  color: #0e456d;\n}\n\n.btn.btn-reddit {\n  background-color: #ff4500;\n  color: #fff;\n}\n\n.btn.btn-reddit:focus,\n.btn.btn-reddit:hover {\n  background-color: #e03d00;\n  color: #fff;\n}\n\n.btn.btn-reddit:active,\n.btn.btn-reddit:focus,\n.btn.btn-reddit:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-reddit.btn-simple {\n  color: #e03d00;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-reddit.btn-simple:hover,\n.btn.btn-reddit.btn-simple:focus,\n.btn.btn-reddit.btn-simple:hover:focus,\n.btn.btn-reddit.btn-simple:active,\n.btn.btn-reddit.btn-simple:hover:focus:active {\n  color: #e03d00;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-reddit.btn-neutral {\n  color: #ff4500;\n  background-color: #fff;\n}\n\n.btn.btn-reddit.btn-neutral:hover,\n.btn.btn-reddit.btn-neutral:focus,\n.btn.btn-reddit.btn-neutral:active {\n  color: #e03d00;\n}\n\n.btn.btn-tumblr {\n  background-color: #35465c;\n  color: #fff;\n}\n\n.btn.btn-tumblr:focus,\n.btn.btn-tumblr:hover {\n  background-color: #2a3749;\n  color: #fff;\n}\n\n.btn.btn-tumblr:active,\n.btn.btn-tumblr:focus,\n.btn.btn-tumblr:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-tumblr.btn-simple {\n  color: #2a3749;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-tumblr.btn-simple:hover,\n.btn.btn-tumblr.btn-simple:focus,\n.btn.btn-tumblr.btn-simple:hover:focus,\n.btn.btn-tumblr.btn-simple:active,\n.btn.btn-tumblr.btn-simple:hover:focus:active {\n  color: #2a3749;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-tumblr.btn-neutral {\n  color: #35465c;\n  background-color: #fff;\n}\n\n.btn.btn-tumblr.btn-neutral:hover,\n.btn.btn-tumblr.btn-neutral:focus,\n.btn.btn-tumblr.btn-neutral:active {\n  color: #2a3749;\n}\n\n.btn.btn-behance {\n  background-color: #1769ff;\n  color: #fff;\n}\n\n.btn.btn-behance:focus,\n.btn.btn-behance:hover {\n  background-color: #0057f7;\n  color: #fff;\n}\n\n.btn.btn-behance:active,\n.btn.btn-behance:focus,\n.btn.btn-behance:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-behance.btn-simple {\n  color: #0057f7;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-behance.btn-simple:hover,\n.btn.btn-behance.btn-simple:focus,\n.btn.btn-behance.btn-simple:hover:focus,\n.btn.btn-behance.btn-simple:active,\n.btn.btn-behance.btn-simple:hover:focus:active {\n  color: #0057f7;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-behance.btn-neutral {\n  color: #1769ff;\n  background-color: #fff;\n}\n\n.btn.btn-behance.btn-neutral:hover,\n.btn.btn-behance.btn-neutral:focus,\n.btn.btn-behance.btn-neutral:active {\n  color: #0057f7;\n}\n\n.btn.btn-vimeo {\n  background-color: #1AB7EA;\n  color: #fff;\n}\n\n.btn.btn-vimeo:focus,\n.btn.btn-vimeo:hover {\n  background-color: #13a3d2;\n  color: #fff;\n}\n\n.btn.btn-vimeo:active,\n.btn.btn-vimeo:focus,\n.btn.btn-vimeo:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-vimeo.btn-simple {\n  color: #13a3d2;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-vimeo.btn-simple:hover,\n.btn.btn-vimeo.btn-simple:focus,\n.btn.btn-vimeo.btn-simple:hover:focus,\n.btn.btn-vimeo.btn-simple:active,\n.btn.btn-vimeo.btn-simple:hover:focus:active {\n  color: #13a3d2;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-vimeo.btn-neutral {\n  color: #1AB7EA;\n  background-color: #fff;\n}\n\n.btn.btn-vimeo.btn-neutral:hover,\n.btn.btn-vimeo.btn-neutral:focus,\n.btn.btn-vimeo.btn-neutral:active {\n  color: #13a3d2;\n}\n\n.btn.btn-slack {\n  background-color: #3aaf85;\n  color: #fff;\n}\n\n.btn.btn-slack:focus,\n.btn.btn-slack:hover {\n  background-color: #329874;\n  color: #fff;\n}\n\n.btn.btn-slack:active,\n.btn.btn-slack:focus,\n.btn.btn-slack:active:focus {\n  box-shadow: none;\n}\n\n.btn.btn-slack.btn-simple {\n  color: #329874;\n  background-color: transparent;\n  background-image: none !important;\n  box-shadow: none;\n  border: none;\n}\n\n.btn.btn-slack.btn-simple:hover,\n.btn.btn-slack.btn-simple:focus,\n.btn.btn-slack.btn-simple:hover:focus,\n.btn.btn-slack.btn-simple:active,\n.btn.btn-slack.btn-simple:hover:focus:active {\n  color: #329874;\n  background: transparent !important;\n  box-shadow: none !important;\n}\n\n.btn.btn-slack.btn-neutral {\n  color: #3aaf85;\n  background-color: #fff;\n}\n\n.btn.btn-slack.btn-neutral:hover,\n.btn.btn-slack.btn-neutral:focus,\n.btn.btn-slack.btn-neutral:active {\n  color: #329874;\n}\n\n.table thead th {\n  padding: 0.75rem 1.5rem;\n  text-transform: capitalize;\n  letter-spacing: 0px;\n  border-bottom: 1px solid #e9ecef;\n}\n\n.table th {\n  font-weight: 600;\n}\n\n.table td .progress {\n  height: 3px;\n  width: 120px;\n  margin: 0;\n}\n\n.table td,\n.table th {\n  white-space: nowrap;\n}\n\n.table.align-items-center td,\n.table.align-items-center th {\n  vertical-align: middle;\n}\n\n.table tbody tr:last-child td {\n  border-width: 0;\n}\n\n.table> :not(:last-child)> :last-child>* {\n  border-bottom-color: #e9ecef;\n}\n\n.timeline {\n  position: relative;\n}\n\n.timeline:before {\n  content: '';\n  position: absolute;\n  top: 0;\n  left: 1rem;\n  height: 100%;\n  border-right: 2px solid #dee2e6;\n}\n\n.timeline-block {\n  position: relative;\n}\n\n.timeline-block:after {\n  content: \"\";\n  display: table;\n  clear: both;\n}\n\n.timeline-block:first-child {\n  margin-top: 0;\n}\n\n.timeline-block:last-child {\n  margin-bottom: 0;\n}\n\n.timeline-step {\n  position: absolute;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  left: 0;\n  width: 26px;\n  height: 26px;\n  border-radius: 50%;\n  background: #fff;\n  text-align: center;\n  transform: translateX(-50%);\n  font-size: 1rem;\n  font-weight: 600;\n  z-index: 1;\n}\n\n.timeline-step svg,\n.timeline-step i {\n  line-height: 1.4;\n}\n\n.timeline-content {\n  position: relative;\n  margin-left: 45px;\n  padding-top: 0.35rem;\n  position: relative;\n  top: -6px;\n}\n\n.timeline-content:after {\n  content: \"\";\n  display: table;\n  clear: both;\n}\n\n@media (min-width: 992px) {\n  .timeline:before {\n    left: 50%;\n    margin-left: -1px;\n  }\n\n  .timeline-step {\n    left: 50%;\n  }\n\n  .timeline-content {\n    width: 38%;\n  }\n\n  .timeline-block:nth-child(even) .timeline-content {\n    float: right;\n  }\n}\n\n.timeline-one-side:before {\n  left: 1rem;\n}\n\n.timeline-one-side .timeline-step {\n  left: 1rem;\n}\n\n.timeline-one-side .timeline-content {\n  width: auto;\n}\n\n@media (min-width: 992px) {\n  .timeline-one-side .timeline-content {\n    max-width: 30rem;\n  }\n}\n\n.timeline-one-side .timeline-block:nth-child(even) .timeline-content {\n  float: none;\n}\n\n.tilt {\n  transform-style: preserve-3d;\n}\n\n.tilt .up {\n  transform: translateZ(50px) scale(0.7) !important;\n  transition: all 0.5s;\n}\n\n.bs-tooltip-auto[x-placement^=right] .tooltip-arrow,\n.bs-tooltip-right .tooltip-arrow {\n  left: 1px;\n}\n\n.bs-tooltip-auto[x-placement^=left] .tooltip-arrow,\n.bs-tooltip-left .tooltip-arrow {\n  right: 1px;\n}\n\nhtml * {\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\nbody {\n  font-weight: 400;\n  line-height: 1.6;\n}\n\nh1,\n.h1,\n.h1 {\n  font-size: 3rem;\n  line-height: 1.25;\n  letter-spacing: -0.025rem;\n}\n\n@media (max-width: 575.98px) {\n\n  h1,\n  .h1,\n  .h1 {\n    font-size: calc(1.425rem + 2.1vw);\n  }\n}\n\nh2,\n.h2,\n.h2 {\n  font-size: 2.25rem;\n  line-height: 1.3;\n  letter-spacing: 0.05rem;\n}\n\n@media (max-width: 575.98px) {\n\n  h2,\n  .h2,\n  .h2 {\n    font-size: calc(1.35rem + 1.2vw);\n  }\n}\n\nh3,\n.h3,\n.h3 {\n  font-size: 1.875rem;\n  line-height: 1.375;\n}\n\n@media (max-width: 575.98px) {\n\n  h3,\n  .h3,\n  .h3 {\n    font-size: calc(1.3125rem + 0.75vw);\n  }\n}\n\nh4,\n.h4,\n.h4 {\n  font-size: 1.5rem;\n  line-height: 1.375;\n}\n\n@media (max-width: 575.98px) {\n\n  h4,\n  .h4,\n  .h4 {\n    font-size: calc(1.275rem + 0.3vw);\n  }\n}\n\nh5,\n.h5,\n.h5 {\n  font-size: 1.25rem;\n  line-height: 1.375;\n}\n\n@media (max-width: 575.98px) {\n\n  h5,\n  .h5,\n  .h5 {\n    font-size: 1.25rem;\n  }\n}\n\nh6,\n.h6,\n.h6 {\n  font-size: 1rem;\n  line-height: 1.625;\n}\n\np,\n.p {\n  font-size: 1rem;\n  font-weight: 400;\n  line-height: 1.6;\n}\n\n.lead {\n  font-size: 1.25rem;\n  font-weight: 400;\n  line-height: 1.625;\n}\n\nh1,\n.h1,\n.h1,\nh2,\n.h2,\n.h2,\nh3,\n.h3,\n.h3 {\n  font-weight: 700;\n}\n\nh4,\n.h4,\n.h4,\nh5,\n.h5,\n.h5,\nh6,\n.h6,\n.h6 {\n  font-weight: 600;\n}\n\nh1,\n.h1,\n.h1,\nh2,\n.h2,\n.h2,\nh3,\n.h3,\n.h3,\nh4,\n.h4,\n.h4 {\n  letter-spacing: -0.05rem;\n}\n\na {\n  letter-spacing: -0.025rem;\n  color: #344767;\n}\n\n.text-sm {\n  line-height: 1.5;\n}\n\n.text-xs {\n  line-height: 1.25;\n}\n\np,\n.p {\n  font-size: 1rem;\n}\n\n.lead {\n  font-size: 1.25rem;\n}\n\n.text-lg {\n  font-size: 1.125rem !important;\n}\n\n.text-sm {\n  font-size: 0.875rem !important;\n}\n\n.text-xs {\n  font-size: 0.75rem !important;\n}\n\n.text-xxs {\n  font-size: 0.65rem !important;\n}\n\np {\n  line-height: 1.625;\n  font-weight: 400;\n}\n\n.text-sans-serif {\n  font-family: \"Open Sans\" !important;\n}\n\n.text-monospace {\n  font-family: SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace !important;\n}\n\n.text-justify {\n  text-align: justify !important;\n}\n\n.text-wrap {\n  white-space: normal !important;\n}\n\n.text-nowrap {\n  white-space: nowrap !important;\n}\n\n.text-truncate {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.font-weight-light {\n  font-weight: 300 !important;\n}\n\n.font-weight-lighter {\n  font-weight: lighter !important;\n}\n\n.font-weight-normal {\n  font-weight: 400 !important;\n}\n\n.font-weight-bold {\n  font-weight: 600 !important;\n}\n\n.font-weight-bolder {\n  font-weight: 700 !important;\n}\n\n.font-italic {\n  font-style: italic !important;\n}\n\n.text-gradient {\n  background-clip: text;\n  -webkit-background-clip: text;\n  -webkit-text-fill-color: transparent;\n  position: relative;\n  z-index: 1;\n}\n\n.text-gradient.text-primary {\n  background-image: linear-gradient(310deg, #7928CA, #FF0080);\n}\n\n.text-gradient.text-info {\n  background-image: linear-gradient(310deg, #2152FF, #21D4FD);\n}\n\n.text-gradient.text-success {\n  background-image: linear-gradient(310deg, #17AD37, #C1E823);\n}\n\n.text-gradient.text-warning {\n  background-image: linear-gradient(310deg, #F53939, #FBCF33);\n}\n\n.text-gradient.text-danger {\n  background-image: linear-gradient(310deg, #D60808, #FF6690);\n}\n\n.text-gradient.text-dark {\n  background-image: linear-gradient(310deg, #141727, #3A416F);\n}\n\n.blockquote {\n  border-left: 3px solid #6c757d;\n}\n\n.blockquote>span {\n  font-style: italic;\n}\n\n.text-muted {\n  color: #67748e !important;\n}\n\n.text-black-50 {\n  color: rgba(0, 0, 0, 0.5) !important;\n}\n\n.text-white-50 {\n  color: rgba(255, 255, 255, 0.5) !important;\n}\n\n.text-decoration-none {\n  text-decoration: none !important;\n}\n\n.text-break {\n  word-wrap: break-word !important;\n}\n\n.text-reset {\n  color: inherit !important;\n}\n\n.letter-wider {\n  letter-spacing: 0.05rem;\n}\n\n.letter-normal {\n  letter-spacing: 0rem;\n}\n\n.letter-tighter {\n  letter-spacing: -0.05rem;\n}\n\n.text-lighter {\n  font-weight: lighter;\n}\n\n.text-light {\n  font-weight: 300;\n}\n\n.text-normal {\n  font-weight: 400;\n}\n\n.text-bold {\n  font-weight: 600;\n}\n\n.text-bolder {\n  font-weight: 700;\n}\n\n.flatpickr-calendar {\n  background: transparent;\n  opacity: 0;\n  display: none;\n  text-align: center;\n  visibility: hidden;\n  padding: 0;\n  -webkit-animation: none;\n  animation: none;\n  direction: ltr;\n  border: 0;\n  font-size: 14px;\n  line-height: 24px;\n  border-radius: 5px;\n  position: absolute;\n  width: 307.875px;\n  box-sizing: border-box;\n  touch-action: manipulation;\n  background: #fff;\n  -webkit-box-shadow: 0 8px 26px -4px rgba(20, 20, 20, 0.15), 0 8px 9px -5px rgba(20, 20, 20, 0.06);\n}\n\n.flatpickr-calendar.open,\n.flatpickr-calendar.inline {\n  opacity: 1;\n  max-height: 640px;\n  visibility: visible;\n}\n\n.flatpickr-calendar.open {\n  display: inline-block;\n  z-index: 99999;\n}\n\n.flatpickr-calendar.animate.open {\n  -webkit-animation: fpFadeInDown 300ms cubic-bezier(0.23, 1, 0.32, 1);\n  animation: fpFadeInDown 300ms cubic-bezier(0.23, 1, 0.32, 1);\n}\n\n.flatpickr-calendar.inline {\n  display: block;\n  position: relative;\n  top: 2px;\n}\n\n.flatpickr-calendar.static {\n  position: absolute;\n  top: calc(100% + 2px);\n}\n\n.flatpickr-calendar.static.open {\n  z-index: 999;\n  display: block;\n}\n\n.flatpickr-calendar.multiMonth .flatpickr-days .dayContainer:nth-child(n+1) .flatpickr-day.inRange:nth-child(7n+7) {\n  box-shadow: none !important;\n}\n\n.flatpickr-calendar.multiMonth .flatpickr-days .dayContainer:nth-child(n+2) .flatpickr-day.inRange:nth-child(7n+1) {\n  box-shadow: -2px 0 0 #e6e6e6, 5px 0 0 #e6e6e6;\n}\n\n.flatpickr-calendar .hasWeeks .dayContainer,\n.flatpickr-calendar .hasTime .dayContainer {\n  border-bottom: 0;\n  border-bottom-right-radius: 0;\n  border-bottom-left-radius: 0;\n}\n\n.flatpickr-calendar .hasWeeks .dayContainer {\n  border-left: 0;\n}\n\n.flatpickr-calendar.hasTime .flatpickr-time {\n  height: 40px;\n  border-top: 1px solid #e6e6e6;\n}\n\n.flatpickr-calendar.noCalendar.hasTime .flatpickr-time {\n  height: auto;\n}\n\n.flatpickr-calendar:before,\n.flatpickr-calendar:after {\n  position: absolute;\n  display: block;\n  pointer-events: none;\n  border: solid transparent;\n  content: '';\n  height: 0;\n  width: 0;\n  left: 22px;\n}\n\n.flatpickr-calendar.rightMost:before,\n.flatpickr-calendar.arrowRight:before,\n.flatpickr-calendar.rightMost:after,\n.flatpickr-calendar.arrowRight:after {\n  left: auto;\n  right: 22px;\n}\n\n.flatpickr-calendar.arrowCenter:before,\n.flatpickr-calendar.arrowCenter:after {\n  left: 50%;\n  right: 50%;\n}\n\n.flatpickr-calendar:before {\n  border-width: 5px;\n  margin: 0 -5px;\n}\n\n.flatpickr-calendar:after {\n  border-width: 4px;\n  margin: 0 -4px;\n}\n\n.flatpickr-calendar.arrowTop:before,\n.flatpickr-calendar.arrowTop:after {\n  bottom: 100%;\n}\n\n.flatpickr-calendar.arrowTop:before {\n  border-bottom-color: #fff;\n}\n\n.flatpickr-calendar.arrowTop:after {\n  border-bottom-color: #fff;\n}\n\n.flatpickr-calendar.arrowBottom:before,\n.flatpickr-calendar.arrowBottom:after {\n  top: 100%;\n}\n\n.flatpickr-calendar.arrowBottom:before {\n  border-top-color: #e6e6e6;\n}\n\n.flatpickr-calendar.arrowBottom:after {\n  border-top-color: #fff;\n}\n\n.flatpickr-calendar:focus {\n  outline: 0;\n}\n\n.flatpickr-wrapper {\n  position: relative;\n  display: inline-block;\n}\n\n.flatpickr-months {\n  display: flex;\n}\n\n.flatpickr-months .flatpickr-month {\n  background: transparent;\n  color: rgba(0, 0, 0, 0.9);\n  fill: rgba(0, 0, 0, 0.9);\n  height: 34px;\n  line-height: 1;\n  text-align: center;\n  position: relative;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n  user-select: none;\n  overflow: hidden;\n  flex: 1;\n}\n\n.flatpickr-months .flatpickr-prev-month,\n.flatpickr-months .flatpickr-next-month {\n  text-decoration: none;\n  cursor: pointer;\n  position: absolute;\n  top: 0;\n  height: 34px;\n  padding: 10px;\n  z-index: 3;\n  color: rgba(0, 0, 0, 0.9);\n  fill: rgba(0, 0, 0, 0.9);\n}\n\n.flatpickr-months .flatpickr-prev-month.flatpickr-disabled,\n.flatpickr-months .flatpickr-next-month.flatpickr-disabled {\n  display: none;\n}\n\n.flatpickr-months .flatpickr-prev-month i,\n.flatpickr-months .flatpickr-next-month i {\n  position: relative;\n}\n\n.flatpickr-months .flatpickr-prev-month.flatpickr-prev-month,\n.flatpickr-months .flatpickr-next-month.flatpickr-prev-month {\n  /*\n      /*rtl:begin:ignore*/\n  /*\n      */\n  left: 0;\n  /*\n      /*rtl:end:ignore*/\n  /*\n      */\n}\n\n/*\n      /*rtl:begin:ignore*/\n/*\n      /*rtl:end:ignore*/\n.flatpickr-months .flatpickr-prev-month.flatpickr-next-month,\n.flatpickr-months .flatpickr-next-month.flatpickr-next-month {\n  /*\n      /*rtl:begin:ignore*/\n  /*\n      */\n  right: 0;\n  /*\n      /*rtl:end:ignore*/\n  /*\n      */\n}\n\n/*\n      /*rtl:begin:ignore*/\n/*\n      /*rtl:end:ignore*/\n.flatpickr-months .flatpickr-prev-month:hover,\n.flatpickr-months .flatpickr-next-month:hover {\n  color: #959ea9;\n}\n\n.flatpickr-months .flatpickr-prev-month:hover svg,\n.flatpickr-months .flatpickr-next-month:hover svg {\n  fill: #f64747;\n}\n\n.flatpickr-months .flatpickr-prev-month svg,\n.flatpickr-months .flatpickr-next-month svg {\n  width: 14px;\n  height: 14px;\n}\n\n.flatpickr-months .flatpickr-prev-month svg path,\n.flatpickr-months .flatpickr-next-month svg path {\n  transition: fill 0.1s;\n  fill: inherit;\n}\n\n.numInputWrapper {\n  position: relative;\n  height: auto;\n}\n\n.numInputWrapper input,\n.numInputWrapper span {\n  display: inline-block;\n}\n\n.numInputWrapper input {\n  width: 100%;\n}\n\n.numInputWrapper input::-ms-clear {\n  display: none;\n}\n\n.numInputWrapper input::-webkit-outer-spin-button,\n.numInputWrapper input::-webkit-inner-spin-button {\n  margin: 0;\n  -webkit-appearance: none;\n}\n\n.numInputWrapper span {\n  position: absolute;\n  right: 0;\n  width: 14px;\n  padding: 0 4px 0 2px;\n  height: 50%;\n  line-height: 50%;\n  opacity: 0;\n  cursor: pointer;\n  border: 1px solid rgba(57, 57, 57, 0.15);\n  box-sizing: border-box;\n}\n\n.numInputWrapper span:hover {\n  background: rgba(0, 0, 0, 0.1);\n}\n\n.numInputWrapper span:active {\n  background: rgba(0, 0, 0, 0.2);\n}\n\n.numInputWrapper span:after {\n  display: block;\n  content: \"\";\n  position: absolute;\n}\n\n.numInputWrapper span.arrowUp {\n  top: 0;\n  border-bottom: 0;\n}\n\n.numInputWrapper span.arrowUp:after {\n  border-left: 4px solid transparent;\n  border-right: 4px solid transparent;\n  border-bottom: 4px solid rgba(57, 57, 57, 0.6);\n  top: 26%;\n}\n\n.numInputWrapper span.arrowDown {\n  top: 50%;\n}\n\n.numInputWrapper span.arrowDown:after {\n  border-left: 4px solid transparent;\n  border-right: 4px solid transparent;\n  border-top: 4px solid rgba(57, 57, 57, 0.6);\n  top: 40%;\n}\n\n.numInputWrapper span svg {\n  width: inherit;\n  height: auto;\n}\n\n.numInputWrapper span svg path {\n  fill: rgba(0, 0, 0, 0.5);\n}\n\n.numInputWrapper:hover {\n  background: rgba(0, 0, 0, 0.05);\n}\n\n.numInputWrapper:hover span {\n  opacity: 1;\n}\n\n.flatpickr-current-month {\n  font-size: 135%;\n  line-height: inherit;\n  font-weight: 300;\n  color: inherit;\n  position: absolute;\n  width: 75%;\n  left: 12.5%;\n  padding: 7.48px 0 0 0;\n  line-height: 1;\n  height: 34px;\n  display: inline-block;\n  text-align: center;\n  transform: translate3d(0px, 0px, 0px);\n}\n\n.flatpickr-current-month span.cur-month {\n  font-family: inherit;\n  font-weight: 700;\n  color: inherit;\n  display: inline-block;\n  margin-left: 0.5ch;\n  padding: 0;\n}\n\n.flatpickr-current-month span.cur-month:hover {\n  background: rgba(0, 0, 0, 0.05);\n}\n\n.flatpickr-current-month .numInputWrapper {\n  width: 6ch;\n  width: 7ch\\0;\n  display: inline-block;\n}\n\n.flatpickr-current-month .numInputWrapper span.arrowUp:after {\n  border-bottom-color: rgba(0, 0, 0, 0.9);\n}\n\n.flatpickr-current-month .numInputWrapper span.arrowDown:after {\n  border-top-color: rgba(0, 0, 0, 0.9);\n}\n\n.flatpickr-current-month input.cur-year {\n  background: transparent;\n  box-sizing: border-box;\n  color: inherit;\n  cursor: text;\n  padding: 0 0 0 0.5ch;\n  margin: 0;\n  display: inline-block;\n  font-size: inherit;\n  font-family: inherit;\n  font-weight: 300;\n  line-height: inherit;\n  height: auto;\n  border: 0;\n  border-radius: 0;\n  vertical-align: initial;\n  -webkit-appearance: textfield;\n  -moz-appearance: textfield;\n  appearance: textfield;\n}\n\n.flatpickr-current-month input.cur-year:focus {\n  outline: 0;\n}\n\n.flatpickr-current-month input.cur-year[disabled],\n.flatpickr-current-month input.cur-year[disabled]:hover {\n  font-size: 100%;\n  color: rgba(0, 0, 0, 0.5);\n  background: transparent;\n  pointer-events: none;\n}\n\n.flatpickr-current-month .flatpickr-monthDropdown-months {\n  appearance: menulist;\n  background: transparent;\n  border: none;\n  border-radius: 0;\n  box-sizing: border-box;\n  color: inherit;\n  cursor: pointer;\n  font-size: inherit;\n  font-family: inherit;\n  font-weight: 300;\n  height: auto;\n  line-height: inherit;\n  margin: -1px 0 0 0;\n  outline: none;\n  padding: 0 0 0 0.5ch;\n  position: relative;\n  vertical-align: initial;\n  -webkit-box-sizing: border-box;\n  -webkit-appearance: menulist;\n  -moz-appearance: menulist;\n  width: auto;\n}\n\n.flatpickr-current-month .flatpickr-monthDropdown-months:focus,\n.flatpickr-current-month .flatpickr-monthDropdown-months:active {\n  outline: none;\n}\n\n.flatpickr-current-month .flatpickr-monthDropdown-months:hover {\n  background: rgba(0, 0, 0, 0.05);\n}\n\n.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {\n  background-color: transparent;\n  outline: none;\n  padding: 0;\n}\n\n.flatpickr-weekdays {\n  background: transparent;\n  text-align: center;\n  overflow: hidden;\n  width: 100%;\n  display: flex;\n  align-items: center;\n  height: 28px;\n}\n\n.flatpickr-weekdays .flatpickr-weekdaycontainer {\n  display: flex;\n  flex: 1;\n}\n\nspan.flatpickr-weekday {\n  cursor: default;\n  font-size: 90%;\n  background: transparent;\n  color: rgba(0, 0, 0, 0.54);\n  line-height: 1;\n  margin: 0;\n  text-align: center;\n  display: block;\n  flex: 1;\n  font-weight: bolder;\n}\n\n.dayContainer,\n.flatpickr-weeks {\n  padding: 1px 0 0 0;\n}\n\n.flatpickr-days {\n  position: relative;\n  overflow: hidden;\n  display: flex;\n  align-items: flex-start;\n  width: 307.875px;\n}\n\n.flatpickr-days:focus {\n  outline: 0;\n}\n\n.dayContainer {\n  padding: 0;\n  outline: 0;\n  text-align: left;\n  width: 307.875px;\n  min-width: 307.875px;\n  max-width: 307.875px;\n  box-sizing: border-box;\n  display: inline-block;\n  display: flex;\n  flex-wrap: wrap;\n  -ms-flex-wrap: wrap;\n  justify-content: space-around;\n  transform: translate3d(0px, 0px, 0px);\n  opacity: 1;\n}\n\n.dayContainer+.dayContainer {\n  box-shadow: -1px 0 0 #e6e6e6;\n}\n\n.flatpickr-day {\n  background: none;\n  border: 1px solid transparent;\n  border-radius: 150px;\n  box-sizing: border-box;\n  color: #393939;\n  cursor: pointer;\n  font-weight: 400;\n  width: 14.2857143%;\n  flex-basis: 14.2857143%;\n  max-width: 39px;\n  height: 39px;\n  line-height: 39px;\n  margin: 0;\n  display: inline-block;\n  position: relative;\n  justify-content: center;\n  text-align: center;\n}\n\n.flatpickr-day.inRange,\n.flatpickr-day.prevMonthDay.inRange,\n.flatpickr-day.nextMonthDay.inRange,\n.flatpickr-day.today.inRange,\n.flatpickr-day.prevMonthDay.today.inRange,\n.flatpickr-day.nextMonthDay.today.inRange,\n.flatpickr-day:hover,\n.flatpickr-day.prevMonthDay:hover,\n.flatpickr-day.nextMonthDay:hover,\n.flatpickr-day:focus,\n.flatpickr-day.prevMonthDay:focus,\n.flatpickr-day.nextMonthDay:focus {\n  cursor: pointer;\n  outline: 0;\n  background: #e6e6e6;\n  border-color: #e6e6e6;\n}\n\n.flatpickr-day.today {\n  border-color: #959ea9;\n}\n\n.flatpickr-day.today:hover,\n.flatpickr-day.today:focus {\n  border-color: #959ea9;\n  background: #959ea9;\n  color: #fff;\n}\n\n.flatpickr-day.selected,\n.flatpickr-day.startRange,\n.flatpickr-day.endRange,\n.flatpickr-day.selected.inRange,\n.flatpickr-day.startRange.inRange,\n.flatpickr-day.endRange.inRange,\n.flatpickr-day.selected:focus,\n.flatpickr-day.startRange:focus,\n.flatpickr-day.endRange:focus,\n.flatpickr-day.selected:hover,\n.flatpickr-day.startRange:hover,\n.flatpickr-day.endRange:hover,\n.flatpickr-day.selected.prevMonthDay,\n.flatpickr-day.startRange.prevMonthDay,\n.flatpickr-day.endRange.prevMonthDay,\n.flatpickr-day.selected.nextMonthDay,\n.flatpickr-day.startRange.nextMonthDay,\n.flatpickr-day.endRange.nextMonthDay {\n  background: #569ff7;\n  box-shadow: none;\n  color: #fff;\n  border-color: #569ff7;\n}\n\n.flatpickr-day.selected.startRange,\n.flatpickr-day.startRange.startRange,\n.flatpickr-day.endRange.startRange {\n  border-radius: 50px 0 0 50px;\n}\n\n.flatpickr-day.selected.endRange,\n.flatpickr-day.startRange.endRange,\n.flatpickr-day.endRange.endRange {\n  border-radius: 0 50px 50px 0;\n}\n\n.flatpickr-day.selected.startRange+.endRange:not(:nth-child(7n+1)),\n.flatpickr-day.startRange.startRange+.endRange:not(:nth-child(7n+1)),\n.flatpickr-day.endRange.startRange+.endRange:not(:nth-child(7n+1)) {\n  box-shadow: -10px 0 0 #569ff7;\n}\n\n.flatpickr-day.selected.startRange.endRange,\n.flatpickr-day.startRange.startRange.endRange,\n.flatpickr-day.endRange.startRange.endRange {\n  border-radius: 50px;\n}\n\n.flatpickr-day.inRange {\n  border-radius: 0;\n  box-shadow: -5px 0 0 #e6e6e6, 5px 0 0 #e6e6e6;\n}\n\n.flatpickr-day.flatpickr-disabled,\n.flatpickr-day.flatpickr-disabled:hover,\n.flatpickr-day.prevMonthDay,\n.flatpickr-day.nextMonthDay,\n.flatpickr-day.notAllowed,\n.flatpickr-day.notAllowed.prevMonthDay,\n.flatpickr-day.notAllowed.nextMonthDay {\n  color: rgba(57, 57, 57, 0.3);\n  background: transparent;\n  border-color: transparent;\n  cursor: default;\n}\n\n.flatpickr-day.flatpickr-disabled,\n.flatpickr-day.flatpickr-disabled:hover {\n  cursor: not-allowed;\n  color: rgba(57, 57, 57, 0.1);\n}\n\n.flatpickr-day.week.selected {\n  border-radius: 0;\n  box-shadow: -5px 0 0 #569ff7, 5px 0 0 #569ff7;\n}\n\n.flatpickr-day.hidden {\n  visibility: hidden;\n}\n\n.rangeMode .flatpickr-day {\n  margin-top: 1px;\n}\n\n.flatpickr-weekwrapper {\n  float: left;\n}\n\n.flatpickr-weekwrapper .flatpickr-weeks {\n  padding: 0 12px;\n  box-shadow: 1px 0 0 #e6e6e6;\n}\n\n.flatpickr-weekwrapper .flatpickr-weekday {\n  float: none;\n  width: 100%;\n  line-height: 28px;\n}\n\n.flatpickr-weekwrapper span.flatpickr-day,\n.flatpickr-weekwrapper span.flatpickr-day:hover {\n  display: block;\n  width: 100%;\n  max-width: none;\n  color: rgba(57, 57, 57, 0.3);\n  background: transparent;\n  cursor: default;\n  border: none;\n}\n\n.flatpickr-innerContainer {\n  display: block;\n  display: flex;\n  box-sizing: border-box;\n  overflow: hidden;\n}\n\n.flatpickr-rContainer {\n  display: inline-block;\n  padding: 0;\n  box-sizing: border-box;\n}\n\n.flatpickr-time {\n  text-align: center;\n  outline: 0;\n  display: block;\n  height: 0;\n  line-height: 40px;\n  max-height: 40px;\n  box-sizing: border-box;\n  overflow: hidden;\n  display: flex;\n}\n\n.flatpickr-time:after {\n  content: \"\";\n  display: table;\n  clear: both;\n}\n\n.flatpickr-time .numInputWrapper {\n  flex: 1;\n  width: 40%;\n  height: 40px;\n  float: left;\n}\n\n.flatpickr-time .numInputWrapper span.arrowUp:after {\n  border-bottom-color: #393939;\n}\n\n.flatpickr-time .numInputWrapper span.arrowDown:after {\n  border-top-color: #393939;\n}\n\n.flatpickr-time.hasSeconds .numInputWrapper {\n  width: 26%;\n}\n\n.flatpickr-time.time24hr .numInputWrapper {\n  width: 49%;\n}\n\n.flatpickr-time input {\n  background: transparent;\n  box-shadow: none;\n  border: 0;\n  border-radius: 0;\n  text-align: center;\n  margin: 0;\n  padding: 0;\n  height: inherit;\n  line-height: inherit;\n  color: #393939;\n  font-size: 14px;\n  position: relative;\n  box-sizing: border-box;\n  -webkit-appearance: textfield;\n  -moz-appearance: textfield;\n  appearance: textfield;\n}\n\n.flatpickr-time input.flatpickr-hour {\n  font-weight: bold;\n}\n\n.flatpickr-time input.flatpickr-minute,\n.flatpickr-time input.flatpickr-second {\n  font-weight: 400;\n}\n\n.flatpickr-time input:focus {\n  outline: 0;\n  border: 0;\n}\n\n.flatpickr-time .flatpickr-time-separator,\n.flatpickr-time .flatpickr-am-pm {\n  height: inherit;\n  float: left;\n  line-height: inherit;\n  color: #393939;\n  font-weight: bold;\n  width: 2%;\n  -webkit-user-select: none;\n  -moz-user-select: none;\n  -ms-user-select: none;\n  user-select: none;\n  align-self: center;\n}\n\n.flatpickr-time .flatpickr-am-pm {\n  outline: 0;\n  width: 18%;\n  cursor: pointer;\n  text-align: center;\n  font-weight: 400;\n}\n\n.flatpickr-time input:hover,\n.flatpickr-time .flatpickr-am-pm:hover,\n.flatpickr-time input:focus,\n.flatpickr-time .flatpickr-am-pm:focus {\n  background: #eee;\n}\n\n.flatpickr-input[readonly] {\n  cursor: pointer;\n}\n\n@-webkit-keyframes fpFadeInDown {\n  from {\n    opacity: 0;\n    transform: translate3d(0, -20px, 0);\n  }\n\n  to {\n    opacity: 1;\n    transform: translate3d(0, 0, 0);\n  }\n}\n\n@keyframes fpFadeInDown {\n  from {\n    opacity: 0;\n    transform: translate3d(0, -20px, 0);\n  }\n\n  to {\n    opacity: 1;\n    transform: translate3d(0, 0, 0);\n  }\n}\n\n.datepicker.flatpickr-input {\n  background-color: #fff;\n}\n\n.flatpickr-calendar.open {\n  margin-left: -38px;\n  margin-top: 4px;\n}\n\n.flatpickr-calendar.arrowBottom {\n  margin-top: -20px;\n}\n\n.flatpickr-calendar .flatpickr-innerContainer {\n  margin-top: 15px !important;\n}\n\n.flatpickr-calendar .numInputWrapper span {\n  border: none;\n  border-bottom: 1px solid rgba(57, 57, 57, 0.15);\n}\n\n.flatpickr-calendar .numInputWrapper:hover .arrowUp,\n.flatpickr-calendar .numInputWrapper:hover .arrowDown {\n  margin-top: 3px;\n}\n\n.flatpickr-calendar .flatpickr-day.today,\n.flatpickr-calendar .flatpickr-day.selected,\n.flatpickr-calendar .flatpickr-day.startRange,\n.flatpickr-calendar .flatpickr-day.endRange {\n  background: #cb0c9f !important;\n  color: #fff;\n  border: none;\n}\n\n.flatpickr-calendar .flatpickr-day.inRange {\n  background: rgba(94, 114, 228, 0.28);\n  border: none;\n  box-shadow: -5px 0 0 #D7DCF8, 5px 0 0 #D7DCF8;\n}\n\n.flatpickr-calendar .flatpickr-day:not(.selected):hover,\n.flatpickr-calendar .flatpickr-day:not(.selected):focus {\n  background: rgba(94, 114, 228, 0.28);\n  border: none;\n}\n\n.flatpickr-calendar .flatpickr-time input:hover,\n.flatpickr-calendar .flatpickr-time .flatpickr-am-pm:hover,\n.flatpickr-calendar .flatpickr-time input:focus,\n.flatpickr-calendar .flatpickr-time .flatpickr-am-pm:focus {\n  background: rgba(94, 114, 228, 0.28);\n}\n\n.flatpickr.form-control {\n  background: #fff;\n}\n\n.flatpickr-day.endRange.startRange+.endRange:not(:nth-child(7n+1)),\n.flatpickr-day.selected.startRange+.endRange:not(:nth-child(7n+1)),\n.flatpickr-day.startRange.startRange+.endRange:not(:nth-child(7n+1)) {\n  box-shadow: -10px 0 0 #cb0c9f;\n}\n\n/*! nouislider - 14.6.3 - 11/19/2020 */\n/* Functional styling;\n * These styles are required for noUiSlider to function.\n * You don't need to change these rules to apply your design.\n */\n.noUi-target,\n.noUi-target * {\n  -webkit-touch-callout: none;\n  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);\n  -webkit-user-select: none;\n  touch-action: none;\n  -ms-user-select: none;\n  -moz-user-select: none;\n  user-select: none;\n  box-sizing: border-box;\n}\n\n.noUi-target {\n  position: relative;\n}\n\n.noUi-base,\n.noUi-connects {\n  width: 100%;\n  height: 6px;\n  position: relative;\n  z-index: 1;\n  top: -1px;\n}\n\n/* Wrapper for all connect elements.\n */\n.noUi-connects {\n  z-index: 0;\n  overflow: hidden;\n}\n\n.noUi-connect,\n.noUi-origin {\n  will-change: transform;\n  position: absolute;\n  z-index: 1;\n  top: 0;\n  right: 0;\n  -ms-transform-origin: 0 0;\n  -webkit-transform-origin: 0 0;\n  -webkit-transform-style: preserve-3d;\n  transform-origin: 0 0;\n  transform-style: flat;\n}\n\n.noUi-connect {\n  height: 100%;\n  width: 100%;\n  border-radius: 0.25rem;\n}\n\n.noUi-origin {\n  height: 10%;\n  width: 10%;\n}\n\n/* Offset direction\n */\n.noUi-txt-dir-rtl.noUi-horizontal .noUi-origin {\n  left: 0;\n  right: auto;\n}\n\n/* Give origins 0 height/width so they don't interfere with clicking the\n * connect elements.\n */\n.noUi-vertical .noUi-origin {\n  width: 0;\n}\n\n.noUi-horizontal .noUi-origin {\n  height: 0;\n}\n\n.noUi-handle {\n  -webkit-backface-visibility: hidden;\n  backface-visibility: hidden;\n  position: absolute;\n}\n\n.noUi-touch-area {\n  height: 100%;\n  width: 100%;\n}\n\n.noUi-state-tap .noUi-connect,\n.noUi-state-tap .noUi-origin {\n  transition: transform 0.3s;\n}\n\n.noUi-state-drag * {\n  cursor: inherit !important;\n}\n\n/* Slider size and handle placement;\n */\n.noUi-horizontal {\n  height: 3px;\n}\n\n.noUi-horizontal .noUi-handle {\n  border-radius: 50%;\n  background-color: #fff;\n  box-shadow: 0 1px 13px 0 rgba(0, 0, 0, 0.2);\n  height: 15px;\n  width: 15px;\n  cursor: pointer;\n  margin-top: -6px;\n  outline: none;\n  right: -10px;\n}\n\n.noUi-vertical {\n  width: 3px;\n}\n\n.noUi-vertical .noUi-handle {\n  width: 28px;\n  height: 34px;\n  right: -6px;\n  top: -17px;\n}\n\n.noUi-txt-dir-rtl.noUi-horizontal .noUi-handle {\n  left: -17px;\n  right: auto;\n}\n\n/* Styling;\n * Giving the connect element a border radius causes issues with using transform: scale\n */\n.noUi-target {\n  background: #e9ecef;\n  border-radius: .25rem;\n}\n\n.noUi-connects {\n  border-radius: 3px;\n}\n\n.noUi-connect {\n  background-image: linear-gradient(310deg, #7928CA 0%, #FF0080 100%);\n}\n\n/* Handles and cursors;\n */\n.noUi-draggable {\n  cursor: ew-resize;\n}\n\n.noUi-vertical .noUi-draggable {\n  cursor: ns-resize;\n}\n\n.noUi-handle {\n  border: 1px solid #D9D9D9;\n  border-radius: 3px;\n  background: #fff;\n  cursor: default;\n  box-shadow: inset 0 0 1px #fff, inset 0 1px 7px #EBEBEB, 0 3px 6px -3px #BBB;\n  webkit-transition: .3s ease 0s;\n  -moz-transition: .3s ease 0s;\n  -ms-transition: .3s ease 0s;\n  -o-transform: .3s ease 0s;\n  transition: .3s ease 0s;\n}\n\n.noUi-active {\n  box-shadow: inset 0 0 1px #fff, inset 0 1px 7px #DDD, 0 3px 6px -3px #BBB;\n  transform: scale3d(1.5, 1.5, 1);\n}\n\n/* Disabled state;\n */\n[disabled] .noUi-connect {\n  background: #B8B8B8;\n}\n\n[disabled].noUi-target,\n[disabled].noUi-handle,\n[disabled] .noUi-handle {\n  cursor: not-allowed;\n}\n\n/* Base;\n *\n */\n.noUi-pips,\n.noUi-pips * {\n  box-sizing: border-box;\n}\n\n.noUi-pips {\n  position: absolute;\n  color: #999;\n}\n\n/* Values;\n *\n */\n.noUi-value {\n  position: absolute;\n  white-space: nowrap;\n  text-align: center;\n}\n\n.noUi-value-sub {\n  color: #ccc;\n  font-size: 10px;\n}\n\n/* Markings;\n *\n */\n.noUi-marker {\n  position: absolute;\n  background: #CCC;\n}\n\n.noUi-marker-sub {\n  background: #AAA;\n}\n\n.noUi-marker-large {\n  background: #AAA;\n}\n\n/* Horizontal layout;\n *\n */\n.noUi-pips-horizontal {\n  padding: 10px 0;\n  height: 80px;\n  top: 100%;\n  left: 0;\n  width: 100%;\n}\n\n.noUi-value-horizontal {\n  transform: translate(-50%, 50%);\n}\n\n.noUi-rtl .noUi-value-horizontal {\n  transform: translate(50%, 50%);\n}\n\n.noUi-marker-horizontal.noUi-marker {\n  margin-left: -1px;\n  width: 2px;\n  height: 5px;\n}\n\n.noUi-marker-horizontal.noUi-marker-sub {\n  height: 10px;\n}\n\n.noUi-marker-horizontal.noUi-marker-large {\n  height: 15px;\n}\n\n/* Vertical layout;\n *\n */\n.noUi-pips-vertical {\n  padding: 0 10px;\n  height: 100%;\n  top: 0;\n  left: 100%;\n}\n\n.noUi-value-vertical {\n  transform: translate(0, -50%);\n  padding-left: 25px;\n}\n\n.noUi-rtl .noUi-value-vertical {\n  transform: translate(0, 50%);\n}\n\n.noUi-marker-vertical.noUi-marker {\n  width: 5px;\n  height: 2px;\n  margin-top: -1px;\n}\n\n.noUi-marker-vertical.noUi-marker-sub {\n  width: 10px;\n}\n\n.noUi-marker-vertical.noUi-marker-large {\n  width: 15px;\n}\n\n.noUi-tooltip {\n  display: block;\n  position: absolute;\n  border: 1px solid #D9D9D9;\n  border-radius: 3px;\n  background: #fff;\n  color: #000;\n  padding: 5px;\n  text-align: center;\n  white-space: nowrap;\n}\n\n.noUi-horizontal .noUi-tooltip {\n  transform: translate(-50%, 0);\n  left: 50%;\n  bottom: 120%;\n}\n\n.noUi-vertical .noUi-tooltip {\n  transform: translate(0, -50%);\n  top: 50%;\n  right: 120%;\n}\n\n.noUi-horizontal .noUi-origin>.noUi-tooltip {\n  transform: translate(50%, 0);\n  left: auto;\n  bottom: 10px;\n}\n\n.noUi-vertical .noUi-origin>.noUi-tooltip {\n  transform: translate(0, -18px);\n  top: auto;\n  right: 28px;\n}\n\n/* PrismJS 1.23.0\nhttps://prismjs.com/download.html#themes=prism&languages=markup+css+clike+javascript */\n/**\n * prism.js default theme for JavaScript, CSS and HTML\n * Based on dabblet (http://dabblet.com)\n * @author Lea Verou\n */\ncode[class*=\"language-\"],\npre[class*=\"language-\"] {\n  color: black;\n  background: none;\n  text-shadow: 0 1px white;\n  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;\n  font-size: 1em;\n  text-align: left;\n  white-space: pre;\n  word-spacing: normal;\n  word-break: normal;\n  word-wrap: normal;\n  line-height: 1.5;\n  -moz-tab-size: 4;\n  -o-tab-size: 4;\n  tab-size: 4;\n  -webkit-hyphens: none;\n  -ms-hyphens: none;\n  hyphens: none;\n}\n\npre[class*=\"language-\"]::-moz-selection,\npre[class*=\"language-\"] ::-moz-selection,\ncode[class*=\"language-\"]::-moz-selection,\ncode[class*=\"language-\"] ::-moz-selection {\n  text-shadow: none;\n  background: #b3d4fc;\n}\n\npre[class*=\"language-\"]::-moz-selection, pre[class*=\"language-\"] ::-moz-selection, code[class*=\"language-\"]::-moz-selection, code[class*=\"language-\"] ::-moz-selection {\n  text-shadow: none;\n  background: #b3d4fc;\n}\n\npre[class*=\"language-\"]::selection,\npre[class*=\"language-\"] ::selection,\ncode[class*=\"language-\"]::selection,\ncode[class*=\"language-\"] ::selection {\n  text-shadow: none;\n  background: #b3d4fc;\n}\n\n@media print {\n\n  code[class*=\"language-\"],\n  pre[class*=\"language-\"] {\n    text-shadow: none;\n  }\n}\n\n/* Code blocks */\npre[class*=\"language-\"] {\n  padding: 1em;\n  overflow: auto;\n  border-radius: .75rem;\n}\n\n:not(pre)>code[class*=\"language-\"],\npre[class*=\"language-\"] {\n  background: #f8f9fa;\n}\n\n/* Inline code */\n:not(pre)>code[class*=\"language-\"] {\n  padding: .1em;\n  border-radius: .3em;\n  white-space: normal;\n}\n\n.token.comment,\n.token.prolog,\n.token.doctype,\n.token.cdata {\n  color: slategray;\n}\n\n.token.punctuation {\n  color: #999;\n}\n\n.token.namespace {\n  opacity: .7;\n}\n\n.token.property,\n.token.tag,\n.token.boolean,\n.token.number,\n.token.constant,\n.token.symbol,\n.token.deleted {\n  color: #905;\n}\n\n.token.selector,\n.token.attr-name,\n.token.string,\n.token.char,\n.token.builtin,\n.token.inserted {\n  color: #690;\n}\n\n.token.operator,\n.token.entity,\n.token.url,\n.language-css .token.string,\n.style .token.string {\n  color: #9a6e3a;\n  /* This background color was intended by the author of this theme. */\n  background: rgba(255, 255, 255, 0.5);\n}\n\n.token.atrule,\n.token.attr-value,\n.token.keyword {\n  color: #07a;\n}\n\n.token.function,\n.token.class-name {\n  color: #DD4A68;\n}\n\n.token.regex,\n.token.important,\n.token.variable {\n  color: #e90;\n}\n\n.token.important,\n.token.bold {\n  font-weight: bold;\n}\n\n.token.italic {\n  font-style: italic;\n}\n\n.token.entity {\n  cursor: help;\n}\n\n/*\n * Container style\n */\n.ps {\n  overflow: hidden !important;\n  overflow-anchor: none;\n  -ms-overflow-style: none;\n  touch-action: auto;\n  -ms-touch-action: auto;\n}\n\n/*\n * Scrollbar rail styles\n */\n.ps__rail-x {\n  display: none;\n  opacity: 0;\n  transition: background-color .2s linear, opacity .2s linear;\n  -webkit-transition: background-color .2s linear, opacity .2s linear;\n  height: 15px;\n  /* there must be 'bottom' or 'top' for ps__rail-x */\n  bottom: 0px;\n  /* please don't change 'position' */\n  position: absolute;\n}\n\n.ps__rail-y {\n  display: none;\n  opacity: 0;\n  transition: background-color .2s linear, opacity .2s linear;\n  -webkit-transition: background-color .2s linear, opacity .2s linear;\n  width: 15px;\n  /* there must be 'right' or 'left' for ps__rail-y */\n  right: 0;\n  /* please don't change 'position' */\n  position: absolute;\n}\n\n.ps--active-x>.ps__rail-x,\n.ps--active-y>.ps__rail-y {\n  display: block;\n  background-color: transparent;\n}\n\n.ps:hover>.ps__rail-x,\n.ps:hover>.ps__rail-y,\n.ps--focus>.ps__rail-x,\n.ps--focus>.ps__rail-y,\n.ps--scrolling-x>.ps__rail-x,\n.ps--scrolling-y>.ps__rail-y {\n  opacity: 0.6;\n}\n\n.ps .ps__rail-x:hover,\n.ps .ps__rail-y:hover,\n.ps .ps__rail-x:focus,\n.ps .ps__rail-y:focus,\n.ps .ps__rail-x.ps--clicking,\n.ps .ps__rail-y.ps--clicking {\n  background-color: #eee;\n  opacity: 0.9;\n}\n\n/*\n * Scrollbar thumb styles\n */\n.ps__thumb-x {\n  background-color: #aaa;\n  border-radius: 6px;\n  transition: background-color .2s linear, height .2s ease-in-out;\n  -webkit-transition: background-color .2s linear, height .2s ease-in-out;\n  height: 6px;\n  /* there must be 'bottom' for ps__thumb-x */\n  bottom: 2px;\n  /* please don't change 'position' */\n  position: absolute;\n}\n\n.ps__thumb-y {\n  background-color: #aaa;\n  border-radius: 6px;\n  transition: background-color .2s linear, width .2s ease-in-out;\n  -webkit-transition: background-color .2s linear, width .2s ease-in-out;\n  width: 6px;\n  /* there must be 'right' for ps__thumb-y */\n  right: 2px;\n  /* please don't change 'position' */\n  position: absolute;\n}\n\n.ps__rail-x:hover>.ps__thumb-x,\n.ps__rail-x:focus>.ps__thumb-x,\n.ps__rail-x.ps--clicking .ps__thumb-x {\n  background-color: #999;\n  height: 11px;\n}\n\n.ps__rail-y:hover>.ps__thumb-y,\n.ps__rail-y:focus>.ps__thumb-y,\n.ps__rail-y.ps--clicking .ps__thumb-y {\n  background-color: #999;\n  width: 11px;\n}\n\n/* MS supports */\n@supports (-ms-overflow-style: none) {\n  .ps {\n    overflow: auto !important;\n  }\n}\n\n@media screen and (-ms-high-contrast: active),\n(-ms-high-contrast: none) {\n  .ps {\n    overflow: auto !important;\n  }\n}", ""]);
+// Exports
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
+
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/styles/main.css":
+/*!************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/styles/main.css ***!
+  \************************************************************************************************************************************************************************************************/
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
+/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_static_css_nucleo_icons_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! -!../../../node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!../static/css/nucleo-icons.css */ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-icons.css");
+/* harmony import */ var _node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_static_css_nucleo_svg_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! -!../../../node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!../static/css/nucleo-svg.css */ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./admin/assets/static/css/nucleo-svg.css");
+// Imports
+
+
+
+var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
+___CSS_LOADER_EXPORT___.push([module.id, "@import url(https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700);"]);
+___CSS_LOADER_EXPORT___.i(_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_static_css_nucleo_icons_css__WEBPACK_IMPORTED_MODULE_1__["default"]);
+___CSS_LOADER_EXPORT___.i(_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_static_css_nucleo_svg_css__WEBPACK_IMPORTED_MODULE_2__["default"]);
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, "\n", ""]);
+// Exports
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
+
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/runtime/api.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/css-loader/dist/runtime/api.js ***!
+  \*****************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/*
+  MIT License http://www.opensource.org/licenses/mit-license.php
+  Author Tobias Koppers @sokra
+*/
+// css base code, injected by the css-loader
+// eslint-disable-next-line func-names
+module.exports = function (cssWithMappingToString) {
+  var list = []; // return the list of modules as css string
+
+  list.toString = function toString() {
+    return this.map(function (item) {
+      var content = cssWithMappingToString(item);
+
+      if (item[2]) {
+        return "@media ".concat(item[2], " {").concat(content, "}");
+      }
+
+      return content;
+    }).join("");
+  }; // import a list of modules into the list
+  // eslint-disable-next-line func-names
+
+
+  list.i = function (modules, mediaQuery, dedupe) {
+    if (typeof modules === "string") {
+      // eslint-disable-next-line no-param-reassign
+      modules = [[null, modules, ""]];
+    }
+
+    var alreadyImportedModules = {};
+
+    if (dedupe) {
+      for (var i = 0; i < this.length; i++) {
+        // eslint-disable-next-line prefer-destructuring
+        var id = this[i][0];
+
+        if (id != null) {
+          alreadyImportedModules[id] = true;
+        }
+      }
+    }
+
+    for (var _i = 0; _i < modules.length; _i++) {
+      var item = [].concat(modules[_i]);
+
+      if (dedupe && alreadyImportedModules[item[0]]) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      if (mediaQuery) {
+        if (!item[2]) {
+          item[2] = mediaQuery;
+        } else {
+          item[2] = "".concat(mediaQuery, " and ").concat(item[2]);
+        }
+      }
+
+      list.push(item);
+    }
+  };
+
+  return list;
+};
+
+/***/ }),
+
+/***/ "./node_modules/css-loader/dist/runtime/getUrl.js":
+/*!********************************************************!*\
+  !*** ./node_modules/css-loader/dist/runtime/getUrl.js ***!
+  \********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function (url, options) {
+  if (!options) {
+    // eslint-disable-next-line no-param-reassign
+    options = {};
+  } // eslint-disable-next-line no-underscore-dangle, no-param-reassign
+
+
+  url = url && url.__esModule ? url.default : url;
+
+  if (typeof url !== "string") {
+    return url;
+  } // If url is already wrapped in quotes, remove them
+
+
+  if (/^['"].*['"]$/.test(url)) {
+    // eslint-disable-next-line no-param-reassign
+    url = url.slice(1, -1);
+  }
+
+  if (options.hash) {
+    // eslint-disable-next-line no-param-reassign
+    url += options.hash;
+  } // Should url be wrapped?
+  // See https://drafts.csswg.org/css-values-3/#urls
+
+
+  if (/["'() \t\n]/.test(url) || options.needQuotes) {
+    return "\"".concat(url.replace(/"/g, '\\"').replace(/\n/g, "\\n"), "\"");
+  }
+
+  return url;
+};
+
+/***/ }),
+
+/***/ "./admin/assets/static/fonts/nucleo-icons.eot":
+/*!****************************************************!*\
+  !*** ./admin/assets/static/fonts/nucleo-icons.eot ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("/fonts/nucleo-icons.eot?19abb5402a664606b14cb338e7fefd3b");
+
+/***/ }),
+
+/***/ "./admin/assets/static/fonts/nucleo-icons.svg":
+/*!****************************************************!*\
+  !*** ./admin/assets/static/fonts/nucleo-icons.svg ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("/fonts/nucleo-icons.svg?01ebecaf50461162d4bce4c5908672b5");
+
+/***/ }),
+
+/***/ "./admin/assets/static/fonts/nucleo-icons.ttf":
+/*!****************************************************!*\
+  !*** ./admin/assets/static/fonts/nucleo-icons.ttf ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("/fonts/nucleo-icons.ttf?d6a66724e7a7bf1bba65051b309df222");
+
+/***/ }),
+
+/***/ "./admin/assets/static/fonts/nucleo-icons.woff":
+/*!*****************************************************!*\
+  !*** ./admin/assets/static/fonts/nucleo-icons.woff ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("/fonts/nucleo-icons.woff?c82c9b7c40130b7116d3cec28196169a");
+
+/***/ }),
+
+/***/ "./admin/assets/static/fonts/nucleo-icons.woff2":
+/*!******************************************************!*\
+  !*** ./admin/assets/static/fonts/nucleo-icons.woff2 ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("/fonts/nucleo-icons.woff2?cba267483aa6a7cb6e337fd2a2044777");
 
 /***/ }),
 
@@ -19415,6 +22116,19 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/**
   // Check for `exports` after `define` in case a build optimizer adds it.
   else {}
 }.call(this));
+
+
+/***/ }),
+
+/***/ "./resources/css/admin.css":
+/*!*********************************!*\
+  !*** ./resources/css/admin.css ***!
+  \*********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
 
 
 /***/ }),
@@ -46026,6 +48740,4571 @@ if (false) {} else {
 
 /***/ }),
 
+/***/ "./node_modules/react-query/es/core/focusManager.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/react-query/es/core/focusManager.js ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "FocusManager": () => (/* binding */ FocusManager),
+/* harmony export */   "focusManager": () => (/* binding */ focusManager)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+
+
+
+var FocusManager = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__["default"])(FocusManager, _Subscribable);
+
+  function FocusManager() {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+
+    _this.setup = function (onFocus) {
+      var _window;
+
+      if (!_utils__WEBPACK_IMPORTED_MODULE_1__.isServer && ((_window = window) == null ? void 0 : _window.addEventListener)) {
+        var listener = function listener() {
+          return onFocus();
+        }; // Listen to visibillitychange and focus
+
+
+        window.addEventListener('visibilitychange', listener, false);
+        window.addEventListener('focus', listener, false);
+        return function () {
+          // Be sure to unsubscribe if a new handler is set
+          window.removeEventListener('visibilitychange', listener);
+          window.removeEventListener('focus', listener);
+        };
+      }
+    };
+
+    return _this;
+  }
+
+  var _proto = FocusManager.prototype;
+
+  _proto.onSubscribe = function onSubscribe() {
+    if (!this.cleanup) {
+      this.setEventListener(this.setup);
+    }
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {
+    if (!this.hasListeners()) {
+      var _this$cleanup;
+
+      (_this$cleanup = this.cleanup) == null ? void 0 : _this$cleanup.call(this);
+      this.cleanup = undefined;
+    }
+  };
+
+  _proto.setEventListener = function setEventListener(setup) {
+    var _this$cleanup2,
+        _this2 = this;
+
+    this.setup = setup;
+    (_this$cleanup2 = this.cleanup) == null ? void 0 : _this$cleanup2.call(this);
+    this.cleanup = setup(function (focused) {
+      if (typeof focused === 'boolean') {
+        _this2.setFocused(focused);
+      } else {
+        _this2.onFocus();
+      }
+    });
+  };
+
+  _proto.setFocused = function setFocused(focused) {
+    this.focused = focused;
+
+    if (focused) {
+      this.onFocus();
+    }
+  };
+
+  _proto.onFocus = function onFocus() {
+    this.listeners.forEach(function (listener) {
+      listener();
+    });
+  };
+
+  _proto.isFocused = function isFocused() {
+    if (typeof this.focused === 'boolean') {
+      return this.focused;
+    } // document global can be unavailable in react native
+
+
+    if (typeof document === 'undefined') {
+      return true;
+    }
+
+    return [undefined, 'visible', 'prerender'].includes(document.visibilityState);
+  };
+
+  return FocusManager;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_2__.Subscribable);
+var focusManager = new FocusManager();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/hydration.js":
+/*!*******************************************************!*\
+  !*** ./node_modules/react-query/es/core/hydration.js ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "dehydrate": () => (/* binding */ dehydrate),
+/* harmony export */   "hydrate": () => (/* binding */ hydrate)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+
+
+// TYPES
+// FUNCTIONS
+function dehydrateMutation(mutation) {
+  return {
+    mutationKey: mutation.options.mutationKey,
+    state: mutation.state
+  };
+} // Most config is not dehydrated but instead meant to configure again when
+// consuming the de/rehydrated data, typically with useQuery on the client.
+// Sometimes it might make sense to prefetch data on the server and include
+// in the html-payload, but not consume it on the initial render.
+
+
+function dehydrateQuery(query) {
+  return {
+    state: query.state,
+    queryKey: query.queryKey,
+    queryHash: query.queryHash
+  };
+}
+
+function defaultShouldDehydrateMutation(mutation) {
+  return mutation.state.isPaused;
+}
+
+function defaultShouldDehydrateQuery(query) {
+  return query.state.status === 'success';
+}
+
+function dehydrate(client, options) {
+  var _options, _options2;
+
+  options = options || {};
+  var mutations = [];
+  var queries = [];
+
+  if (((_options = options) == null ? void 0 : _options.dehydrateMutations) !== false) {
+    var shouldDehydrateMutation = options.shouldDehydrateMutation || defaultShouldDehydrateMutation;
+    client.getMutationCache().getAll().forEach(function (mutation) {
+      if (shouldDehydrateMutation(mutation)) {
+        mutations.push(dehydrateMutation(mutation));
+      }
+    });
+  }
+
+  if (((_options2 = options) == null ? void 0 : _options2.dehydrateQueries) !== false) {
+    var shouldDehydrateQuery = options.shouldDehydrateQuery || defaultShouldDehydrateQuery;
+    client.getQueryCache().getAll().forEach(function (query) {
+      if (shouldDehydrateQuery(query)) {
+        queries.push(dehydrateQuery(query));
+      }
+    });
+  }
+
+  return {
+    mutations: mutations,
+    queries: queries
+  };
+}
+function hydrate(client, dehydratedState, options) {
+  if (typeof dehydratedState !== 'object' || dehydratedState === null) {
+    return;
+  }
+
+  var mutationCache = client.getMutationCache();
+  var queryCache = client.getQueryCache();
+  var mutations = dehydratedState.mutations || [];
+  var queries = dehydratedState.queries || [];
+  mutations.forEach(function (dehydratedMutation) {
+    var _options$defaultOptio;
+
+    mutationCache.build(client, (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, options == null ? void 0 : (_options$defaultOptio = options.defaultOptions) == null ? void 0 : _options$defaultOptio.mutations, {
+      mutationKey: dehydratedMutation.mutationKey
+    }), dehydratedMutation.state);
+  });
+  queries.forEach(function (dehydratedQuery) {
+    var _options$defaultOptio2;
+
+    var query = queryCache.get(dehydratedQuery.queryHash); // Do not hydrate if an existing query exists with newer data
+
+    if (query) {
+      if (query.state.dataUpdatedAt < dehydratedQuery.state.dataUpdatedAt) {
+        query.setState(dehydratedQuery.state);
+      }
+
+      return;
+    } // Restore query
+
+
+    queryCache.build(client, (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, options == null ? void 0 : (_options$defaultOptio2 = options.defaultOptions) == null ? void 0 : _options$defaultOptio2.queries, {
+      queryKey: dehydratedQuery.queryKey,
+      queryHash: dehydratedQuery.queryHash
+    }), dehydratedQuery.state);
+  });
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/index.js":
+/*!***************************************************!*\
+  !*** ./node_modules/react-query/es/core/index.js ***!
+  \***************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "CancelledError": () => (/* reexport safe */ _retryer__WEBPACK_IMPORTED_MODULE_0__.CancelledError),
+/* harmony export */   "InfiniteQueryObserver": () => (/* reexport safe */ _infiniteQueryObserver__WEBPACK_IMPORTED_MODULE_5__.InfiniteQueryObserver),
+/* harmony export */   "MutationCache": () => (/* reexport safe */ _mutationCache__WEBPACK_IMPORTED_MODULE_6__.MutationCache),
+/* harmony export */   "MutationObserver": () => (/* reexport safe */ _mutationObserver__WEBPACK_IMPORTED_MODULE_7__.MutationObserver),
+/* harmony export */   "QueriesObserver": () => (/* reexport safe */ _queriesObserver__WEBPACK_IMPORTED_MODULE_4__.QueriesObserver),
+/* harmony export */   "QueryCache": () => (/* reexport safe */ _queryCache__WEBPACK_IMPORTED_MODULE_1__.QueryCache),
+/* harmony export */   "QueryClient": () => (/* reexport safe */ _queryClient__WEBPACK_IMPORTED_MODULE_2__.QueryClient),
+/* harmony export */   "QueryObserver": () => (/* reexport safe */ _queryObserver__WEBPACK_IMPORTED_MODULE_3__.QueryObserver),
+/* harmony export */   "dehydrate": () => (/* reexport safe */ _hydration__WEBPACK_IMPORTED_MODULE_13__.dehydrate),
+/* harmony export */   "focusManager": () => (/* reexport safe */ _focusManager__WEBPACK_IMPORTED_MODULE_10__.focusManager),
+/* harmony export */   "hashQueryKey": () => (/* reexport safe */ _utils__WEBPACK_IMPORTED_MODULE_12__.hashQueryKey),
+/* harmony export */   "hydrate": () => (/* reexport safe */ _hydration__WEBPACK_IMPORTED_MODULE_13__.hydrate),
+/* harmony export */   "isCancelledError": () => (/* reexport safe */ _retryer__WEBPACK_IMPORTED_MODULE_0__.isCancelledError),
+/* harmony export */   "isError": () => (/* reexport safe */ _utils__WEBPACK_IMPORTED_MODULE_12__.isError),
+/* harmony export */   "notifyManager": () => (/* reexport safe */ _notifyManager__WEBPACK_IMPORTED_MODULE_9__.notifyManager),
+/* harmony export */   "onlineManager": () => (/* reexport safe */ _onlineManager__WEBPACK_IMPORTED_MODULE_11__.onlineManager),
+/* harmony export */   "setLogger": () => (/* reexport safe */ _logger__WEBPACK_IMPORTED_MODULE_8__.setLogger)
+/* harmony export */ });
+/* harmony import */ var _retryer__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./retryer */ "./node_modules/react-query/es/core/retryer.js");
+/* harmony import */ var _queryCache__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./queryCache */ "./node_modules/react-query/es/core/queryCache.js");
+/* harmony import */ var _queryClient__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./queryClient */ "./node_modules/react-query/es/core/queryClient.js");
+/* harmony import */ var _queryObserver__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./queryObserver */ "./node_modules/react-query/es/core/queryObserver.js");
+/* harmony import */ var _queriesObserver__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./queriesObserver */ "./node_modules/react-query/es/core/queriesObserver.js");
+/* harmony import */ var _infiniteQueryObserver__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./infiniteQueryObserver */ "./node_modules/react-query/es/core/infiniteQueryObserver.js");
+/* harmony import */ var _mutationCache__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./mutationCache */ "./node_modules/react-query/es/core/mutationCache.js");
+/* harmony import */ var _mutationObserver__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./mutationObserver */ "./node_modules/react-query/es/core/mutationObserver.js");
+/* harmony import */ var _logger__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./logger */ "./node_modules/react-query/es/core/logger.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _focusManager__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./focusManager */ "./node_modules/react-query/es/core/focusManager.js");
+/* harmony import */ var _onlineManager__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./onlineManager */ "./node_modules/react-query/es/core/onlineManager.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _hydration__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./hydration */ "./node_modules/react-query/es/core/hydration.js");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./types */ "./node_modules/react-query/es/core/types.js");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_14___default = /*#__PURE__*/__webpack_require__.n(_types__WEBPACK_IMPORTED_MODULE_14__);
+/* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
+/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _types__WEBPACK_IMPORTED_MODULE_14__) if(["default","CancelledError","QueryCache","QueryClient","QueryObserver","QueriesObserver","InfiniteQueryObserver","MutationCache","MutationObserver","setLogger","notifyManager","focusManager","onlineManager","hashQueryKey","isError","isCancelledError","dehydrate","hydrate"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _types__WEBPACK_IMPORTED_MODULE_14__[__WEBPACK_IMPORT_KEY__]
+/* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ // Types
+
+
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/infiniteQueryBehavior.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/react-query/es/core/infiniteQueryBehavior.js ***!
+  \*******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "getNextPageParam": () => (/* binding */ getNextPageParam),
+/* harmony export */   "getPreviousPageParam": () => (/* binding */ getPreviousPageParam),
+/* harmony export */   "hasNextPage": () => (/* binding */ hasNextPage),
+/* harmony export */   "hasPreviousPage": () => (/* binding */ hasPreviousPage),
+/* harmony export */   "infiniteQueryBehavior": () => (/* binding */ infiniteQueryBehavior)
+/* harmony export */ });
+/* harmony import */ var _retryer__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./retryer */ "./node_modules/react-query/es/core/retryer.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+
+
+function infiniteQueryBehavior() {
+  return {
+    onFetch: function onFetch(context) {
+      context.fetchFn = function () {
+        var _context$fetchOptions, _context$fetchOptions2, _context$fetchOptions3, _context$fetchOptions4, _context$state$data, _context$state$data2;
+
+        var refetchPage = (_context$fetchOptions = context.fetchOptions) == null ? void 0 : (_context$fetchOptions2 = _context$fetchOptions.meta) == null ? void 0 : _context$fetchOptions2.refetchPage;
+        var fetchMore = (_context$fetchOptions3 = context.fetchOptions) == null ? void 0 : (_context$fetchOptions4 = _context$fetchOptions3.meta) == null ? void 0 : _context$fetchOptions4.fetchMore;
+        var pageParam = fetchMore == null ? void 0 : fetchMore.pageParam;
+        var isFetchingNextPage = (fetchMore == null ? void 0 : fetchMore.direction) === 'forward';
+        var isFetchingPreviousPage = (fetchMore == null ? void 0 : fetchMore.direction) === 'backward';
+        var oldPages = ((_context$state$data = context.state.data) == null ? void 0 : _context$state$data.pages) || [];
+        var oldPageParams = ((_context$state$data2 = context.state.data) == null ? void 0 : _context$state$data2.pageParams) || [];
+        var abortController = (0,_utils__WEBPACK_IMPORTED_MODULE_0__.getAbortController)();
+        var abortSignal = abortController == null ? void 0 : abortController.signal;
+        var newPageParams = oldPageParams;
+        var cancelled = false; // Get query function
+
+        var queryFn = context.options.queryFn || function () {
+          return Promise.reject('Missing queryFn');
+        };
+
+        var buildNewPages = function buildNewPages(pages, param, page, previous) {
+          newPageParams = previous ? [param].concat(newPageParams) : [].concat(newPageParams, [param]);
+          return previous ? [page].concat(pages) : [].concat(pages, [page]);
+        }; // Create function to fetch a page
+
+
+        var fetchPage = function fetchPage(pages, manual, param, previous) {
+          if (cancelled) {
+            return Promise.reject('Cancelled');
+          }
+
+          if (typeof param === 'undefined' && !manual && pages.length) {
+            return Promise.resolve(pages);
+          }
+
+          var queryFnContext = {
+            queryKey: context.queryKey,
+            signal: abortSignal,
+            pageParam: param,
+            meta: context.meta
+          };
+          var queryFnResult = queryFn(queryFnContext);
+          var promise = Promise.resolve(queryFnResult).then(function (page) {
+            return buildNewPages(pages, param, page, previous);
+          });
+
+          if ((0,_retryer__WEBPACK_IMPORTED_MODULE_1__.isCancelable)(queryFnResult)) {
+            var promiseAsAny = promise;
+            promiseAsAny.cancel = queryFnResult.cancel;
+          }
+
+          return promise;
+        };
+
+        var promise; // Fetch first page?
+
+        if (!oldPages.length) {
+          promise = fetchPage([]);
+        } // Fetch next page?
+        else if (isFetchingNextPage) {
+            var manual = typeof pageParam !== 'undefined';
+            var param = manual ? pageParam : getNextPageParam(context.options, oldPages);
+            promise = fetchPage(oldPages, manual, param);
+          } // Fetch previous page?
+          else if (isFetchingPreviousPage) {
+              var _manual = typeof pageParam !== 'undefined';
+
+              var _param = _manual ? pageParam : getPreviousPageParam(context.options, oldPages);
+
+              promise = fetchPage(oldPages, _manual, _param, true);
+            } // Refetch pages
+            else {
+                (function () {
+                  newPageParams = [];
+                  var manual = typeof context.options.getNextPageParam === 'undefined';
+                  var shouldFetchFirstPage = refetchPage && oldPages[0] ? refetchPage(oldPages[0], 0, oldPages) : true; // Fetch first page
+
+                  promise = shouldFetchFirstPage ? fetchPage([], manual, oldPageParams[0]) : Promise.resolve(buildNewPages([], oldPageParams[0], oldPages[0])); // Fetch remaining pages
+
+                  var _loop = function _loop(i) {
+                    promise = promise.then(function (pages) {
+                      var shouldFetchNextPage = refetchPage && oldPages[i] ? refetchPage(oldPages[i], i, oldPages) : true;
+
+                      if (shouldFetchNextPage) {
+                        var _param2 = manual ? oldPageParams[i] : getNextPageParam(context.options, pages);
+
+                        return fetchPage(pages, manual, _param2);
+                      }
+
+                      return Promise.resolve(buildNewPages(pages, oldPageParams[i], oldPages[i]));
+                    });
+                  };
+
+                  for (var i = 1; i < oldPages.length; i++) {
+                    _loop(i);
+                  }
+                })();
+              }
+
+        var finalPromise = promise.then(function (pages) {
+          return {
+            pages: pages,
+            pageParams: newPageParams
+          };
+        });
+        var finalPromiseAsAny = finalPromise;
+
+        finalPromiseAsAny.cancel = function () {
+          cancelled = true;
+          abortController == null ? void 0 : abortController.abort();
+
+          if ((0,_retryer__WEBPACK_IMPORTED_MODULE_1__.isCancelable)(promise)) {
+            promise.cancel();
+          }
+        };
+
+        return finalPromise;
+      };
+    }
+  };
+}
+function getNextPageParam(options, pages) {
+  return options.getNextPageParam == null ? void 0 : options.getNextPageParam(pages[pages.length - 1], pages);
+}
+function getPreviousPageParam(options, pages) {
+  return options.getPreviousPageParam == null ? void 0 : options.getPreviousPageParam(pages[0], pages);
+}
+/**
+ * Checks if there is a next page.
+ * Returns `undefined` if it cannot be determined.
+ */
+
+function hasNextPage(options, pages) {
+  if (options.getNextPageParam && Array.isArray(pages)) {
+    var nextPageParam = getNextPageParam(options, pages);
+    return typeof nextPageParam !== 'undefined' && nextPageParam !== null && nextPageParam !== false;
+  }
+}
+/**
+ * Checks if there is a previous page.
+ * Returns `undefined` if it cannot be determined.
+ */
+
+function hasPreviousPage(options, pages) {
+  if (options.getPreviousPageParam && Array.isArray(pages)) {
+    var previousPageParam = getPreviousPageParam(options, pages);
+    return typeof previousPageParam !== 'undefined' && previousPageParam !== null && previousPageParam !== false;
+  }
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/infiniteQueryObserver.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/react-query/es/core/infiniteQueryObserver.js ***!
+  \*******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "InfiniteQueryObserver": () => (/* binding */ InfiniteQueryObserver)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _queryObserver__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./queryObserver */ "./node_modules/react-query/es/core/queryObserver.js");
+/* harmony import */ var _infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./infiniteQueryBehavior */ "./node_modules/react-query/es/core/infiniteQueryBehavior.js");
+
+
+
+
+var InfiniteQueryObserver = /*#__PURE__*/function (_QueryObserver) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__["default"])(InfiniteQueryObserver, _QueryObserver);
+
+  // Type override
+  // Type override
+  // Type override
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  function InfiniteQueryObserver(client, options) {
+    return _QueryObserver.call(this, client, options) || this;
+  }
+
+  var _proto = InfiniteQueryObserver.prototype;
+
+  _proto.bindMethods = function bindMethods() {
+    _QueryObserver.prototype.bindMethods.call(this);
+
+    this.fetchNextPage = this.fetchNextPage.bind(this);
+    this.fetchPreviousPage = this.fetchPreviousPage.bind(this);
+  };
+
+  _proto.setOptions = function setOptions(options, notifyOptions) {
+    _QueryObserver.prototype.setOptions.call(this, (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, options, {
+      behavior: (0,_infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_2__.infiniteQueryBehavior)()
+    }), notifyOptions);
+  };
+
+  _proto.getOptimisticResult = function getOptimisticResult(options) {
+    options.behavior = (0,_infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_2__.infiniteQueryBehavior)();
+    return _QueryObserver.prototype.getOptimisticResult.call(this, options);
+  };
+
+  _proto.fetchNextPage = function fetchNextPage(options) {
+    var _options$cancelRefetc;
+
+    return this.fetch({
+      // TODO consider removing `?? true` in future breaking change, to be consistent with `refetch` API (see https://github.com/tannerlinsley/react-query/issues/2617)
+      cancelRefetch: (_options$cancelRefetc = options == null ? void 0 : options.cancelRefetch) != null ? _options$cancelRefetc : true,
+      throwOnError: options == null ? void 0 : options.throwOnError,
+      meta: {
+        fetchMore: {
+          direction: 'forward',
+          pageParam: options == null ? void 0 : options.pageParam
+        }
+      }
+    });
+  };
+
+  _proto.fetchPreviousPage = function fetchPreviousPage(options) {
+    var _options$cancelRefetc2;
+
+    return this.fetch({
+      // TODO consider removing `?? true` in future breaking change, to be consistent with `refetch` API (see https://github.com/tannerlinsley/react-query/issues/2617)
+      cancelRefetch: (_options$cancelRefetc2 = options == null ? void 0 : options.cancelRefetch) != null ? _options$cancelRefetc2 : true,
+      throwOnError: options == null ? void 0 : options.throwOnError,
+      meta: {
+        fetchMore: {
+          direction: 'backward',
+          pageParam: options == null ? void 0 : options.pageParam
+        }
+      }
+    });
+  };
+
+  _proto.createResult = function createResult(query, options) {
+    var _state$data, _state$data2, _state$fetchMeta, _state$fetchMeta$fetc, _state$fetchMeta2, _state$fetchMeta2$fet;
+
+    var state = query.state;
+
+    var result = _QueryObserver.prototype.createResult.call(this, query, options);
+
+    return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, result, {
+      fetchNextPage: this.fetchNextPage,
+      fetchPreviousPage: this.fetchPreviousPage,
+      hasNextPage: (0,_infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_2__.hasNextPage)(options, (_state$data = state.data) == null ? void 0 : _state$data.pages),
+      hasPreviousPage: (0,_infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_2__.hasPreviousPage)(options, (_state$data2 = state.data) == null ? void 0 : _state$data2.pages),
+      isFetchingNextPage: state.isFetching && ((_state$fetchMeta = state.fetchMeta) == null ? void 0 : (_state$fetchMeta$fetc = _state$fetchMeta.fetchMore) == null ? void 0 : _state$fetchMeta$fetc.direction) === 'forward',
+      isFetchingPreviousPage: state.isFetching && ((_state$fetchMeta2 = state.fetchMeta) == null ? void 0 : (_state$fetchMeta2$fet = _state$fetchMeta2.fetchMore) == null ? void 0 : _state$fetchMeta2$fet.direction) === 'backward'
+    });
+  };
+
+  return InfiniteQueryObserver;
+}(_queryObserver__WEBPACK_IMPORTED_MODULE_3__.QueryObserver);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/logger.js":
+/*!****************************************************!*\
+  !*** ./node_modules/react-query/es/core/logger.js ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "getLogger": () => (/* binding */ getLogger),
+/* harmony export */   "setLogger": () => (/* binding */ setLogger)
+/* harmony export */ });
+// TYPES
+// FUNCTIONS
+var logger = console;
+function getLogger() {
+  return logger;
+}
+function setLogger(newLogger) {
+  logger = newLogger;
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/mutation.js":
+/*!******************************************************!*\
+  !*** ./node_modules/react-query/es/core/mutation.js ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Mutation": () => (/* binding */ Mutation),
+/* harmony export */   "getDefaultState": () => (/* binding */ getDefaultState)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _logger__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./logger */ "./node_modules/react-query/es/core/logger.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _retryer__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./retryer */ "./node_modules/react-query/es/core/retryer.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+
+
+
+
+ // TYPES
+
+// CLASS
+var Mutation = /*#__PURE__*/function () {
+  function Mutation(config) {
+    this.options = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, config.defaultOptions, config.options);
+    this.mutationId = config.mutationId;
+    this.mutationCache = config.mutationCache;
+    this.observers = [];
+    this.state = config.state || getDefaultState();
+    this.meta = config.meta;
+  }
+
+  var _proto = Mutation.prototype;
+
+  _proto.setState = function setState(state) {
+    this.dispatch({
+      type: 'setState',
+      state: state
+    });
+  };
+
+  _proto.addObserver = function addObserver(observer) {
+    if (this.observers.indexOf(observer) === -1) {
+      this.observers.push(observer);
+    }
+  };
+
+  _proto.removeObserver = function removeObserver(observer) {
+    this.observers = this.observers.filter(function (x) {
+      return x !== observer;
+    });
+  };
+
+  _proto.cancel = function cancel() {
+    if (this.retryer) {
+      this.retryer.cancel();
+      return this.retryer.promise.then(_utils__WEBPACK_IMPORTED_MODULE_1__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_1__.noop);
+    }
+
+    return Promise.resolve();
+  };
+
+  _proto.continue = function _continue() {
+    if (this.retryer) {
+      this.retryer.continue();
+      return this.retryer.promise;
+    }
+
+    return this.execute();
+  };
+
+  _proto.execute = function execute() {
+    var _this = this;
+
+    var data;
+    var restored = this.state.status === 'loading';
+    var promise = Promise.resolve();
+
+    if (!restored) {
+      this.dispatch({
+        type: 'loading',
+        variables: this.options.variables
+      });
+      promise = promise.then(function () {
+        // Notify cache callback
+        _this.mutationCache.config.onMutate == null ? void 0 : _this.mutationCache.config.onMutate(_this.state.variables, _this);
+      }).then(function () {
+        return _this.options.onMutate == null ? void 0 : _this.options.onMutate(_this.state.variables);
+      }).then(function (context) {
+        if (context !== _this.state.context) {
+          _this.dispatch({
+            type: 'loading',
+            context: context,
+            variables: _this.state.variables
+          });
+        }
+      });
+    }
+
+    return promise.then(function () {
+      return _this.executeMutation();
+    }).then(function (result) {
+      data = result; // Notify cache callback
+
+      _this.mutationCache.config.onSuccess == null ? void 0 : _this.mutationCache.config.onSuccess(data, _this.state.variables, _this.state.context, _this);
+    }).then(function () {
+      return _this.options.onSuccess == null ? void 0 : _this.options.onSuccess(data, _this.state.variables, _this.state.context);
+    }).then(function () {
+      return _this.options.onSettled == null ? void 0 : _this.options.onSettled(data, null, _this.state.variables, _this.state.context);
+    }).then(function () {
+      _this.dispatch({
+        type: 'success',
+        data: data
+      });
+
+      return data;
+    }).catch(function (error) {
+      // Notify cache callback
+      _this.mutationCache.config.onError == null ? void 0 : _this.mutationCache.config.onError(error, _this.state.variables, _this.state.context, _this); // Log error
+
+      (0,_logger__WEBPACK_IMPORTED_MODULE_2__.getLogger)().error(error);
+      return Promise.resolve().then(function () {
+        return _this.options.onError == null ? void 0 : _this.options.onError(error, _this.state.variables, _this.state.context);
+      }).then(function () {
+        return _this.options.onSettled == null ? void 0 : _this.options.onSettled(undefined, error, _this.state.variables, _this.state.context);
+      }).then(function () {
+        _this.dispatch({
+          type: 'error',
+          error: error
+        });
+
+        throw error;
+      });
+    });
+  };
+
+  _proto.executeMutation = function executeMutation() {
+    var _this2 = this,
+        _this$options$retry;
+
+    this.retryer = new _retryer__WEBPACK_IMPORTED_MODULE_3__.Retryer({
+      fn: function fn() {
+        if (!_this2.options.mutationFn) {
+          return Promise.reject('No mutationFn found');
+        }
+
+        return _this2.options.mutationFn(_this2.state.variables);
+      },
+      onFail: function onFail() {
+        _this2.dispatch({
+          type: 'failed'
+        });
+      },
+      onPause: function onPause() {
+        _this2.dispatch({
+          type: 'pause'
+        });
+      },
+      onContinue: function onContinue() {
+        _this2.dispatch({
+          type: 'continue'
+        });
+      },
+      retry: (_this$options$retry = this.options.retry) != null ? _this$options$retry : 0,
+      retryDelay: this.options.retryDelay
+    });
+    return this.retryer.promise;
+  };
+
+  _proto.dispatch = function dispatch(action) {
+    var _this3 = this;
+
+    this.state = reducer(this.state, action);
+    _notifyManager__WEBPACK_IMPORTED_MODULE_4__.notifyManager.batch(function () {
+      _this3.observers.forEach(function (observer) {
+        observer.onMutationUpdate(action);
+      });
+
+      _this3.mutationCache.notify(_this3);
+    });
+  };
+
+  return Mutation;
+}();
+function getDefaultState() {
+  return {
+    context: undefined,
+    data: undefined,
+    error: null,
+    failureCount: 0,
+    isPaused: false,
+    status: 'idle',
+    variables: undefined
+  };
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'failed':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        failureCount: state.failureCount + 1
+      });
+
+    case 'pause':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        isPaused: true
+      });
+
+    case 'continue':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        isPaused: false
+      });
+
+    case 'loading':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        context: action.context,
+        data: undefined,
+        error: null,
+        isPaused: false,
+        status: 'loading',
+        variables: action.variables
+      });
+
+    case 'success':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        data: action.data,
+        error: null,
+        status: 'success',
+        isPaused: false
+      });
+
+    case 'error':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+        data: undefined,
+        error: action.error,
+        failureCount: state.failureCount + 1,
+        isPaused: false,
+        status: 'error'
+      });
+
+    case 'setState':
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, action.state);
+
+    default:
+      return state;
+  }
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/mutationCache.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/react-query/es/core/mutationCache.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "MutationCache": () => (/* binding */ MutationCache)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _mutation__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./mutation */ "./node_modules/react-query/es/core/mutation.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+
+
+
+
+ // TYPES
+
+// CLASS
+var MutationCache = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__["default"])(MutationCache, _Subscribable);
+
+  function MutationCache(config) {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+    _this.config = config || {};
+    _this.mutations = [];
+    _this.mutationId = 0;
+    return _this;
+  }
+
+  var _proto = MutationCache.prototype;
+
+  _proto.build = function build(client, options, state) {
+    var mutation = new _mutation__WEBPACK_IMPORTED_MODULE_1__.Mutation({
+      mutationCache: this,
+      mutationId: ++this.mutationId,
+      options: client.defaultMutationOptions(options),
+      state: state,
+      defaultOptions: options.mutationKey ? client.getMutationDefaults(options.mutationKey) : undefined,
+      meta: options.meta
+    });
+    this.add(mutation);
+    return mutation;
+  };
+
+  _proto.add = function add(mutation) {
+    this.mutations.push(mutation);
+    this.notify(mutation);
+  };
+
+  _proto.remove = function remove(mutation) {
+    this.mutations = this.mutations.filter(function (x) {
+      return x !== mutation;
+    });
+    mutation.cancel();
+    this.notify(mutation);
+  };
+
+  _proto.clear = function clear() {
+    var _this2 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_2__.notifyManager.batch(function () {
+      _this2.mutations.forEach(function (mutation) {
+        _this2.remove(mutation);
+      });
+    });
+  };
+
+  _proto.getAll = function getAll() {
+    return this.mutations;
+  };
+
+  _proto.find = function find(filters) {
+    if (typeof filters.exact === 'undefined') {
+      filters.exact = true;
+    }
+
+    return this.mutations.find(function (mutation) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_3__.matchMutation)(filters, mutation);
+    });
+  };
+
+  _proto.findAll = function findAll(filters) {
+    return this.mutations.filter(function (mutation) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_3__.matchMutation)(filters, mutation);
+    });
+  };
+
+  _proto.notify = function notify(mutation) {
+    var _this3 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_2__.notifyManager.batch(function () {
+      _this3.listeners.forEach(function (listener) {
+        listener(mutation);
+      });
+    });
+  };
+
+  _proto.onFocus = function onFocus() {
+    this.resumePausedMutations();
+  };
+
+  _proto.onOnline = function onOnline() {
+    this.resumePausedMutations();
+  };
+
+  _proto.resumePausedMutations = function resumePausedMutations() {
+    var pausedMutations = this.mutations.filter(function (x) {
+      return x.state.isPaused;
+    });
+    return _notifyManager__WEBPACK_IMPORTED_MODULE_2__.notifyManager.batch(function () {
+      return pausedMutations.reduce(function (promise, mutation) {
+        return promise.then(function () {
+          return mutation.continue().catch(_utils__WEBPACK_IMPORTED_MODULE_3__.noop);
+        });
+      }, Promise.resolve());
+    });
+  };
+
+  return MutationCache;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_4__.Subscribable);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/mutationObserver.js":
+/*!**************************************************************!*\
+  !*** ./node_modules/react-query/es/core/mutationObserver.js ***!
+  \**************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "MutationObserver": () => (/* binding */ MutationObserver)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _mutation__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./mutation */ "./node_modules/react-query/es/core/mutation.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+
+
+
+
+
+// CLASS
+var MutationObserver = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__["default"])(MutationObserver, _Subscribable);
+
+  function MutationObserver(client, options) {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+    _this.client = client;
+
+    _this.setOptions(options);
+
+    _this.bindMethods();
+
+    _this.updateResult();
+
+    return _this;
+  }
+
+  var _proto = MutationObserver.prototype;
+
+  _proto.bindMethods = function bindMethods() {
+    this.mutate = this.mutate.bind(this);
+    this.reset = this.reset.bind(this);
+  };
+
+  _proto.setOptions = function setOptions(options) {
+    this.options = this.client.defaultMutationOptions(options);
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {
+    if (!this.listeners.length) {
+      var _this$currentMutation;
+
+      (_this$currentMutation = this.currentMutation) == null ? void 0 : _this$currentMutation.removeObserver(this);
+    }
+  };
+
+  _proto.onMutationUpdate = function onMutationUpdate(action) {
+    this.updateResult(); // Determine which callbacks to trigger
+
+    var notifyOptions = {
+      listeners: true
+    };
+
+    if (action.type === 'success') {
+      notifyOptions.onSuccess = true;
+    } else if (action.type === 'error') {
+      notifyOptions.onError = true;
+    }
+
+    this.notify(notifyOptions);
+  };
+
+  _proto.getCurrentResult = function getCurrentResult() {
+    return this.currentResult;
+  };
+
+  _proto.reset = function reset() {
+    this.currentMutation = undefined;
+    this.updateResult();
+    this.notify({
+      listeners: true
+    });
+  };
+
+  _proto.mutate = function mutate(variables, options) {
+    this.mutateOptions = options;
+
+    if (this.currentMutation) {
+      this.currentMutation.removeObserver(this);
+    }
+
+    this.currentMutation = this.client.getMutationCache().build(this.client, (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.options, {
+      variables: typeof variables !== 'undefined' ? variables : this.options.variables
+    }));
+    this.currentMutation.addObserver(this);
+    return this.currentMutation.execute();
+  };
+
+  _proto.updateResult = function updateResult() {
+    var state = this.currentMutation ? this.currentMutation.state : (0,_mutation__WEBPACK_IMPORTED_MODULE_2__.getDefaultState)();
+
+    var result = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+      isLoading: state.status === 'loading',
+      isSuccess: state.status === 'success',
+      isError: state.status === 'error',
+      isIdle: state.status === 'idle',
+      mutate: this.mutate,
+      reset: this.reset
+    });
+
+    this.currentResult = result;
+  };
+
+  _proto.notify = function notify(options) {
+    var _this2 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batch(function () {
+      // First trigger the mutate callbacks
+      if (_this2.mutateOptions) {
+        if (options.onSuccess) {
+          _this2.mutateOptions.onSuccess == null ? void 0 : _this2.mutateOptions.onSuccess(_this2.currentResult.data, _this2.currentResult.variables, _this2.currentResult.context);
+          _this2.mutateOptions.onSettled == null ? void 0 : _this2.mutateOptions.onSettled(_this2.currentResult.data, null, _this2.currentResult.variables, _this2.currentResult.context);
+        } else if (options.onError) {
+          _this2.mutateOptions.onError == null ? void 0 : _this2.mutateOptions.onError(_this2.currentResult.error, _this2.currentResult.variables, _this2.currentResult.context);
+          _this2.mutateOptions.onSettled == null ? void 0 : _this2.mutateOptions.onSettled(undefined, _this2.currentResult.error, _this2.currentResult.variables, _this2.currentResult.context);
+        }
+      } // Then trigger the listeners
+
+
+      if (options.listeners) {
+        _this2.listeners.forEach(function (listener) {
+          listener(_this2.currentResult);
+        });
+      }
+    });
+  };
+
+  return MutationObserver;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_4__.Subscribable);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/notifyManager.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/react-query/es/core/notifyManager.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "NotifyManager": () => (/* binding */ NotifyManager),
+/* harmony export */   "notifyManager": () => (/* binding */ notifyManager)
+/* harmony export */ });
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+ // TYPES
+
+// CLASS
+var NotifyManager = /*#__PURE__*/function () {
+  function NotifyManager() {
+    this.queue = [];
+    this.transactions = 0;
+
+    this.notifyFn = function (callback) {
+      callback();
+    };
+
+    this.batchNotifyFn = function (callback) {
+      callback();
+    };
+  }
+
+  var _proto = NotifyManager.prototype;
+
+  _proto.batch = function batch(callback) {
+    var result;
+    this.transactions++;
+
+    try {
+      result = callback();
+    } finally {
+      this.transactions--;
+
+      if (!this.transactions) {
+        this.flush();
+      }
+    }
+
+    return result;
+  };
+
+  _proto.schedule = function schedule(callback) {
+    var _this = this;
+
+    if (this.transactions) {
+      this.queue.push(callback);
+    } else {
+      (0,_utils__WEBPACK_IMPORTED_MODULE_0__.scheduleMicrotask)(function () {
+        _this.notifyFn(callback);
+      });
+    }
+  }
+  /**
+   * All calls to the wrapped function will be batched.
+   */
+  ;
+
+  _proto.batchCalls = function batchCalls(callback) {
+    var _this2 = this;
+
+    return function () {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      _this2.schedule(function () {
+        callback.apply(void 0, args);
+      });
+    };
+  };
+
+  _proto.flush = function flush() {
+    var _this3 = this;
+
+    var queue = this.queue;
+    this.queue = [];
+
+    if (queue.length) {
+      (0,_utils__WEBPACK_IMPORTED_MODULE_0__.scheduleMicrotask)(function () {
+        _this3.batchNotifyFn(function () {
+          queue.forEach(function (callback) {
+            _this3.notifyFn(callback);
+          });
+        });
+      });
+    }
+  }
+  /**
+   * Use this method to set a custom notify function.
+   * This can be used to for example wrap notifications with `React.act` while running tests.
+   */
+  ;
+
+  _proto.setNotifyFunction = function setNotifyFunction(fn) {
+    this.notifyFn = fn;
+  }
+  /**
+   * Use this method to set a custom function to batch notifications together into a single tick.
+   * By default React Query will use the batch function provided by ReactDOM or React Native.
+   */
+  ;
+
+  _proto.setBatchNotifyFunction = function setBatchNotifyFunction(fn) {
+    this.batchNotifyFn = fn;
+  };
+
+  return NotifyManager;
+}(); // SINGLETON
+
+var notifyManager = new NotifyManager();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/onlineManager.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/react-query/es/core/onlineManager.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "OnlineManager": () => (/* binding */ OnlineManager),
+/* harmony export */   "onlineManager": () => (/* binding */ onlineManager)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+
+
+
+var OnlineManager = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__["default"])(OnlineManager, _Subscribable);
+
+  function OnlineManager() {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+
+    _this.setup = function (onOnline) {
+      var _window;
+
+      if (!_utils__WEBPACK_IMPORTED_MODULE_1__.isServer && ((_window = window) == null ? void 0 : _window.addEventListener)) {
+        var listener = function listener() {
+          return onOnline();
+        }; // Listen to online
+
+
+        window.addEventListener('online', listener, false);
+        window.addEventListener('offline', listener, false);
+        return function () {
+          // Be sure to unsubscribe if a new handler is set
+          window.removeEventListener('online', listener);
+          window.removeEventListener('offline', listener);
+        };
+      }
+    };
+
+    return _this;
+  }
+
+  var _proto = OnlineManager.prototype;
+
+  _proto.onSubscribe = function onSubscribe() {
+    if (!this.cleanup) {
+      this.setEventListener(this.setup);
+    }
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {
+    if (!this.hasListeners()) {
+      var _this$cleanup;
+
+      (_this$cleanup = this.cleanup) == null ? void 0 : _this$cleanup.call(this);
+      this.cleanup = undefined;
+    }
+  };
+
+  _proto.setEventListener = function setEventListener(setup) {
+    var _this$cleanup2,
+        _this2 = this;
+
+    this.setup = setup;
+    (_this$cleanup2 = this.cleanup) == null ? void 0 : _this$cleanup2.call(this);
+    this.cleanup = setup(function (online) {
+      if (typeof online === 'boolean') {
+        _this2.setOnline(online);
+      } else {
+        _this2.onOnline();
+      }
+    });
+  };
+
+  _proto.setOnline = function setOnline(online) {
+    this.online = online;
+
+    if (online) {
+      this.onOnline();
+    }
+  };
+
+  _proto.onOnline = function onOnline() {
+    this.listeners.forEach(function (listener) {
+      listener();
+    });
+  };
+
+  _proto.isOnline = function isOnline() {
+    if (typeof this.online === 'boolean') {
+      return this.online;
+    }
+
+    if (typeof navigator === 'undefined' || typeof navigator.onLine === 'undefined') {
+      return true;
+    }
+
+    return navigator.onLine;
+  };
+
+  return OnlineManager;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_2__.Subscribable);
+var onlineManager = new OnlineManager();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/queriesObserver.js":
+/*!*************************************************************!*\
+  !*** ./node_modules/react-query/es/core/queriesObserver.js ***!
+  \*************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueriesObserver": () => (/* binding */ QueriesObserver)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _queryObserver__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./queryObserver */ "./node_modules/react-query/es/core/queryObserver.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+
+
+
+
+
+var QueriesObserver = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__["default"])(QueriesObserver, _Subscribable);
+
+  function QueriesObserver(client, queries) {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+    _this.client = client;
+    _this.queries = [];
+    _this.result = [];
+    _this.observers = [];
+    _this.observersMap = {};
+
+    if (queries) {
+      _this.setQueries(queries);
+    }
+
+    return _this;
+  }
+
+  var _proto = QueriesObserver.prototype;
+
+  _proto.onSubscribe = function onSubscribe() {
+    var _this2 = this;
+
+    if (this.listeners.length === 1) {
+      this.observers.forEach(function (observer) {
+        observer.subscribe(function (result) {
+          _this2.onUpdate(observer, result);
+        });
+      });
+    }
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {
+    if (!this.listeners.length) {
+      this.destroy();
+    }
+  };
+
+  _proto.destroy = function destroy() {
+    this.listeners = [];
+    this.observers.forEach(function (observer) {
+      observer.destroy();
+    });
+  };
+
+  _proto.setQueries = function setQueries(queries, notifyOptions) {
+    this.queries = queries;
+    this.updateObservers(notifyOptions);
+  };
+
+  _proto.getCurrentResult = function getCurrentResult() {
+    return this.result;
+  };
+
+  _proto.getOptimisticResult = function getOptimisticResult(queries) {
+    return this.findMatchingObservers(queries).map(function (match) {
+      return match.observer.getOptimisticResult(match.defaultedQueryOptions);
+    });
+  };
+
+  _proto.findMatchingObservers = function findMatchingObservers(queries) {
+    var _this3 = this;
+
+    var prevObservers = this.observers;
+    var defaultedQueryOptions = queries.map(function (options) {
+      return _this3.client.defaultQueryObserverOptions(options);
+    });
+    var matchingObservers = defaultedQueryOptions.flatMap(function (defaultedOptions) {
+      var match = prevObservers.find(function (observer) {
+        return observer.options.queryHash === defaultedOptions.queryHash;
+      });
+
+      if (match != null) {
+        return [{
+          defaultedQueryOptions: defaultedOptions,
+          observer: match
+        }];
+      }
+
+      return [];
+    });
+    var matchedQueryHashes = matchingObservers.map(function (match) {
+      return match.defaultedQueryOptions.queryHash;
+    });
+    var unmatchedQueries = defaultedQueryOptions.filter(function (defaultedOptions) {
+      return !matchedQueryHashes.includes(defaultedOptions.queryHash);
+    });
+    var unmatchedObservers = prevObservers.filter(function (prevObserver) {
+      return !matchingObservers.some(function (match) {
+        return match.observer === prevObserver;
+      });
+    });
+    var newOrReusedObservers = unmatchedQueries.map(function (options, index) {
+      if (options.keepPreviousData) {
+        // return previous data from one of the observers that no longer match
+        var previouslyUsedObserver = unmatchedObservers[index];
+
+        if (previouslyUsedObserver !== undefined) {
+          return {
+            defaultedQueryOptions: options,
+            observer: previouslyUsedObserver
+          };
+        }
+      }
+
+      return {
+        defaultedQueryOptions: options,
+        observer: _this3.getObserver(options)
+      };
+    });
+
+    var sortMatchesByOrderOfQueries = function sortMatchesByOrderOfQueries(a, b) {
+      return defaultedQueryOptions.indexOf(a.defaultedQueryOptions) - defaultedQueryOptions.indexOf(b.defaultedQueryOptions);
+    };
+
+    return matchingObservers.concat(newOrReusedObservers).sort(sortMatchesByOrderOfQueries);
+  };
+
+  _proto.getObserver = function getObserver(options) {
+    var defaultedOptions = this.client.defaultQueryObserverOptions(options);
+    var currentObserver = this.observersMap[defaultedOptions.queryHash];
+    return currentObserver != null ? currentObserver : new _queryObserver__WEBPACK_IMPORTED_MODULE_1__.QueryObserver(this.client, defaultedOptions);
+  };
+
+  _proto.updateObservers = function updateObservers(notifyOptions) {
+    var _this4 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_2__.notifyManager.batch(function () {
+      var prevObservers = _this4.observers;
+
+      var newObserverMatches = _this4.findMatchingObservers(_this4.queries); // set options for the new observers to notify of changes
+
+
+      newObserverMatches.forEach(function (match) {
+        return match.observer.setOptions(match.defaultedQueryOptions, notifyOptions);
+      });
+      var newObservers = newObserverMatches.map(function (match) {
+        return match.observer;
+      });
+      var newObserversMap = Object.fromEntries(newObservers.map(function (observer) {
+        return [observer.options.queryHash, observer];
+      }));
+      var newResult = newObservers.map(function (observer) {
+        return observer.getCurrentResult();
+      });
+      var hasIndexChange = newObservers.some(function (observer, index) {
+        return observer !== prevObservers[index];
+      });
+
+      if (prevObservers.length === newObservers.length && !hasIndexChange) {
+        return;
+      }
+
+      _this4.observers = newObservers;
+      _this4.observersMap = newObserversMap;
+      _this4.result = newResult;
+
+      if (!_this4.hasListeners()) {
+        return;
+      }
+
+      (0,_utils__WEBPACK_IMPORTED_MODULE_3__.difference)(prevObservers, newObservers).forEach(function (observer) {
+        observer.destroy();
+      });
+      (0,_utils__WEBPACK_IMPORTED_MODULE_3__.difference)(newObservers, prevObservers).forEach(function (observer) {
+        observer.subscribe(function (result) {
+          _this4.onUpdate(observer, result);
+        });
+      });
+
+      _this4.notify();
+    });
+  };
+
+  _proto.onUpdate = function onUpdate(observer, result) {
+    var index = this.observers.indexOf(observer);
+
+    if (index !== -1) {
+      this.result = (0,_utils__WEBPACK_IMPORTED_MODULE_3__.replaceAt)(this.result, index, result);
+      this.notify();
+    }
+  };
+
+  _proto.notify = function notify() {
+    var _this5 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_2__.notifyManager.batch(function () {
+      _this5.listeners.forEach(function (listener) {
+        listener(_this5.result);
+      });
+    });
+  };
+
+  return QueriesObserver;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_4__.Subscribable);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/query.js":
+/*!***************************************************!*\
+  !*** ./node_modules/react-query/es/core/query.js ***!
+  \***************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Query": () => (/* binding */ Query)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _logger__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./logger */ "./node_modules/react-query/es/core/logger.js");
+/* harmony import */ var _retryer__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./retryer */ "./node_modules/react-query/es/core/retryer.js");
+
+
+
+
+ // TYPES
+
+// CLASS
+var Query = /*#__PURE__*/function () {
+  function Query(config) {
+    this.abortSignalConsumed = false;
+    this.hadObservers = false;
+    this.defaultOptions = config.defaultOptions;
+    this.setOptions(config.options);
+    this.observers = [];
+    this.cache = config.cache;
+    this.queryKey = config.queryKey;
+    this.queryHash = config.queryHash;
+    this.initialState = config.state || this.getDefaultState(this.options);
+    this.state = this.initialState;
+    this.meta = config.meta;
+    this.scheduleGc();
+  }
+
+  var _proto = Query.prototype;
+
+  _proto.setOptions = function setOptions(options) {
+    var _this$options$cacheTi;
+
+    this.options = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.defaultOptions, options);
+    this.meta = options == null ? void 0 : options.meta; // Default to 5 minutes if not cache time is set
+
+    this.cacheTime = Math.max(this.cacheTime || 0, (_this$options$cacheTi = this.options.cacheTime) != null ? _this$options$cacheTi : 5 * 60 * 1000);
+  };
+
+  _proto.setDefaultOptions = function setDefaultOptions(options) {
+    this.defaultOptions = options;
+  };
+
+  _proto.scheduleGc = function scheduleGc() {
+    var _this = this;
+
+    this.clearGcTimeout();
+
+    if ((0,_utils__WEBPACK_IMPORTED_MODULE_1__.isValidTimeout)(this.cacheTime)) {
+      this.gcTimeout = setTimeout(function () {
+        _this.optionalRemove();
+      }, this.cacheTime);
+    }
+  };
+
+  _proto.clearGcTimeout = function clearGcTimeout() {
+    clearTimeout(this.gcTimeout);
+    this.gcTimeout = undefined;
+  };
+
+  _proto.optionalRemove = function optionalRemove() {
+    if (!this.observers.length) {
+      if (this.state.isFetching) {
+        if (this.hadObservers) {
+          this.scheduleGc();
+        }
+      } else {
+        this.cache.remove(this);
+      }
+    }
+  };
+
+  _proto.setData = function setData(updater, options) {
+    var _this$options$isDataE, _this$options;
+
+    var prevData = this.state.data; // Get the new data
+
+    var data = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.functionalUpdate)(updater, prevData); // Use prev data if an isDataEqual function is defined and returns `true`
+
+    if ((_this$options$isDataE = (_this$options = this.options).isDataEqual) == null ? void 0 : _this$options$isDataE.call(_this$options, prevData, data)) {
+      data = prevData;
+    } else if (this.options.structuralSharing !== false) {
+      // Structurally share data between prev and new data if needed
+      data = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.replaceEqualDeep)(prevData, data);
+    } // Set data and mark it as cached
+
+
+    this.dispatch({
+      data: data,
+      type: 'success',
+      dataUpdatedAt: options == null ? void 0 : options.updatedAt
+    });
+    return data;
+  };
+
+  _proto.setState = function setState(state, setStateOptions) {
+    this.dispatch({
+      type: 'setState',
+      state: state,
+      setStateOptions: setStateOptions
+    });
+  };
+
+  _proto.cancel = function cancel(options) {
+    var _this$retryer;
+
+    var promise = this.promise;
+    (_this$retryer = this.retryer) == null ? void 0 : _this$retryer.cancel(options);
+    return promise ? promise.then(_utils__WEBPACK_IMPORTED_MODULE_1__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_1__.noop) : Promise.resolve();
+  };
+
+  _proto.destroy = function destroy() {
+    this.clearGcTimeout();
+    this.cancel({
+      silent: true
+    });
+  };
+
+  _proto.reset = function reset() {
+    this.destroy();
+    this.setState(this.initialState);
+  };
+
+  _proto.isActive = function isActive() {
+    return this.observers.some(function (observer) {
+      return observer.options.enabled !== false;
+    });
+  };
+
+  _proto.isFetching = function isFetching() {
+    return this.state.isFetching;
+  };
+
+  _proto.isStale = function isStale() {
+    return this.state.isInvalidated || !this.state.dataUpdatedAt || this.observers.some(function (observer) {
+      return observer.getCurrentResult().isStale;
+    });
+  };
+
+  _proto.isStaleByTime = function isStaleByTime(staleTime) {
+    if (staleTime === void 0) {
+      staleTime = 0;
+    }
+
+    return this.state.isInvalidated || !this.state.dataUpdatedAt || !(0,_utils__WEBPACK_IMPORTED_MODULE_1__.timeUntilStale)(this.state.dataUpdatedAt, staleTime);
+  };
+
+  _proto.onFocus = function onFocus() {
+    var _this$retryer2;
+
+    var observer = this.observers.find(function (x) {
+      return x.shouldFetchOnWindowFocus();
+    });
+
+    if (observer) {
+      observer.refetch();
+    } // Continue fetch if currently paused
+
+
+    (_this$retryer2 = this.retryer) == null ? void 0 : _this$retryer2.continue();
+  };
+
+  _proto.onOnline = function onOnline() {
+    var _this$retryer3;
+
+    var observer = this.observers.find(function (x) {
+      return x.shouldFetchOnReconnect();
+    });
+
+    if (observer) {
+      observer.refetch();
+    } // Continue fetch if currently paused
+
+
+    (_this$retryer3 = this.retryer) == null ? void 0 : _this$retryer3.continue();
+  };
+
+  _proto.addObserver = function addObserver(observer) {
+    if (this.observers.indexOf(observer) === -1) {
+      this.observers.push(observer);
+      this.hadObservers = true; // Stop the query from being garbage collected
+
+      this.clearGcTimeout();
+      this.cache.notify({
+        type: 'observerAdded',
+        query: this,
+        observer: observer
+      });
+    }
+  };
+
+  _proto.removeObserver = function removeObserver(observer) {
+    if (this.observers.indexOf(observer) !== -1) {
+      this.observers = this.observers.filter(function (x) {
+        return x !== observer;
+      });
+
+      if (!this.observers.length) {
+        // If the transport layer does not support cancellation
+        // we'll let the query continue so the result can be cached
+        if (this.retryer) {
+          if (this.retryer.isTransportCancelable || this.abortSignalConsumed) {
+            this.retryer.cancel({
+              revert: true
+            });
+          } else {
+            this.retryer.cancelRetry();
+          }
+        }
+
+        if (this.cacheTime) {
+          this.scheduleGc();
+        } else {
+          this.cache.remove(this);
+        }
+      }
+
+      this.cache.notify({
+        type: 'observerRemoved',
+        query: this,
+        observer: observer
+      });
+    }
+  };
+
+  _proto.getObserversCount = function getObserversCount() {
+    return this.observers.length;
+  };
+
+  _proto.invalidate = function invalidate() {
+    if (!this.state.isInvalidated) {
+      this.dispatch({
+        type: 'invalidate'
+      });
+    }
+  };
+
+  _proto.fetch = function fetch(options, fetchOptions) {
+    var _this2 = this,
+        _this$options$behavio,
+        _context$fetchOptions,
+        _abortController$abor;
+
+    if (this.state.isFetching) {
+      if (this.state.dataUpdatedAt && (fetchOptions == null ? void 0 : fetchOptions.cancelRefetch)) {
+        // Silently cancel current fetch if the user wants to cancel refetches
+        this.cancel({
+          silent: true
+        });
+      } else if (this.promise) {
+        var _this$retryer4;
+
+        // make sure that retries that were potentially cancelled due to unmounts can continue
+        (_this$retryer4 = this.retryer) == null ? void 0 : _this$retryer4.continueRetry(); // Return current promise if we are already fetching
+
+        return this.promise;
+      }
+    } // Update config if passed, otherwise the config from the last execution is used
+
+
+    if (options) {
+      this.setOptions(options);
+    } // Use the options from the first observer with a query function if no function is found.
+    // This can happen when the query is hydrated or created with setQueryData.
+
+
+    if (!this.options.queryFn) {
+      var observer = this.observers.find(function (x) {
+        return x.options.queryFn;
+      });
+
+      if (observer) {
+        this.setOptions(observer.options);
+      }
+    }
+
+    var queryKey = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.ensureQueryKeyArray)(this.queryKey);
+    var abortController = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getAbortController)(); // Create query function context
+
+    var queryFnContext = {
+      queryKey: queryKey,
+      pageParam: undefined,
+      meta: this.meta
+    };
+    Object.defineProperty(queryFnContext, 'signal', {
+      enumerable: true,
+      get: function get() {
+        if (abortController) {
+          _this2.abortSignalConsumed = true;
+          return abortController.signal;
+        }
+
+        return undefined;
+      }
+    }); // Create fetch function
+
+    var fetchFn = function fetchFn() {
+      if (!_this2.options.queryFn) {
+        return Promise.reject('Missing queryFn');
+      }
+
+      _this2.abortSignalConsumed = false;
+      return _this2.options.queryFn(queryFnContext);
+    }; // Trigger behavior hook
+
+
+    var context = {
+      fetchOptions: fetchOptions,
+      options: this.options,
+      queryKey: queryKey,
+      state: this.state,
+      fetchFn: fetchFn,
+      meta: this.meta
+    };
+
+    if ((_this$options$behavio = this.options.behavior) == null ? void 0 : _this$options$behavio.onFetch) {
+      var _this$options$behavio2;
+
+      (_this$options$behavio2 = this.options.behavior) == null ? void 0 : _this$options$behavio2.onFetch(context);
+    } // Store state in case the current fetch needs to be reverted
+
+
+    this.revertState = this.state; // Set to fetching state if not already in it
+
+    if (!this.state.isFetching || this.state.fetchMeta !== ((_context$fetchOptions = context.fetchOptions) == null ? void 0 : _context$fetchOptions.meta)) {
+      var _context$fetchOptions2;
+
+      this.dispatch({
+        type: 'fetch',
+        meta: (_context$fetchOptions2 = context.fetchOptions) == null ? void 0 : _context$fetchOptions2.meta
+      });
+    } // Try to fetch the data
+
+
+    this.retryer = new _retryer__WEBPACK_IMPORTED_MODULE_2__.Retryer({
+      fn: context.fetchFn,
+      abort: abortController == null ? void 0 : (_abortController$abor = abortController.abort) == null ? void 0 : _abortController$abor.bind(abortController),
+      onSuccess: function onSuccess(data) {
+        _this2.setData(data); // Notify cache callback
+
+
+        _this2.cache.config.onSuccess == null ? void 0 : _this2.cache.config.onSuccess(data, _this2); // Remove query after fetching if cache time is 0
+
+        if (_this2.cacheTime === 0) {
+          _this2.optionalRemove();
+        }
+      },
+      onError: function onError(error) {
+        // Optimistically update state if needed
+        if (!((0,_retryer__WEBPACK_IMPORTED_MODULE_2__.isCancelledError)(error) && error.silent)) {
+          _this2.dispatch({
+            type: 'error',
+            error: error
+          });
+        }
+
+        if (!(0,_retryer__WEBPACK_IMPORTED_MODULE_2__.isCancelledError)(error)) {
+          // Notify cache callback
+          _this2.cache.config.onError == null ? void 0 : _this2.cache.config.onError(error, _this2); // Log error
+
+          (0,_logger__WEBPACK_IMPORTED_MODULE_3__.getLogger)().error(error);
+        } // Remove query after fetching if cache time is 0
+
+
+        if (_this2.cacheTime === 0) {
+          _this2.optionalRemove();
+        }
+      },
+      onFail: function onFail() {
+        _this2.dispatch({
+          type: 'failed'
+        });
+      },
+      onPause: function onPause() {
+        _this2.dispatch({
+          type: 'pause'
+        });
+      },
+      onContinue: function onContinue() {
+        _this2.dispatch({
+          type: 'continue'
+        });
+      },
+      retry: context.options.retry,
+      retryDelay: context.options.retryDelay
+    });
+    this.promise = this.retryer.promise;
+    return this.promise;
+  };
+
+  _proto.dispatch = function dispatch(action) {
+    var _this3 = this;
+
+    this.state = this.reducer(this.state, action);
+    _notifyManager__WEBPACK_IMPORTED_MODULE_4__.notifyManager.batch(function () {
+      _this3.observers.forEach(function (observer) {
+        observer.onQueryUpdate(action);
+      });
+
+      _this3.cache.notify({
+        query: _this3,
+        type: 'queryUpdated',
+        action: action
+      });
+    });
+  };
+
+  _proto.getDefaultState = function getDefaultState(options) {
+    var data = typeof options.initialData === 'function' ? options.initialData() : options.initialData;
+    var hasInitialData = typeof options.initialData !== 'undefined';
+    var initialDataUpdatedAt = hasInitialData ? typeof options.initialDataUpdatedAt === 'function' ? options.initialDataUpdatedAt() : options.initialDataUpdatedAt : 0;
+    var hasData = typeof data !== 'undefined';
+    return {
+      data: data,
+      dataUpdateCount: 0,
+      dataUpdatedAt: hasData ? initialDataUpdatedAt != null ? initialDataUpdatedAt : Date.now() : 0,
+      error: null,
+      errorUpdateCount: 0,
+      errorUpdatedAt: 0,
+      fetchFailureCount: 0,
+      fetchMeta: null,
+      isFetching: false,
+      isInvalidated: false,
+      isPaused: false,
+      status: hasData ? 'success' : 'idle'
+    };
+  };
+
+  _proto.reducer = function reducer(state, action) {
+    var _action$meta, _action$dataUpdatedAt;
+
+    switch (action.type) {
+      case 'failed':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          fetchFailureCount: state.fetchFailureCount + 1
+        });
+
+      case 'pause':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          isPaused: true
+        });
+
+      case 'continue':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          isPaused: false
+        });
+
+      case 'fetch':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          fetchFailureCount: 0,
+          fetchMeta: (_action$meta = action.meta) != null ? _action$meta : null,
+          isFetching: true,
+          isPaused: false
+        }, !state.dataUpdatedAt && {
+          error: null,
+          status: 'loading'
+        });
+
+      case 'success':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          data: action.data,
+          dataUpdateCount: state.dataUpdateCount + 1,
+          dataUpdatedAt: (_action$dataUpdatedAt = action.dataUpdatedAt) != null ? _action$dataUpdatedAt : Date.now(),
+          error: null,
+          fetchFailureCount: 0,
+          isFetching: false,
+          isInvalidated: false,
+          isPaused: false,
+          status: 'success'
+        });
+
+      case 'error':
+        var error = action.error;
+
+        if ((0,_retryer__WEBPACK_IMPORTED_MODULE_2__.isCancelledError)(error) && error.revert && this.revertState) {
+          return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.revertState);
+        }
+
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          error: error,
+          errorUpdateCount: state.errorUpdateCount + 1,
+          errorUpdatedAt: Date.now(),
+          fetchFailureCount: state.fetchFailureCount + 1,
+          isFetching: false,
+          isPaused: false,
+          status: 'error'
+        });
+
+      case 'invalidate':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, {
+          isInvalidated: true
+        });
+
+      case 'setState':
+        return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, state, action.state);
+
+      default:
+        return state;
+    }
+  };
+
+  return Query;
+}();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/queryCache.js":
+/*!********************************************************!*\
+  !*** ./node_modules/react-query/es/core/queryCache.js ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueryCache": () => (/* binding */ QueryCache)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _query__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./query */ "./node_modules/react-query/es/core/query.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+
+
+
+
+
+// CLASS
+var QueryCache = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_0__["default"])(QueryCache, _Subscribable);
+
+  function QueryCache(config) {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+    _this.config = config || {};
+    _this.queries = [];
+    _this.queriesMap = {};
+    return _this;
+  }
+
+  var _proto = QueryCache.prototype;
+
+  _proto.build = function build(client, options, state) {
+    var _options$queryHash;
+
+    var queryKey = options.queryKey;
+    var queryHash = (_options$queryHash = options.queryHash) != null ? _options$queryHash : (0,_utils__WEBPACK_IMPORTED_MODULE_1__.hashQueryKeyByOptions)(queryKey, options);
+    var query = this.get(queryHash);
+
+    if (!query) {
+      query = new _query__WEBPACK_IMPORTED_MODULE_2__.Query({
+        cache: this,
+        queryKey: queryKey,
+        queryHash: queryHash,
+        options: client.defaultQueryOptions(options),
+        state: state,
+        defaultOptions: client.getQueryDefaults(queryKey),
+        meta: options.meta
+      });
+      this.add(query);
+    }
+
+    return query;
+  };
+
+  _proto.add = function add(query) {
+    if (!this.queriesMap[query.queryHash]) {
+      this.queriesMap[query.queryHash] = query;
+      this.queries.push(query);
+      this.notify({
+        type: 'queryAdded',
+        query: query
+      });
+    }
+  };
+
+  _proto.remove = function remove(query) {
+    var queryInMap = this.queriesMap[query.queryHash];
+
+    if (queryInMap) {
+      query.destroy();
+      this.queries = this.queries.filter(function (x) {
+        return x !== query;
+      });
+
+      if (queryInMap === query) {
+        delete this.queriesMap[query.queryHash];
+      }
+
+      this.notify({
+        type: 'queryRemoved',
+        query: query
+      });
+    }
+  };
+
+  _proto.clear = function clear() {
+    var _this2 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batch(function () {
+      _this2.queries.forEach(function (query) {
+        _this2.remove(query);
+      });
+    });
+  };
+
+  _proto.get = function get(queryHash) {
+    return this.queriesMap[queryHash];
+  };
+
+  _proto.getAll = function getAll() {
+    return this.queries;
+  };
+
+  _proto.find = function find(arg1, arg2) {
+    var _parseFilterArgs = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.parseFilterArgs)(arg1, arg2),
+        filters = _parseFilterArgs[0];
+
+    if (typeof filters.exact === 'undefined') {
+      filters.exact = true;
+    }
+
+    return this.queries.find(function (query) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_1__.matchQuery)(filters, query);
+    });
+  };
+
+  _proto.findAll = function findAll(arg1, arg2) {
+    var _parseFilterArgs2 = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.parseFilterArgs)(arg1, arg2),
+        filters = _parseFilterArgs2[0];
+
+    return Object.keys(filters).length > 0 ? this.queries.filter(function (query) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_1__.matchQuery)(filters, query);
+    }) : this.queries;
+  };
+
+  _proto.notify = function notify(event) {
+    var _this3 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batch(function () {
+      _this3.listeners.forEach(function (listener) {
+        listener(event);
+      });
+    });
+  };
+
+  _proto.onFocus = function onFocus() {
+    var _this4 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batch(function () {
+      _this4.queries.forEach(function (query) {
+        query.onFocus();
+      });
+    });
+  };
+
+  _proto.onOnline = function onOnline() {
+    var _this5 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batch(function () {
+      _this5.queries.forEach(function (query) {
+        query.onOnline();
+      });
+    });
+  };
+
+  return QueryCache;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_4__.Subscribable);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/queryClient.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/react-query/es/core/queryClient.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueryClient": () => (/* binding */ QueryClient)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _queryCache__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./queryCache */ "./node_modules/react-query/es/core/queryCache.js");
+/* harmony import */ var _mutationCache__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./mutationCache */ "./node_modules/react-query/es/core/mutationCache.js");
+/* harmony import */ var _focusManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./focusManager */ "./node_modules/react-query/es/core/focusManager.js");
+/* harmony import */ var _onlineManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./onlineManager */ "./node_modules/react-query/es/core/onlineManager.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./infiniteQueryBehavior */ "./node_modules/react-query/es/core/infiniteQueryBehavior.js");
+
+
+
+
+
+
+
+
+// CLASS
+var QueryClient = /*#__PURE__*/function () {
+  function QueryClient(config) {
+    if (config === void 0) {
+      config = {};
+    }
+
+    this.queryCache = config.queryCache || new _queryCache__WEBPACK_IMPORTED_MODULE_1__.QueryCache();
+    this.mutationCache = config.mutationCache || new _mutationCache__WEBPACK_IMPORTED_MODULE_2__.MutationCache();
+    this.defaultOptions = config.defaultOptions || {};
+    this.queryDefaults = [];
+    this.mutationDefaults = [];
+  }
+
+  var _proto = QueryClient.prototype;
+
+  _proto.mount = function mount() {
+    var _this = this;
+
+    this.unsubscribeFocus = _focusManager__WEBPACK_IMPORTED_MODULE_3__.focusManager.subscribe(function () {
+      if (_focusManager__WEBPACK_IMPORTED_MODULE_3__.focusManager.isFocused() && _onlineManager__WEBPACK_IMPORTED_MODULE_4__.onlineManager.isOnline()) {
+        _this.mutationCache.onFocus();
+
+        _this.queryCache.onFocus();
+      }
+    });
+    this.unsubscribeOnline = _onlineManager__WEBPACK_IMPORTED_MODULE_4__.onlineManager.subscribe(function () {
+      if (_focusManager__WEBPACK_IMPORTED_MODULE_3__.focusManager.isFocused() && _onlineManager__WEBPACK_IMPORTED_MODULE_4__.onlineManager.isOnline()) {
+        _this.mutationCache.onOnline();
+
+        _this.queryCache.onOnline();
+      }
+    });
+  };
+
+  _proto.unmount = function unmount() {
+    var _this$unsubscribeFocu, _this$unsubscribeOnli;
+
+    (_this$unsubscribeFocu = this.unsubscribeFocus) == null ? void 0 : _this$unsubscribeFocu.call(this);
+    (_this$unsubscribeOnli = this.unsubscribeOnline) == null ? void 0 : _this$unsubscribeOnli.call(this);
+  };
+
+  _proto.isFetching = function isFetching(arg1, arg2) {
+    var _parseFilterArgs = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2),
+        filters = _parseFilterArgs[0];
+
+    filters.fetching = true;
+    return this.queryCache.findAll(filters).length;
+  };
+
+  _proto.isMutating = function isMutating(filters) {
+    return this.mutationCache.findAll((0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, filters, {
+      fetching: true
+    })).length;
+  };
+
+  _proto.getQueryData = function getQueryData(queryKey, filters) {
+    var _this$queryCache$find;
+
+    return (_this$queryCache$find = this.queryCache.find(queryKey, filters)) == null ? void 0 : _this$queryCache$find.state.data;
+  };
+
+  _proto.getQueriesData = function getQueriesData(queryKeyOrFilters) {
+    return this.getQueryCache().findAll(queryKeyOrFilters).map(function (_ref) {
+      var queryKey = _ref.queryKey,
+          state = _ref.state;
+      var data = state.data;
+      return [queryKey, data];
+    });
+  };
+
+  _proto.setQueryData = function setQueryData(queryKey, updater, options) {
+    var parsedOptions = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseQueryArgs)(queryKey);
+    var defaultedOptions = this.defaultQueryOptions(parsedOptions);
+    return this.queryCache.build(this, defaultedOptions).setData(updater, options);
+  };
+
+  _proto.setQueriesData = function setQueriesData(queryKeyOrFilters, updater, options) {
+    var _this2 = this;
+
+    return _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      return _this2.getQueryCache().findAll(queryKeyOrFilters).map(function (_ref2) {
+        var queryKey = _ref2.queryKey;
+        return [queryKey, _this2.setQueryData(queryKey, updater, options)];
+      });
+    });
+  };
+
+  _proto.getQueryState = function getQueryState(queryKey, filters) {
+    var _this$queryCache$find2;
+
+    return (_this$queryCache$find2 = this.queryCache.find(queryKey, filters)) == null ? void 0 : _this$queryCache$find2.state;
+  };
+
+  _proto.removeQueries = function removeQueries(arg1, arg2) {
+    var _parseFilterArgs2 = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2),
+        filters = _parseFilterArgs2[0];
+
+    var queryCache = this.queryCache;
+    _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      queryCache.findAll(filters).forEach(function (query) {
+        queryCache.remove(query);
+      });
+    });
+  };
+
+  _proto.resetQueries = function resetQueries(arg1, arg2, arg3) {
+    var _this3 = this;
+
+    var _parseFilterArgs3 = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2, arg3),
+        filters = _parseFilterArgs3[0],
+        options = _parseFilterArgs3[1];
+
+    var queryCache = this.queryCache;
+
+    var refetchFilters = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, filters, {
+      active: true
+    });
+
+    return _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      queryCache.findAll(filters).forEach(function (query) {
+        query.reset();
+      });
+      return _this3.refetchQueries(refetchFilters, options);
+    });
+  };
+
+  _proto.cancelQueries = function cancelQueries(arg1, arg2, arg3) {
+    var _this4 = this;
+
+    var _parseFilterArgs4 = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2, arg3),
+        filters = _parseFilterArgs4[0],
+        _parseFilterArgs4$ = _parseFilterArgs4[1],
+        cancelOptions = _parseFilterArgs4$ === void 0 ? {} : _parseFilterArgs4$;
+
+    if (typeof cancelOptions.revert === 'undefined') {
+      cancelOptions.revert = true;
+    }
+
+    var promises = _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      return _this4.queryCache.findAll(filters).map(function (query) {
+        return query.cancel(cancelOptions);
+      });
+    });
+    return Promise.all(promises).then(_utils__WEBPACK_IMPORTED_MODULE_5__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+  };
+
+  _proto.invalidateQueries = function invalidateQueries(arg1, arg2, arg3) {
+    var _ref3,
+        _filters$refetchActiv,
+        _filters$refetchInact,
+        _this5 = this;
+
+    var _parseFilterArgs5 = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2, arg3),
+        filters = _parseFilterArgs5[0],
+        options = _parseFilterArgs5[1];
+
+    var refetchFilters = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, filters, {
+      // if filters.refetchActive is not provided and filters.active is explicitly false,
+      // e.g. invalidateQueries({ active: false }), we don't want to refetch active queries
+      active: (_ref3 = (_filters$refetchActiv = filters.refetchActive) != null ? _filters$refetchActiv : filters.active) != null ? _ref3 : true,
+      inactive: (_filters$refetchInact = filters.refetchInactive) != null ? _filters$refetchInact : false
+    });
+
+    return _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      _this5.queryCache.findAll(filters).forEach(function (query) {
+        query.invalidate();
+      });
+
+      return _this5.refetchQueries(refetchFilters, options);
+    });
+  };
+
+  _proto.refetchQueries = function refetchQueries(arg1, arg2, arg3) {
+    var _this6 = this;
+
+    var _parseFilterArgs6 = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseFilterArgs)(arg1, arg2, arg3),
+        filters = _parseFilterArgs6[0],
+        options = _parseFilterArgs6[1];
+
+    var promises = _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      return _this6.queryCache.findAll(filters).map(function (query) {
+        return query.fetch(undefined, (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, options, {
+          meta: {
+            refetchPage: filters == null ? void 0 : filters.refetchPage
+          }
+        }));
+      });
+    });
+    var promise = Promise.all(promises).then(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+
+    if (!(options == null ? void 0 : options.throwOnError)) {
+      promise = promise.catch(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+    }
+
+    return promise;
+  };
+
+  _proto.fetchQuery = function fetchQuery(arg1, arg2, arg3) {
+    var parsedOptions = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseQueryArgs)(arg1, arg2, arg3);
+    var defaultedOptions = this.defaultQueryOptions(parsedOptions); // https://github.com/tannerlinsley/react-query/issues/652
+
+    if (typeof defaultedOptions.retry === 'undefined') {
+      defaultedOptions.retry = false;
+    }
+
+    var query = this.queryCache.build(this, defaultedOptions);
+    return query.isStaleByTime(defaultedOptions.staleTime) ? query.fetch(defaultedOptions) : Promise.resolve(query.state.data);
+  };
+
+  _proto.prefetchQuery = function prefetchQuery(arg1, arg2, arg3) {
+    return this.fetchQuery(arg1, arg2, arg3).then(_utils__WEBPACK_IMPORTED_MODULE_5__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+  };
+
+  _proto.fetchInfiniteQuery = function fetchInfiniteQuery(arg1, arg2, arg3) {
+    var parsedOptions = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.parseQueryArgs)(arg1, arg2, arg3);
+    parsedOptions.behavior = (0,_infiniteQueryBehavior__WEBPACK_IMPORTED_MODULE_7__.infiniteQueryBehavior)();
+    return this.fetchQuery(parsedOptions);
+  };
+
+  _proto.prefetchInfiniteQuery = function prefetchInfiniteQuery(arg1, arg2, arg3) {
+    return this.fetchInfiniteQuery(arg1, arg2, arg3).then(_utils__WEBPACK_IMPORTED_MODULE_5__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+  };
+
+  _proto.cancelMutations = function cancelMutations() {
+    var _this7 = this;
+
+    var promises = _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      return _this7.mutationCache.getAll().map(function (mutation) {
+        return mutation.cancel();
+      });
+    });
+    return Promise.all(promises).then(_utils__WEBPACK_IMPORTED_MODULE_5__.noop).catch(_utils__WEBPACK_IMPORTED_MODULE_5__.noop);
+  };
+
+  _proto.resumePausedMutations = function resumePausedMutations() {
+    return this.getMutationCache().resumePausedMutations();
+  };
+
+  _proto.executeMutation = function executeMutation(options) {
+    return this.mutationCache.build(this, options).execute();
+  };
+
+  _proto.getQueryCache = function getQueryCache() {
+    return this.queryCache;
+  };
+
+  _proto.getMutationCache = function getMutationCache() {
+    return this.mutationCache;
+  };
+
+  _proto.getDefaultOptions = function getDefaultOptions() {
+    return this.defaultOptions;
+  };
+
+  _proto.setDefaultOptions = function setDefaultOptions(options) {
+    this.defaultOptions = options;
+  };
+
+  _proto.setQueryDefaults = function setQueryDefaults(queryKey, options) {
+    var result = this.queryDefaults.find(function (x) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_5__.hashQueryKey)(queryKey) === (0,_utils__WEBPACK_IMPORTED_MODULE_5__.hashQueryKey)(x.queryKey);
+    });
+
+    if (result) {
+      result.defaultOptions = options;
+    } else {
+      this.queryDefaults.push({
+        queryKey: queryKey,
+        defaultOptions: options
+      });
+    }
+  };
+
+  _proto.getQueryDefaults = function getQueryDefaults(queryKey) {
+    var _this$queryDefaults$f;
+
+    return queryKey ? (_this$queryDefaults$f = this.queryDefaults.find(function (x) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_5__.partialMatchKey)(queryKey, x.queryKey);
+    })) == null ? void 0 : _this$queryDefaults$f.defaultOptions : undefined;
+  };
+
+  _proto.setMutationDefaults = function setMutationDefaults(mutationKey, options) {
+    var result = this.mutationDefaults.find(function (x) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_5__.hashQueryKey)(mutationKey) === (0,_utils__WEBPACK_IMPORTED_MODULE_5__.hashQueryKey)(x.mutationKey);
+    });
+
+    if (result) {
+      result.defaultOptions = options;
+    } else {
+      this.mutationDefaults.push({
+        mutationKey: mutationKey,
+        defaultOptions: options
+      });
+    }
+  };
+
+  _proto.getMutationDefaults = function getMutationDefaults(mutationKey) {
+    var _this$mutationDefault;
+
+    return mutationKey ? (_this$mutationDefault = this.mutationDefaults.find(function (x) {
+      return (0,_utils__WEBPACK_IMPORTED_MODULE_5__.partialMatchKey)(mutationKey, x.mutationKey);
+    })) == null ? void 0 : _this$mutationDefault.defaultOptions : undefined;
+  };
+
+  _proto.defaultQueryOptions = function defaultQueryOptions(options) {
+    if (options == null ? void 0 : options._defaulted) {
+      return options;
+    }
+
+    var defaultedOptions = (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.defaultOptions.queries, this.getQueryDefaults(options == null ? void 0 : options.queryKey), options, {
+      _defaulted: true
+    });
+
+    if (!defaultedOptions.queryHash && defaultedOptions.queryKey) {
+      defaultedOptions.queryHash = (0,_utils__WEBPACK_IMPORTED_MODULE_5__.hashQueryKeyByOptions)(defaultedOptions.queryKey, defaultedOptions);
+    }
+
+    return defaultedOptions;
+  };
+
+  _proto.defaultQueryObserverOptions = function defaultQueryObserverOptions(options) {
+    return this.defaultQueryOptions(options);
+  };
+
+  _proto.defaultMutationOptions = function defaultMutationOptions(options) {
+    if (options == null ? void 0 : options._defaulted) {
+      return options;
+    }
+
+    return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.defaultOptions.mutations, this.getMutationDefaults(options == null ? void 0 : options.mutationKey), options, {
+      _defaulted: true
+    });
+  };
+
+  _proto.clear = function clear() {
+    this.queryCache.clear();
+    this.mutationCache.clear();
+  };
+
+  return QueryClient;
+}();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/queryObserver.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/react-query/es/core/queryObserver.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueryObserver": () => (/* binding */ QueryObserver)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var _babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @babel/runtime/helpers/esm/inheritsLoose */ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _notifyManager__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _focusManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./focusManager */ "./node_modules/react-query/es/core/focusManager.js");
+/* harmony import */ var _subscribable__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./subscribable */ "./node_modules/react-query/es/core/subscribable.js");
+/* harmony import */ var _logger__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./logger */ "./node_modules/react-query/es/core/logger.js");
+/* harmony import */ var _retryer__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./retryer */ "./node_modules/react-query/es/core/retryer.js");
+
+
+
+
+
+
+
+
+var QueryObserver = /*#__PURE__*/function (_Subscribable) {
+  (0,_babel_runtime_helpers_esm_inheritsLoose__WEBPACK_IMPORTED_MODULE_1__["default"])(QueryObserver, _Subscribable);
+
+  function QueryObserver(client, options) {
+    var _this;
+
+    _this = _Subscribable.call(this) || this;
+    _this.client = client;
+    _this.options = options;
+    _this.trackedProps = [];
+    _this.previousSelectError = null;
+
+    _this.bindMethods();
+
+    _this.setOptions(options);
+
+    return _this;
+  }
+
+  var _proto = QueryObserver.prototype;
+
+  _proto.bindMethods = function bindMethods() {
+    this.remove = this.remove.bind(this);
+    this.refetch = this.refetch.bind(this);
+  };
+
+  _proto.onSubscribe = function onSubscribe() {
+    if (this.listeners.length === 1) {
+      this.currentQuery.addObserver(this);
+
+      if (shouldFetchOnMount(this.currentQuery, this.options)) {
+        this.executeFetch();
+      }
+
+      this.updateTimers();
+    }
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {
+    if (!this.listeners.length) {
+      this.destroy();
+    }
+  };
+
+  _proto.shouldFetchOnReconnect = function shouldFetchOnReconnect() {
+    return _shouldFetchOnReconnect(this.currentQuery, this.options);
+  };
+
+  _proto.shouldFetchOnWindowFocus = function shouldFetchOnWindowFocus() {
+    return _shouldFetchOnWindowFocus(this.currentQuery, this.options);
+  };
+
+  _proto.destroy = function destroy() {
+    this.listeners = [];
+    this.clearTimers();
+    this.currentQuery.removeObserver(this);
+  };
+
+  _proto.setOptions = function setOptions(options, notifyOptions) {
+    var prevOptions = this.options;
+    var prevQuery = this.currentQuery;
+    this.options = this.client.defaultQueryObserverOptions(options);
+
+    if (typeof this.options.enabled !== 'undefined' && typeof this.options.enabled !== 'boolean') {
+      throw new Error('Expected enabled to be a boolean');
+    } // Keep previous query key if the user does not supply one
+
+
+    if (!this.options.queryKey) {
+      this.options.queryKey = prevOptions.queryKey;
+    }
+
+    this.updateQuery();
+    var mounted = this.hasListeners(); // Fetch if there are subscribers
+
+    if (mounted && shouldFetchOptionally(this.currentQuery, prevQuery, this.options, prevOptions)) {
+      this.executeFetch();
+    } // Update result
+
+
+    this.updateResult(notifyOptions); // Update stale interval if needed
+
+    if (mounted && (this.currentQuery !== prevQuery || this.options.enabled !== prevOptions.enabled || this.options.staleTime !== prevOptions.staleTime)) {
+      this.updateStaleTimeout();
+    }
+
+    var nextRefetchInterval = this.computeRefetchInterval(); // Update refetch interval if needed
+
+    if (mounted && (this.currentQuery !== prevQuery || this.options.enabled !== prevOptions.enabled || nextRefetchInterval !== this.currentRefetchInterval)) {
+      this.updateRefetchInterval(nextRefetchInterval);
+    }
+  };
+
+  _proto.getOptimisticResult = function getOptimisticResult(options) {
+    var defaultedOptions = this.client.defaultQueryObserverOptions(options);
+    var query = this.client.getQueryCache().build(this.client, defaultedOptions);
+    return this.createResult(query, defaultedOptions);
+  };
+
+  _proto.getCurrentResult = function getCurrentResult() {
+    return this.currentResult;
+  };
+
+  _proto.trackResult = function trackResult(result, defaultedOptions) {
+    var _this2 = this;
+
+    var trackedResult = {};
+
+    var trackProp = function trackProp(key) {
+      if (!_this2.trackedProps.includes(key)) {
+        _this2.trackedProps.push(key);
+      }
+    };
+
+    Object.keys(result).forEach(function (key) {
+      Object.defineProperty(trackedResult, key, {
+        configurable: false,
+        enumerable: true,
+        get: function get() {
+          trackProp(key);
+          return result[key];
+        }
+      });
+    });
+
+    if (defaultedOptions.useErrorBoundary || defaultedOptions.suspense) {
+      trackProp('error');
+    }
+
+    return trackedResult;
+  };
+
+  _proto.getNextResult = function getNextResult(options) {
+    var _this3 = this;
+
+    return new Promise(function (resolve, reject) {
+      var unsubscribe = _this3.subscribe(function (result) {
+        if (!result.isFetching) {
+          unsubscribe();
+
+          if (result.isError && (options == null ? void 0 : options.throwOnError)) {
+            reject(result.error);
+          } else {
+            resolve(result);
+          }
+        }
+      });
+    });
+  };
+
+  _proto.getCurrentQuery = function getCurrentQuery() {
+    return this.currentQuery;
+  };
+
+  _proto.remove = function remove() {
+    this.client.getQueryCache().remove(this.currentQuery);
+  };
+
+  _proto.refetch = function refetch(options) {
+    return this.fetch((0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, options, {
+      meta: {
+        refetchPage: options == null ? void 0 : options.refetchPage
+      }
+    }));
+  };
+
+  _proto.fetchOptimistic = function fetchOptimistic(options) {
+    var _this4 = this;
+
+    var defaultedOptions = this.client.defaultQueryObserverOptions(options);
+    var query = this.client.getQueryCache().build(this.client, defaultedOptions);
+    return query.fetch().then(function () {
+      return _this4.createResult(query, defaultedOptions);
+    });
+  };
+
+  _proto.fetch = function fetch(fetchOptions) {
+    var _this5 = this;
+
+    return this.executeFetch(fetchOptions).then(function () {
+      _this5.updateResult();
+
+      return _this5.currentResult;
+    });
+  };
+
+  _proto.executeFetch = function executeFetch(fetchOptions) {
+    // Make sure we reference the latest query as the current one might have been removed
+    this.updateQuery(); // Fetch
+
+    var promise = this.currentQuery.fetch(this.options, fetchOptions);
+
+    if (!(fetchOptions == null ? void 0 : fetchOptions.throwOnError)) {
+      promise = promise.catch(_utils__WEBPACK_IMPORTED_MODULE_2__.noop);
+    }
+
+    return promise;
+  };
+
+  _proto.updateStaleTimeout = function updateStaleTimeout() {
+    var _this6 = this;
+
+    this.clearStaleTimeout();
+
+    if (_utils__WEBPACK_IMPORTED_MODULE_2__.isServer || this.currentResult.isStale || !(0,_utils__WEBPACK_IMPORTED_MODULE_2__.isValidTimeout)(this.options.staleTime)) {
+      return;
+    }
+
+    var time = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.timeUntilStale)(this.currentResult.dataUpdatedAt, this.options.staleTime); // The timeout is sometimes triggered 1 ms before the stale time expiration.
+    // To mitigate this issue we always add 1 ms to the timeout.
+
+    var timeout = time + 1;
+    this.staleTimeoutId = setTimeout(function () {
+      if (!_this6.currentResult.isStale) {
+        _this6.updateResult();
+      }
+    }, timeout);
+  };
+
+  _proto.computeRefetchInterval = function computeRefetchInterval() {
+    var _this$options$refetch;
+
+    return typeof this.options.refetchInterval === 'function' ? this.options.refetchInterval(this.currentResult.data, this.currentQuery) : (_this$options$refetch = this.options.refetchInterval) != null ? _this$options$refetch : false;
+  };
+
+  _proto.updateRefetchInterval = function updateRefetchInterval(nextInterval) {
+    var _this7 = this;
+
+    this.clearRefetchInterval();
+    this.currentRefetchInterval = nextInterval;
+
+    if (_utils__WEBPACK_IMPORTED_MODULE_2__.isServer || this.options.enabled === false || !(0,_utils__WEBPACK_IMPORTED_MODULE_2__.isValidTimeout)(this.currentRefetchInterval) || this.currentRefetchInterval === 0) {
+      return;
+    }
+
+    this.refetchIntervalId = setInterval(function () {
+      if (_this7.options.refetchIntervalInBackground || _focusManager__WEBPACK_IMPORTED_MODULE_3__.focusManager.isFocused()) {
+        _this7.executeFetch();
+      }
+    }, this.currentRefetchInterval);
+  };
+
+  _proto.updateTimers = function updateTimers() {
+    this.updateStaleTimeout();
+    this.updateRefetchInterval(this.computeRefetchInterval());
+  };
+
+  _proto.clearTimers = function clearTimers() {
+    this.clearStaleTimeout();
+    this.clearRefetchInterval();
+  };
+
+  _proto.clearStaleTimeout = function clearStaleTimeout() {
+    clearTimeout(this.staleTimeoutId);
+    this.staleTimeoutId = undefined;
+  };
+
+  _proto.clearRefetchInterval = function clearRefetchInterval() {
+    clearInterval(this.refetchIntervalId);
+    this.refetchIntervalId = undefined;
+  };
+
+  _proto.createResult = function createResult(query, options) {
+    var prevQuery = this.currentQuery;
+    var prevOptions = this.options;
+    var prevResult = this.currentResult;
+    var prevResultState = this.currentResultState;
+    var prevResultOptions = this.currentResultOptions;
+    var queryChange = query !== prevQuery;
+    var queryInitialState = queryChange ? query.state : this.currentQueryInitialState;
+    var prevQueryResult = queryChange ? this.currentResult : this.previousQueryResult;
+    var state = query.state;
+    var dataUpdatedAt = state.dataUpdatedAt,
+        error = state.error,
+        errorUpdatedAt = state.errorUpdatedAt,
+        isFetching = state.isFetching,
+        status = state.status;
+    var isPreviousData = false;
+    var isPlaceholderData = false;
+    var data; // Optimistically set result in fetching state if needed
+
+    if (options.optimisticResults) {
+      var mounted = this.hasListeners();
+      var fetchOnMount = !mounted && shouldFetchOnMount(query, options);
+      var fetchOptionally = mounted && shouldFetchOptionally(query, prevQuery, options, prevOptions);
+
+      if (fetchOnMount || fetchOptionally) {
+        isFetching = true;
+
+        if (!dataUpdatedAt) {
+          status = 'loading';
+        }
+      }
+    } // Keep previous data if needed
+
+
+    if (options.keepPreviousData && !state.dataUpdateCount && (prevQueryResult == null ? void 0 : prevQueryResult.isSuccess) && status !== 'error') {
+      data = prevQueryResult.data;
+      dataUpdatedAt = prevQueryResult.dataUpdatedAt;
+      status = prevQueryResult.status;
+      isPreviousData = true;
+    } // Select data if needed
+    else if (options.select && typeof state.data !== 'undefined') {
+        var _this$previousSelect;
+
+        // Memoize select result
+        if (prevResult && state.data === (prevResultState == null ? void 0 : prevResultState.data) && options.select === ((_this$previousSelect = this.previousSelect) == null ? void 0 : _this$previousSelect.fn) && !this.previousSelectError) {
+          data = this.previousSelect.result;
+        } else {
+          try {
+            data = options.select(state.data);
+
+            if (options.structuralSharing !== false) {
+              data = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.replaceEqualDeep)(prevResult == null ? void 0 : prevResult.data, data);
+            }
+
+            this.previousSelect = {
+              fn: options.select,
+              result: data
+            };
+            this.previousSelectError = null;
+          } catch (selectError) {
+            (0,_logger__WEBPACK_IMPORTED_MODULE_4__.getLogger)().error(selectError);
+            error = selectError;
+            this.previousSelectError = selectError;
+            errorUpdatedAt = Date.now();
+            status = 'error';
+          }
+        }
+      } // Use query data
+      else {
+          data = state.data;
+        } // Show placeholder data if needed
+
+
+    if (typeof options.placeholderData !== 'undefined' && typeof data === 'undefined' && (status === 'loading' || status === 'idle')) {
+      var placeholderData; // Memoize placeholder data
+
+      if ((prevResult == null ? void 0 : prevResult.isPlaceholderData) && options.placeholderData === (prevResultOptions == null ? void 0 : prevResultOptions.placeholderData)) {
+        placeholderData = prevResult.data;
+      } else {
+        placeholderData = typeof options.placeholderData === 'function' ? options.placeholderData() : options.placeholderData;
+
+        if (options.select && typeof placeholderData !== 'undefined') {
+          try {
+            placeholderData = options.select(placeholderData);
+
+            if (options.structuralSharing !== false) {
+              placeholderData = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.replaceEqualDeep)(prevResult == null ? void 0 : prevResult.data, placeholderData);
+            }
+
+            this.previousSelectError = null;
+          } catch (selectError) {
+            (0,_logger__WEBPACK_IMPORTED_MODULE_4__.getLogger)().error(selectError);
+            error = selectError;
+            this.previousSelectError = selectError;
+            errorUpdatedAt = Date.now();
+            status = 'error';
+          }
+        }
+      }
+
+      if (typeof placeholderData !== 'undefined') {
+        status = 'success';
+        data = placeholderData;
+        isPlaceholderData = true;
+      }
+    }
+
+    var result = {
+      status: status,
+      isLoading: status === 'loading',
+      isSuccess: status === 'success',
+      isError: status === 'error',
+      isIdle: status === 'idle',
+      data: data,
+      dataUpdatedAt: dataUpdatedAt,
+      error: error,
+      errorUpdatedAt: errorUpdatedAt,
+      failureCount: state.fetchFailureCount,
+      isFetched: state.dataUpdateCount > 0 || state.errorUpdateCount > 0,
+      isFetchedAfterMount: state.dataUpdateCount > queryInitialState.dataUpdateCount || state.errorUpdateCount > queryInitialState.errorUpdateCount,
+      isFetching: isFetching,
+      isRefetching: isFetching && status !== 'loading',
+      isLoadingError: status === 'error' && state.dataUpdatedAt === 0,
+      isPlaceholderData: isPlaceholderData,
+      isPreviousData: isPreviousData,
+      isRefetchError: status === 'error' && state.dataUpdatedAt !== 0,
+      isStale: isStale(query, options),
+      refetch: this.refetch,
+      remove: this.remove
+    };
+    return result;
+  };
+
+  _proto.shouldNotifyListeners = function shouldNotifyListeners(result, prevResult) {
+    if (!prevResult) {
+      return true;
+    }
+
+    var _this$options = this.options,
+        notifyOnChangeProps = _this$options.notifyOnChangeProps,
+        notifyOnChangePropsExclusions = _this$options.notifyOnChangePropsExclusions;
+
+    if (!notifyOnChangeProps && !notifyOnChangePropsExclusions) {
+      return true;
+    }
+
+    if (notifyOnChangeProps === 'tracked' && !this.trackedProps.length) {
+      return true;
+    }
+
+    var includedProps = notifyOnChangeProps === 'tracked' ? this.trackedProps : notifyOnChangeProps;
+    return Object.keys(result).some(function (key) {
+      var typedKey = key;
+      var changed = result[typedKey] !== prevResult[typedKey];
+      var isIncluded = includedProps == null ? void 0 : includedProps.some(function (x) {
+        return x === key;
+      });
+      var isExcluded = notifyOnChangePropsExclusions == null ? void 0 : notifyOnChangePropsExclusions.some(function (x) {
+        return x === key;
+      });
+      return changed && !isExcluded && (!includedProps || isIncluded);
+    });
+  };
+
+  _proto.updateResult = function updateResult(notifyOptions) {
+    var prevResult = this.currentResult;
+    this.currentResult = this.createResult(this.currentQuery, this.options);
+    this.currentResultState = this.currentQuery.state;
+    this.currentResultOptions = this.options; // Only notify if something has changed
+
+    if ((0,_utils__WEBPACK_IMPORTED_MODULE_2__.shallowEqualObjects)(this.currentResult, prevResult)) {
+      return;
+    } // Determine which callbacks to trigger
+
+
+    var defaultNotifyOptions = {
+      cache: true
+    };
+
+    if ((notifyOptions == null ? void 0 : notifyOptions.listeners) !== false && this.shouldNotifyListeners(this.currentResult, prevResult)) {
+      defaultNotifyOptions.listeners = true;
+    }
+
+    this.notify((0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, defaultNotifyOptions, notifyOptions));
+  };
+
+  _proto.updateQuery = function updateQuery() {
+    var query = this.client.getQueryCache().build(this.client, this.options);
+
+    if (query === this.currentQuery) {
+      return;
+    }
+
+    var prevQuery = this.currentQuery;
+    this.currentQuery = query;
+    this.currentQueryInitialState = query.state;
+    this.previousQueryResult = this.currentResult;
+
+    if (this.hasListeners()) {
+      prevQuery == null ? void 0 : prevQuery.removeObserver(this);
+      query.addObserver(this);
+    }
+  };
+
+  _proto.onQueryUpdate = function onQueryUpdate(action) {
+    var notifyOptions = {};
+
+    if (action.type === 'success') {
+      notifyOptions.onSuccess = true;
+    } else if (action.type === 'error' && !(0,_retryer__WEBPACK_IMPORTED_MODULE_5__.isCancelledError)(action.error)) {
+      notifyOptions.onError = true;
+    }
+
+    this.updateResult(notifyOptions);
+
+    if (this.hasListeners()) {
+      this.updateTimers();
+    }
+  };
+
+  _proto.notify = function notify(notifyOptions) {
+    var _this8 = this;
+
+    _notifyManager__WEBPACK_IMPORTED_MODULE_6__.notifyManager.batch(function () {
+      // First trigger the configuration callbacks
+      if (notifyOptions.onSuccess) {
+        _this8.options.onSuccess == null ? void 0 : _this8.options.onSuccess(_this8.currentResult.data);
+        _this8.options.onSettled == null ? void 0 : _this8.options.onSettled(_this8.currentResult.data, null);
+      } else if (notifyOptions.onError) {
+        _this8.options.onError == null ? void 0 : _this8.options.onError(_this8.currentResult.error);
+        _this8.options.onSettled == null ? void 0 : _this8.options.onSettled(undefined, _this8.currentResult.error);
+      } // Then trigger the listeners
+
+
+      if (notifyOptions.listeners) {
+        _this8.listeners.forEach(function (listener) {
+          listener(_this8.currentResult);
+        });
+      } // Then the cache listeners
+
+
+      if (notifyOptions.cache) {
+        _this8.client.getQueryCache().notify({
+          query: _this8.currentQuery,
+          type: 'observerResultsUpdated'
+        });
+      }
+    });
+  };
+
+  return QueryObserver;
+}(_subscribable__WEBPACK_IMPORTED_MODULE_7__.Subscribable);
+
+function shouldLoadOnMount(query, options) {
+  return options.enabled !== false && !query.state.dataUpdatedAt && !(query.state.status === 'error' && options.retryOnMount === false);
+}
+
+function shouldRefetchOnMount(query, options) {
+  return options.enabled !== false && query.state.dataUpdatedAt > 0 && (options.refetchOnMount === 'always' || options.refetchOnMount !== false && isStale(query, options));
+}
+
+function shouldFetchOnMount(query, options) {
+  return shouldLoadOnMount(query, options) || shouldRefetchOnMount(query, options);
+}
+
+function _shouldFetchOnReconnect(query, options) {
+  return options.enabled !== false && (options.refetchOnReconnect === 'always' || options.refetchOnReconnect !== false && isStale(query, options));
+}
+
+function _shouldFetchOnWindowFocus(query, options) {
+  return options.enabled !== false && (options.refetchOnWindowFocus === 'always' || options.refetchOnWindowFocus !== false && isStale(query, options));
+}
+
+function shouldFetchOptionally(query, prevQuery, options, prevOptions) {
+  return options.enabled !== false && (query !== prevQuery || prevOptions.enabled === false) && (!options.suspense || query.state.status !== 'error') && isStale(query, options);
+}
+
+function isStale(query, options) {
+  return query.isStaleByTime(options.staleTime);
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/retryer.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/react-query/es/core/retryer.js ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "CancelledError": () => (/* binding */ CancelledError),
+/* harmony export */   "Retryer": () => (/* binding */ Retryer),
+/* harmony export */   "isCancelable": () => (/* binding */ isCancelable),
+/* harmony export */   "isCancelledError": () => (/* binding */ isCancelledError)
+/* harmony export */ });
+/* harmony import */ var _focusManager__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./focusManager */ "./node_modules/react-query/es/core/focusManager.js");
+/* harmony import */ var _onlineManager__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./onlineManager */ "./node_modules/react-query/es/core/onlineManager.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/core/utils.js");
+
+
+
+
+function defaultRetryDelay(failureCount) {
+  return Math.min(1000 * Math.pow(2, failureCount), 30000);
+}
+
+function isCancelable(value) {
+  return typeof (value == null ? void 0 : value.cancel) === 'function';
+}
+var CancelledError = function CancelledError(options) {
+  this.revert = options == null ? void 0 : options.revert;
+  this.silent = options == null ? void 0 : options.silent;
+};
+function isCancelledError(value) {
+  return value instanceof CancelledError;
+} // CLASS
+
+var Retryer = function Retryer(config) {
+  var _this = this;
+
+  var cancelRetry = false;
+  var cancelFn;
+  var continueFn;
+  var promiseResolve;
+  var promiseReject;
+  this.abort = config.abort;
+
+  this.cancel = function (cancelOptions) {
+    return cancelFn == null ? void 0 : cancelFn(cancelOptions);
+  };
+
+  this.cancelRetry = function () {
+    cancelRetry = true;
+  };
+
+  this.continueRetry = function () {
+    cancelRetry = false;
+  };
+
+  this.continue = function () {
+    return continueFn == null ? void 0 : continueFn();
+  };
+
+  this.failureCount = 0;
+  this.isPaused = false;
+  this.isResolved = false;
+  this.isTransportCancelable = false;
+  this.promise = new Promise(function (outerResolve, outerReject) {
+    promiseResolve = outerResolve;
+    promiseReject = outerReject;
+  });
+
+  var resolve = function resolve(value) {
+    if (!_this.isResolved) {
+      _this.isResolved = true;
+      config.onSuccess == null ? void 0 : config.onSuccess(value);
+      continueFn == null ? void 0 : continueFn();
+      promiseResolve(value);
+    }
+  };
+
+  var reject = function reject(value) {
+    if (!_this.isResolved) {
+      _this.isResolved = true;
+      config.onError == null ? void 0 : config.onError(value);
+      continueFn == null ? void 0 : continueFn();
+      promiseReject(value);
+    }
+  };
+
+  var pause = function pause() {
+    return new Promise(function (continueResolve) {
+      continueFn = continueResolve;
+      _this.isPaused = true;
+      config.onPause == null ? void 0 : config.onPause();
+    }).then(function () {
+      continueFn = undefined;
+      _this.isPaused = false;
+      config.onContinue == null ? void 0 : config.onContinue();
+    });
+  }; // Create loop function
+
+
+  var run = function run() {
+    // Do nothing if already resolved
+    if (_this.isResolved) {
+      return;
+    }
+
+    var promiseOrValue; // Execute query
+
+    try {
+      promiseOrValue = config.fn();
+    } catch (error) {
+      promiseOrValue = Promise.reject(error);
+    } // Create callback to cancel this fetch
+
+
+    cancelFn = function cancelFn(cancelOptions) {
+      if (!_this.isResolved) {
+        reject(new CancelledError(cancelOptions));
+        _this.abort == null ? void 0 : _this.abort(); // Cancel transport if supported
+
+        if (isCancelable(promiseOrValue)) {
+          try {
+            promiseOrValue.cancel();
+          } catch (_unused) {}
+        }
+      }
+    }; // Check if the transport layer support cancellation
+
+
+    _this.isTransportCancelable = isCancelable(promiseOrValue);
+    Promise.resolve(promiseOrValue).then(resolve).catch(function (error) {
+      var _config$retry, _config$retryDelay;
+
+      // Stop if the fetch is already resolved
+      if (_this.isResolved) {
+        return;
+      } // Do we need to retry the request?
+
+
+      var retry = (_config$retry = config.retry) != null ? _config$retry : 3;
+      var retryDelay = (_config$retryDelay = config.retryDelay) != null ? _config$retryDelay : defaultRetryDelay;
+      var delay = typeof retryDelay === 'function' ? retryDelay(_this.failureCount, error) : retryDelay;
+      var shouldRetry = retry === true || typeof retry === 'number' && _this.failureCount < retry || typeof retry === 'function' && retry(_this.failureCount, error);
+
+      if (cancelRetry || !shouldRetry) {
+        // We are done if the query does not need to be retried
+        reject(error);
+        return;
+      }
+
+      _this.failureCount++; // Notify on fail
+
+      config.onFail == null ? void 0 : config.onFail(_this.failureCount, error); // Delay
+
+      (0,_utils__WEBPACK_IMPORTED_MODULE_0__.sleep)(delay) // Pause if the document is not visible or when the device is offline
+      .then(function () {
+        if (!_focusManager__WEBPACK_IMPORTED_MODULE_1__.focusManager.isFocused() || !_onlineManager__WEBPACK_IMPORTED_MODULE_2__.onlineManager.isOnline()) {
+          return pause();
+        }
+      }).then(function () {
+        if (cancelRetry) {
+          reject(error);
+        } else {
+          run();
+        }
+      });
+    });
+  }; // Start loop
+
+
+  run();
+};
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/subscribable.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/react-query/es/core/subscribable.js ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Subscribable": () => (/* binding */ Subscribable)
+/* harmony export */ });
+var Subscribable = /*#__PURE__*/function () {
+  function Subscribable() {
+    this.listeners = [];
+  }
+
+  var _proto = Subscribable.prototype;
+
+  _proto.subscribe = function subscribe(listener) {
+    var _this = this;
+
+    var callback = listener || function () {
+      return undefined;
+    };
+
+    this.listeners.push(callback);
+    this.onSubscribe();
+    return function () {
+      _this.listeners = _this.listeners.filter(function (x) {
+        return x !== callback;
+      });
+
+      _this.onUnsubscribe();
+    };
+  };
+
+  _proto.hasListeners = function hasListeners() {
+    return this.listeners.length > 0;
+  };
+
+  _proto.onSubscribe = function onSubscribe() {// Do nothing
+  };
+
+  _proto.onUnsubscribe = function onUnsubscribe() {// Do nothing
+  };
+
+  return Subscribable;
+}();
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/types.js":
+/*!***************************************************!*\
+  !*** ./node_modules/react-query/es/core/types.js ***!
+  \***************************************************/
+/***/ (() => {
+
+
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/core/utils.js":
+/*!***************************************************!*\
+  !*** ./node_modules/react-query/es/core/utils.js ***!
+  \***************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "difference": () => (/* binding */ difference),
+/* harmony export */   "ensureQueryKeyArray": () => (/* binding */ ensureQueryKeyArray),
+/* harmony export */   "functionalUpdate": () => (/* binding */ functionalUpdate),
+/* harmony export */   "getAbortController": () => (/* binding */ getAbortController),
+/* harmony export */   "hashQueryKey": () => (/* binding */ hashQueryKey),
+/* harmony export */   "hashQueryKeyByOptions": () => (/* binding */ hashQueryKeyByOptions),
+/* harmony export */   "isError": () => (/* binding */ isError),
+/* harmony export */   "isPlainObject": () => (/* binding */ isPlainObject),
+/* harmony export */   "isQueryKey": () => (/* binding */ isQueryKey),
+/* harmony export */   "isServer": () => (/* binding */ isServer),
+/* harmony export */   "isValidTimeout": () => (/* binding */ isValidTimeout),
+/* harmony export */   "mapQueryStatusFilter": () => (/* binding */ mapQueryStatusFilter),
+/* harmony export */   "matchMutation": () => (/* binding */ matchMutation),
+/* harmony export */   "matchQuery": () => (/* binding */ matchQuery),
+/* harmony export */   "noop": () => (/* binding */ noop),
+/* harmony export */   "parseFilterArgs": () => (/* binding */ parseFilterArgs),
+/* harmony export */   "parseMutationArgs": () => (/* binding */ parseMutationArgs),
+/* harmony export */   "parseMutationFilterArgs": () => (/* binding */ parseMutationFilterArgs),
+/* harmony export */   "parseQueryArgs": () => (/* binding */ parseQueryArgs),
+/* harmony export */   "partialDeepEqual": () => (/* binding */ partialDeepEqual),
+/* harmony export */   "partialMatchKey": () => (/* binding */ partialMatchKey),
+/* harmony export */   "replaceAt": () => (/* binding */ replaceAt),
+/* harmony export */   "replaceEqualDeep": () => (/* binding */ replaceEqualDeep),
+/* harmony export */   "scheduleMicrotask": () => (/* binding */ scheduleMicrotask),
+/* harmony export */   "shallowEqualObjects": () => (/* binding */ shallowEqualObjects),
+/* harmony export */   "sleep": () => (/* binding */ sleep),
+/* harmony export */   "stableValueHash": () => (/* binding */ stableValueHash),
+/* harmony export */   "timeUntilStale": () => (/* binding */ timeUntilStale)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+
+// TYPES
+// UTILS
+var isServer = typeof window === 'undefined';
+function noop() {
+  return undefined;
+}
+function functionalUpdate(updater, input) {
+  return typeof updater === 'function' ? updater(input) : updater;
+}
+function isValidTimeout(value) {
+  return typeof value === 'number' && value >= 0 && value !== Infinity;
+}
+function ensureQueryKeyArray(value) {
+  return Array.isArray(value) ? value : [value];
+}
+function difference(array1, array2) {
+  return array1.filter(function (x) {
+    return array2.indexOf(x) === -1;
+  });
+}
+function replaceAt(array, index, value) {
+  var copy = array.slice(0);
+  copy[index] = value;
+  return copy;
+}
+function timeUntilStale(updatedAt, staleTime) {
+  return Math.max(updatedAt + (staleTime || 0) - Date.now(), 0);
+}
+function parseQueryArgs(arg1, arg2, arg3) {
+  if (!isQueryKey(arg1)) {
+    return arg1;
+  }
+
+  if (typeof arg2 === 'function') {
+    return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg3, {
+      queryKey: arg1,
+      queryFn: arg2
+    });
+  }
+
+  return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg2, {
+    queryKey: arg1
+  });
+}
+function parseMutationArgs(arg1, arg2, arg3) {
+  if (isQueryKey(arg1)) {
+    if (typeof arg2 === 'function') {
+      return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg3, {
+        mutationKey: arg1,
+        mutationFn: arg2
+      });
+    }
+
+    return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg2, {
+      mutationKey: arg1
+    });
+  }
+
+  if (typeof arg1 === 'function') {
+    return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg2, {
+      mutationFn: arg1
+    });
+  }
+
+  return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg1);
+}
+function parseFilterArgs(arg1, arg2, arg3) {
+  return isQueryKey(arg1) ? [(0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg2, {
+    queryKey: arg1
+  }), arg3] : [arg1 || {}, arg2];
+}
+function parseMutationFilterArgs(arg1, arg2) {
+  return isQueryKey(arg1) ? (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, arg2, {
+    mutationKey: arg1
+  }) : arg1;
+}
+function mapQueryStatusFilter(active, inactive) {
+  if (active === true && inactive === true || active == null && inactive == null) {
+    return 'all';
+  } else if (active === false && inactive === false) {
+    return 'none';
+  } else {
+    // At this point, active|inactive can only be true|false or false|true
+    // so, when only one value is provided, the missing one has to be the negated value
+    var isActive = active != null ? active : !inactive;
+    return isActive ? 'active' : 'inactive';
+  }
+}
+function matchQuery(filters, query) {
+  var active = filters.active,
+      exact = filters.exact,
+      fetching = filters.fetching,
+      inactive = filters.inactive,
+      predicate = filters.predicate,
+      queryKey = filters.queryKey,
+      stale = filters.stale;
+
+  if (isQueryKey(queryKey)) {
+    if (exact) {
+      if (query.queryHash !== hashQueryKeyByOptions(queryKey, query.options)) {
+        return false;
+      }
+    } else if (!partialMatchKey(query.queryKey, queryKey)) {
+      return false;
+    }
+  }
+
+  var queryStatusFilter = mapQueryStatusFilter(active, inactive);
+
+  if (queryStatusFilter === 'none') {
+    return false;
+  } else if (queryStatusFilter !== 'all') {
+    var isActive = query.isActive();
+
+    if (queryStatusFilter === 'active' && !isActive) {
+      return false;
+    }
+
+    if (queryStatusFilter === 'inactive' && isActive) {
+      return false;
+    }
+  }
+
+  if (typeof stale === 'boolean' && query.isStale() !== stale) {
+    return false;
+  }
+
+  if (typeof fetching === 'boolean' && query.isFetching() !== fetching) {
+    return false;
+  }
+
+  if (predicate && !predicate(query)) {
+    return false;
+  }
+
+  return true;
+}
+function matchMutation(filters, mutation) {
+  var exact = filters.exact,
+      fetching = filters.fetching,
+      predicate = filters.predicate,
+      mutationKey = filters.mutationKey;
+
+  if (isQueryKey(mutationKey)) {
+    if (!mutation.options.mutationKey) {
+      return false;
+    }
+
+    if (exact) {
+      if (hashQueryKey(mutation.options.mutationKey) !== hashQueryKey(mutationKey)) {
+        return false;
+      }
+    } else if (!partialMatchKey(mutation.options.mutationKey, mutationKey)) {
+      return false;
+    }
+  }
+
+  if (typeof fetching === 'boolean' && mutation.state.status === 'loading' !== fetching) {
+    return false;
+  }
+
+  if (predicate && !predicate(mutation)) {
+    return false;
+  }
+
+  return true;
+}
+function hashQueryKeyByOptions(queryKey, options) {
+  var hashFn = (options == null ? void 0 : options.queryKeyHashFn) || hashQueryKey;
+  return hashFn(queryKey);
+}
+/**
+ * Default query keys hash function.
+ */
+
+function hashQueryKey(queryKey) {
+  var asArray = ensureQueryKeyArray(queryKey);
+  return stableValueHash(asArray);
+}
+/**
+ * Hashes the value into a stable hash.
+ */
+
+function stableValueHash(value) {
+  return JSON.stringify(value, function (_, val) {
+    return isPlainObject(val) ? Object.keys(val).sort().reduce(function (result, key) {
+      result[key] = val[key];
+      return result;
+    }, {}) : val;
+  });
+}
+/**
+ * Checks if key `b` partially matches with key `a`.
+ */
+
+function partialMatchKey(a, b) {
+  return partialDeepEqual(ensureQueryKeyArray(a), ensureQueryKeyArray(b));
+}
+/**
+ * Checks if `b` partially matches with `a`.
+ */
+
+function partialDeepEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+
+  if (typeof a !== typeof b) {
+    return false;
+  }
+
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    return !Object.keys(b).some(function (key) {
+      return !partialDeepEqual(a[key], b[key]);
+    });
+  }
+
+  return false;
+}
+/**
+ * This function returns `a` if `b` is deeply equal.
+ * If not, it will replace any deeply equal children of `b` with those of `a`.
+ * This can be used for structural sharing between JSON values for example.
+ */
+
+function replaceEqualDeep(a, b) {
+  if (a === b) {
+    return a;
+  }
+
+  var array = Array.isArray(a) && Array.isArray(b);
+
+  if (array || isPlainObject(a) && isPlainObject(b)) {
+    var aSize = array ? a.length : Object.keys(a).length;
+    var bItems = array ? b : Object.keys(b);
+    var bSize = bItems.length;
+    var copy = array ? [] : {};
+    var equalItems = 0;
+
+    for (var i = 0; i < bSize; i++) {
+      var key = array ? i : bItems[i];
+      copy[key] = replaceEqualDeep(a[key], b[key]);
+
+      if (copy[key] === a[key]) {
+        equalItems++;
+      }
+    }
+
+    return aSize === bSize && equalItems === aSize ? a : copy;
+  }
+
+  return b;
+}
+/**
+ * Shallow compare objects. Only works with objects that always have the same properties.
+ */
+
+function shallowEqualObjects(a, b) {
+  if (a && !b || b && !a) {
+    return false;
+  }
+
+  for (var key in a) {
+    if (a[key] !== b[key]) {
+      return false;
+    }
+  }
+
+  return true;
+} // Copied from: https://github.com/jonschlinkert/is-plain-object
+
+function isPlainObject(o) {
+  if (!hasObjectPrototype(o)) {
+    return false;
+  } // If has modified constructor
+
+
+  var ctor = o.constructor;
+
+  if (typeof ctor === 'undefined') {
+    return true;
+  } // If has modified prototype
+
+
+  var prot = ctor.prototype;
+
+  if (!hasObjectPrototype(prot)) {
+    return false;
+  } // If constructor does not have an Object-specific method
+
+
+  if (!prot.hasOwnProperty('isPrototypeOf')) {
+    return false;
+  } // Most likely a plain Object
+
+
+  return true;
+}
+
+function hasObjectPrototype(o) {
+  return Object.prototype.toString.call(o) === '[object Object]';
+}
+
+function isQueryKey(value) {
+  return typeof value === 'string' || Array.isArray(value);
+}
+function isError(value) {
+  return value instanceof Error;
+}
+function sleep(timeout) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, timeout);
+  });
+}
+/**
+ * Schedules a microtask.
+ * This can be useful to schedule state updates after rendering.
+ */
+
+function scheduleMicrotask(callback) {
+  Promise.resolve().then(callback).catch(function (error) {
+    return setTimeout(function () {
+      throw error;
+    });
+  });
+}
+function getAbortController() {
+  if (typeof AbortController === 'function') {
+    return new AbortController();
+  }
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/index.js":
+/*!**********************************************!*\
+  !*** ./node_modules/react-query/es/index.js ***!
+  \**********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./core */ "./node_modules/react-query/es/core/index.js");
+/* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
+/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _core__WEBPACK_IMPORTED_MODULE_0__) if(__WEBPACK_IMPORT_KEY__ !== "default") __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _core__WEBPACK_IMPORTED_MODULE_0__[__WEBPACK_IMPORT_KEY__]
+/* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
+/* harmony import */ var _react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./react */ "./node_modules/react-query/es/react/index.js");
+/* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
+/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _react__WEBPACK_IMPORTED_MODULE_1__) if(["default","CancelledError","QueryCache","QueryClient","QueryObserver","QueriesObserver","InfiniteQueryObserver","MutationCache","MutationObserver","setLogger","notifyManager","focusManager","onlineManager","hashQueryKey","isError","isCancelledError","dehydrate","hydrate"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _react__WEBPACK_IMPORTED_MODULE_1__[__WEBPACK_IMPORT_KEY__]
+/* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
+
+
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/Hydrate.js":
+/*!******************************************************!*\
+  !*** ./node_modules/react-query/es/react/Hydrate.js ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Hydrate": () => (/* binding */ Hydrate),
+/* harmony export */   "useHydrate": () => (/* binding */ useHydrate)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core */ "./node_modules/react-query/es/core/hydration.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+
+
+
+function useHydrate(state, options) {
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__.useQueryClient)();
+  var optionsRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(options);
+  optionsRef.current = options; // Running hydrate again with the same queries is safe,
+  // it wont overwrite or initialize existing queries,
+  // relying on useMemo here is only a performance optimization.
+  // hydrate can and should be run *during* render here for SSR to work properly
+
+  react__WEBPACK_IMPORTED_MODULE_0__.useMemo(function () {
+    if (state) {
+      (0,_core__WEBPACK_IMPORTED_MODULE_2__.hydrate)(queryClient, state, optionsRef.current);
+    }
+  }, [queryClient, state]);
+}
+var Hydrate = function Hydrate(_ref) {
+  var children = _ref.children,
+      options = _ref.options,
+      state = _ref.state;
+  useHydrate(state, options);
+  return children;
+};
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/QueryClientProvider.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/react-query/es/react/QueryClientProvider.js ***!
+  \******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueryClientProvider": () => (/* binding */ QueryClientProvider),
+/* harmony export */   "useQueryClient": () => (/* binding */ useQueryClient)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+var defaultContext = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createContext(undefined);
+var QueryClientSharingContext = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createContext(false); // if contextSharing is on, we share the first and at least one
+// instance of the context across the window
+// to ensure that if React Query is used across
+// different bundles or microfrontends they will
+// all use the same **instance** of context, regardless
+// of module scoping.
+
+function getQueryClientContext(contextSharing) {
+  if (contextSharing && typeof window !== 'undefined') {
+    if (!window.ReactQueryClientContext) {
+      window.ReactQueryClientContext = defaultContext;
+    }
+
+    return window.ReactQueryClientContext;
+  }
+
+  return defaultContext;
+}
+
+var useQueryClient = function useQueryClient() {
+  var queryClient = react__WEBPACK_IMPORTED_MODULE_0__.useContext(getQueryClientContext(react__WEBPACK_IMPORTED_MODULE_0__.useContext(QueryClientSharingContext)));
+
+  if (!queryClient) {
+    throw new Error('No QueryClient set, use QueryClientProvider to set one');
+  }
+
+  return queryClient;
+};
+var QueryClientProvider = function QueryClientProvider(_ref) {
+  var client = _ref.client,
+      _ref$contextSharing = _ref.contextSharing,
+      contextSharing = _ref$contextSharing === void 0 ? false : _ref$contextSharing,
+      children = _ref.children;
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    client.mount();
+    return function () {
+      client.unmount();
+    };
+  }, [client]);
+  var Context = getQueryClientContext(contextSharing);
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createElement(QueryClientSharingContext.Provider, {
+    value: contextSharing
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createElement(Context.Provider, {
+    value: client
+  }, children));
+};
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/QueryErrorResetBoundary.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/react-query/es/react/QueryErrorResetBoundary.js ***!
+  \**********************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "QueryErrorResetBoundary": () => (/* binding */ QueryErrorResetBoundary),
+/* harmony export */   "useQueryErrorResetBoundary": () => (/* binding */ useQueryErrorResetBoundary)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+ // CONTEXT
+
+function createValue() {
+  var _isReset = false;
+  return {
+    clearReset: function clearReset() {
+      _isReset = false;
+    },
+    reset: function reset() {
+      _isReset = true;
+    },
+    isReset: function isReset() {
+      return _isReset;
+    }
+  };
+}
+
+var QueryErrorResetBoundaryContext = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createContext(createValue()); // HOOK
+
+var useQueryErrorResetBoundary = function useQueryErrorResetBoundary() {
+  return react__WEBPACK_IMPORTED_MODULE_0__.useContext(QueryErrorResetBoundaryContext);
+}; // COMPONENT
+
+var QueryErrorResetBoundary = function QueryErrorResetBoundary(_ref) {
+  var children = _ref.children;
+  var value = react__WEBPACK_IMPORTED_MODULE_0__.useMemo(function () {
+    return createValue();
+  }, []);
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.createElement(QueryErrorResetBoundaryContext.Provider, {
+    value: value
+  }, typeof children === 'function' ? children(value) : children);
+};
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/index.js":
+/*!****************************************************!*\
+  !*** ./node_modules/react-query/es/react/index.js ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Hydrate": () => (/* reexport safe */ _Hydrate__WEBPACK_IMPORTED_MODULE_10__.Hydrate),
+/* harmony export */   "QueryClientProvider": () => (/* reexport safe */ _QueryClientProvider__WEBPACK_IMPORTED_MODULE_2__.QueryClientProvider),
+/* harmony export */   "QueryErrorResetBoundary": () => (/* reexport safe */ _QueryErrorResetBoundary__WEBPACK_IMPORTED_MODULE_3__.QueryErrorResetBoundary),
+/* harmony export */   "useHydrate": () => (/* reexport safe */ _Hydrate__WEBPACK_IMPORTED_MODULE_10__.useHydrate),
+/* harmony export */   "useInfiniteQuery": () => (/* reexport safe */ _useInfiniteQuery__WEBPACK_IMPORTED_MODULE_9__.useInfiniteQuery),
+/* harmony export */   "useIsFetching": () => (/* reexport safe */ _useIsFetching__WEBPACK_IMPORTED_MODULE_4__.useIsFetching),
+/* harmony export */   "useIsMutating": () => (/* reexport safe */ _useIsMutating__WEBPACK_IMPORTED_MODULE_5__.useIsMutating),
+/* harmony export */   "useMutation": () => (/* reexport safe */ _useMutation__WEBPACK_IMPORTED_MODULE_6__.useMutation),
+/* harmony export */   "useQueries": () => (/* reexport safe */ _useQueries__WEBPACK_IMPORTED_MODULE_8__.useQueries),
+/* harmony export */   "useQuery": () => (/* reexport safe */ _useQuery__WEBPACK_IMPORTED_MODULE_7__.useQuery),
+/* harmony export */   "useQueryClient": () => (/* reexport safe */ _QueryClientProvider__WEBPACK_IMPORTED_MODULE_2__.useQueryClient),
+/* harmony export */   "useQueryErrorResetBoundary": () => (/* reexport safe */ _QueryErrorResetBoundary__WEBPACK_IMPORTED_MODULE_3__.useQueryErrorResetBoundary)
+/* harmony export */ });
+/* harmony import */ var _setBatchUpdatesFn__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./setBatchUpdatesFn */ "./node_modules/react-query/es/react/setBatchUpdatesFn.js");
+/* harmony import */ var _setLogger__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./setLogger */ "./node_modules/react-query/es/react/setLogger.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+/* harmony import */ var _QueryErrorResetBoundary__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./QueryErrorResetBoundary */ "./node_modules/react-query/es/react/QueryErrorResetBoundary.js");
+/* harmony import */ var _useIsFetching__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./useIsFetching */ "./node_modules/react-query/es/react/useIsFetching.js");
+/* harmony import */ var _useIsMutating__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./useIsMutating */ "./node_modules/react-query/es/react/useIsMutating.js");
+/* harmony import */ var _useMutation__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./useMutation */ "./node_modules/react-query/es/react/useMutation.js");
+/* harmony import */ var _useQuery__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./useQuery */ "./node_modules/react-query/es/react/useQuery.js");
+/* harmony import */ var _useQueries__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./useQueries */ "./node_modules/react-query/es/react/useQueries.js");
+/* harmony import */ var _useInfiniteQuery__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./useInfiniteQuery */ "./node_modules/react-query/es/react/useInfiniteQuery.js");
+/* harmony import */ var _Hydrate__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./Hydrate */ "./node_modules/react-query/es/react/Hydrate.js");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./types */ "./node_modules/react-query/es/react/types.js");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_11___default = /*#__PURE__*/__webpack_require__.n(_types__WEBPACK_IMPORTED_MODULE_11__);
+/* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
+/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _types__WEBPACK_IMPORTED_MODULE_11__) if(["default","QueryClientProvider","useQueryClient","QueryErrorResetBoundary","useQueryErrorResetBoundary","useIsFetching","useIsMutating","useMutation","useQuery","useQueries","useInfiniteQuery","useHydrate","Hydrate"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _types__WEBPACK_IMPORTED_MODULE_11__[__WEBPACK_IMPORT_KEY__]
+/* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
+// Side effects
+
+
+
+
+
+
+
+
+
+
+ // Types
+
+
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/logger.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/react-query/es/react/logger.js ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "logger": () => (/* binding */ logger)
+/* harmony export */ });
+var logger = console;
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/reactBatchedUpdates.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/react-query/es/react/reactBatchedUpdates.js ***!
+  \******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "unstable_batchedUpdates": () => (/* binding */ unstable_batchedUpdates)
+/* harmony export */ });
+/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+
+var unstable_batchedUpdates = react_dom__WEBPACK_IMPORTED_MODULE_0__.unstable_batchedUpdates;
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/setBatchUpdatesFn.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/react-query/es/react/setBatchUpdatesFn.js ***!
+  \****************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../core */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _reactBatchedUpdates__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./reactBatchedUpdates */ "./node_modules/react-query/es/react/reactBatchedUpdates.js");
+
+
+_core__WEBPACK_IMPORTED_MODULE_0__.notifyManager.setBatchNotifyFunction(_reactBatchedUpdates__WEBPACK_IMPORTED_MODULE_1__.unstable_batchedUpdates);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/setLogger.js":
+/*!********************************************************!*\
+  !*** ./node_modules/react-query/es/react/setLogger.js ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../core */ "./node_modules/react-query/es/core/logger.js");
+/* harmony import */ var _logger__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./logger */ "./node_modules/react-query/es/react/logger.js");
+
+
+(0,_core__WEBPACK_IMPORTED_MODULE_0__.setLogger)(_logger__WEBPACK_IMPORTED_MODULE_1__.logger);
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/types.js":
+/*!****************************************************!*\
+  !*** ./node_modules/react-query/es/react/types.js ***!
+  \****************************************************/
+/***/ (() => {
+
+
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useBaseQuery.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/react-query/es/react/useBaseQuery.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useBaseQuery": () => (/* binding */ useBaseQuery)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../core/notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _QueryErrorResetBoundary__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./QueryErrorResetBoundary */ "./node_modules/react-query/es/react/QueryErrorResetBoundary.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/react/utils.js");
+
+
+
+
+
+function useBaseQuery(options, Observer) {
+  var mountedRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(false);
+
+  var _React$useState = react__WEBPACK_IMPORTED_MODULE_0__.useState(0),
+      forceUpdate = _React$useState[1];
+
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__.useQueryClient)();
+  var errorResetBoundary = (0,_QueryErrorResetBoundary__WEBPACK_IMPORTED_MODULE_2__.useQueryErrorResetBoundary)();
+  var defaultedOptions = queryClient.defaultQueryObserverOptions(options); // Make sure results are optimistically set in fetching state before subscribing or updating options
+
+  defaultedOptions.optimisticResults = true; // Include callbacks in batch renders
+
+  if (defaultedOptions.onError) {
+    defaultedOptions.onError = _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(defaultedOptions.onError);
+  }
+
+  if (defaultedOptions.onSuccess) {
+    defaultedOptions.onSuccess = _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(defaultedOptions.onSuccess);
+  }
+
+  if (defaultedOptions.onSettled) {
+    defaultedOptions.onSettled = _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(defaultedOptions.onSettled);
+  }
+
+  if (defaultedOptions.suspense) {
+    // Always set stale time when using suspense to prevent
+    // fetching again when directly mounting after suspending
+    if (typeof defaultedOptions.staleTime !== 'number') {
+      defaultedOptions.staleTime = 1000;
+    } // Set cache time to 1 if the option has been set to 0
+    // when using suspense to prevent infinite loop of fetches
+
+
+    if (defaultedOptions.cacheTime === 0) {
+      defaultedOptions.cacheTime = 1;
+    }
+  }
+
+  if (defaultedOptions.suspense || defaultedOptions.useErrorBoundary) {
+    // Prevent retrying failed query if the error boundary has not been reset yet
+    if (!errorResetBoundary.isReset()) {
+      defaultedOptions.retryOnMount = false;
+    }
+  }
+
+  var _React$useState2 = react__WEBPACK_IMPORTED_MODULE_0__.useState(function () {
+    return new Observer(queryClient, defaultedOptions);
+  }),
+      observer = _React$useState2[0];
+
+  var result = observer.getOptimisticResult(defaultedOptions);
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    mountedRef.current = true;
+    errorResetBoundary.clearReset();
+    var unsubscribe = observer.subscribe(_core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(function () {
+      if (mountedRef.current) {
+        forceUpdate(function (x) {
+          return x + 1;
+        });
+      }
+    })); // Update result to make sure we did not miss any query updates
+    // between creating the observer and subscribing to it.
+
+    observer.updateResult();
+    return function () {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, [errorResetBoundary, observer]);
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    // Do not notify on updates because of changes in the options because
+    // these changes should already be reflected in the optimistic result.
+    observer.setOptions(defaultedOptions, {
+      listeners: false
+    });
+  }, [defaultedOptions, observer]); // Handle suspense
+
+  if (defaultedOptions.suspense && result.isLoading) {
+    throw observer.fetchOptimistic(defaultedOptions).then(function (_ref) {
+      var data = _ref.data;
+      defaultedOptions.onSuccess == null ? void 0 : defaultedOptions.onSuccess(data);
+      defaultedOptions.onSettled == null ? void 0 : defaultedOptions.onSettled(data, null);
+    }).catch(function (error) {
+      errorResetBoundary.clearReset();
+      defaultedOptions.onError == null ? void 0 : defaultedOptions.onError(error);
+      defaultedOptions.onSettled == null ? void 0 : defaultedOptions.onSettled(undefined, error);
+    });
+  } // Handle error boundary
+
+
+  if (result.isError && !errorResetBoundary.isReset() && !result.isFetching && (0,_utils__WEBPACK_IMPORTED_MODULE_4__.shouldThrowError)(defaultedOptions.suspense, defaultedOptions.useErrorBoundary, [result.error, observer.getCurrentQuery()])) {
+    throw result.error;
+  } // Handle result property usage tracking
+
+
+  if (defaultedOptions.notifyOnChangeProps === 'tracked') {
+    result = observer.trackResult(result, defaultedOptions);
+  }
+
+  return result;
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useInfiniteQuery.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/react-query/es/react/useInfiniteQuery.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useInfiniteQuery": () => (/* binding */ useInfiniteQuery)
+/* harmony export */ });
+/* harmony import */ var _core_infiniteQueryObserver__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core/infiniteQueryObserver */ "./node_modules/react-query/es/core/infiniteQueryObserver.js");
+/* harmony import */ var _core_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../core/utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _useBaseQuery__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./useBaseQuery */ "./node_modules/react-query/es/react/useBaseQuery.js");
+
+
+ // HOOK
+
+function useInfiniteQuery(arg1, arg2, arg3) {
+  var options = (0,_core_utils__WEBPACK_IMPORTED_MODULE_0__.parseQueryArgs)(arg1, arg2, arg3);
+  return (0,_useBaseQuery__WEBPACK_IMPORTED_MODULE_1__.useBaseQuery)(options, _core_infiniteQueryObserver__WEBPACK_IMPORTED_MODULE_2__.InfiniteQueryObserver);
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useIsFetching.js":
+/*!************************************************************!*\
+  !*** ./node_modules/react-query/es/react/useIsFetching.js ***!
+  \************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useIsFetching": () => (/* binding */ useIsFetching)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../core/notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _core_utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core/utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+
+
+
+
+function useIsFetching(arg1, arg2) {
+  var mountedRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(false);
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__.useQueryClient)();
+
+  var _parseFilterArgs = (0,_core_utils__WEBPACK_IMPORTED_MODULE_2__.parseFilterArgs)(arg1, arg2),
+      filters = _parseFilterArgs[0];
+
+  var _React$useState = react__WEBPACK_IMPORTED_MODULE_0__.useState(queryClient.isFetching(filters)),
+      isFetching = _React$useState[0],
+      setIsFetching = _React$useState[1];
+
+  var filtersRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(filters);
+  filtersRef.current = filters;
+  var isFetchingRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(isFetching);
+  isFetchingRef.current = isFetching;
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    mountedRef.current = true;
+    var unsubscribe = queryClient.getQueryCache().subscribe(_core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(function () {
+      if (mountedRef.current) {
+        var newIsFetching = queryClient.isFetching(filtersRef.current);
+
+        if (isFetchingRef.current !== newIsFetching) {
+          setIsFetching(newIsFetching);
+        }
+      }
+    }));
+    return function () {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, [queryClient]);
+  return isFetching;
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useIsMutating.js":
+/*!************************************************************!*\
+  !*** ./node_modules/react-query/es/react/useIsMutating.js ***!
+  \************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useIsMutating": () => (/* binding */ useIsMutating)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../core/notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _core_utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../core/utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+
+
+
+
+function useIsMutating(arg1, arg2) {
+  var mountedRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(false);
+  var filters = (0,_core_utils__WEBPACK_IMPORTED_MODULE_1__.parseMutationFilterArgs)(arg1, arg2);
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_2__.useQueryClient)();
+
+  var _React$useState = react__WEBPACK_IMPORTED_MODULE_0__.useState(queryClient.isMutating(filters)),
+      isMutating = _React$useState[0],
+      setIsMutating = _React$useState[1];
+
+  var filtersRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(filters);
+  filtersRef.current = filters;
+  var isMutatingRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(isMutating);
+  isMutatingRef.current = isMutating;
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    mountedRef.current = true;
+    var unsubscribe = queryClient.getMutationCache().subscribe(_core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(function () {
+      if (mountedRef.current) {
+        var newIsMutating = queryClient.isMutating(filtersRef.current);
+
+        if (isMutatingRef.current !== newIsMutating) {
+          setIsMutating(newIsMutating);
+        }
+      }
+    }));
+    return function () {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, [queryClient]);
+  return isMutating;
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useMutation.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/react-query/es/react/useMutation.js ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useMutation": () => (/* binding */ useMutation)
+/* harmony export */ });
+/* harmony import */ var _babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/esm/extends */ "./node_modules/@babel/runtime/helpers/esm/extends.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core_notifyManager__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../core/notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _core_utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core/utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _core_mutationObserver__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../core/mutationObserver */ "./node_modules/react-query/es/core/mutationObserver.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./utils */ "./node_modules/react-query/es/react/utils.js");
+
+
+
+
+
+
+ // HOOK
+
+function useMutation(arg1, arg2, arg3) {
+  var mountedRef = react__WEBPACK_IMPORTED_MODULE_1__.useRef(false);
+
+  var _React$useState = react__WEBPACK_IMPORTED_MODULE_1__.useState(0),
+      forceUpdate = _React$useState[1];
+
+  var options = (0,_core_utils__WEBPACK_IMPORTED_MODULE_2__.parseMutationArgs)(arg1, arg2, arg3);
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_3__.useQueryClient)();
+  var obsRef = react__WEBPACK_IMPORTED_MODULE_1__.useRef();
+
+  if (!obsRef.current) {
+    obsRef.current = new _core_mutationObserver__WEBPACK_IMPORTED_MODULE_4__.MutationObserver(queryClient, options);
+  } else {
+    obsRef.current.setOptions(options);
+  }
+
+  var currentResult = obsRef.current.getCurrentResult();
+  react__WEBPACK_IMPORTED_MODULE_1__.useEffect(function () {
+    mountedRef.current = true;
+    var unsubscribe = obsRef.current.subscribe(_core_notifyManager__WEBPACK_IMPORTED_MODULE_5__.notifyManager.batchCalls(function () {
+      if (mountedRef.current) {
+        forceUpdate(function (x) {
+          return x + 1;
+        });
+      }
+    }));
+    return function () {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, []);
+  var mutate = react__WEBPACK_IMPORTED_MODULE_1__.useCallback(function (variables, mutateOptions) {
+    obsRef.current.mutate(variables, mutateOptions).catch(_core_utils__WEBPACK_IMPORTED_MODULE_2__.noop);
+  }, []);
+
+  if (currentResult.error && (0,_utils__WEBPACK_IMPORTED_MODULE_6__.shouldThrowError)(undefined, obsRef.current.options.useErrorBoundary, [currentResult.error])) {
+    throw currentResult.error;
+  }
+
+  return (0,_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__["default"])({}, currentResult, {
+    mutate: mutate,
+    mutateAsync: currentResult.mutate
+  });
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useQueries.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/react-query/es/react/useQueries.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useQueries": () => (/* binding */ useQueries)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _core_notifyManager__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../core/notifyManager */ "./node_modules/react-query/es/core/notifyManager.js");
+/* harmony import */ var _core_queriesObserver__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core/queriesObserver */ "./node_modules/react-query/es/core/queriesObserver.js");
+/* harmony import */ var _QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./QueryClientProvider */ "./node_modules/react-query/es/react/QueryClientProvider.js");
+
+
+
+
+function useQueries(queries) {
+  var mountedRef = react__WEBPACK_IMPORTED_MODULE_0__.useRef(false);
+
+  var _React$useState = react__WEBPACK_IMPORTED_MODULE_0__.useState(0),
+      forceUpdate = _React$useState[1];
+
+  var queryClient = (0,_QueryClientProvider__WEBPACK_IMPORTED_MODULE_1__.useQueryClient)();
+  var defaultedQueries = (0,react__WEBPACK_IMPORTED_MODULE_0__.useMemo)(function () {
+    return queries.map(function (options) {
+      var defaultedOptions = queryClient.defaultQueryObserverOptions(options); // Make sure the results are already in fetching state before subscribing or updating options
+
+      defaultedOptions.optimisticResults = true;
+      return defaultedOptions;
+    });
+  }, [queries, queryClient]);
+
+  var _React$useState2 = react__WEBPACK_IMPORTED_MODULE_0__.useState(function () {
+    return new _core_queriesObserver__WEBPACK_IMPORTED_MODULE_2__.QueriesObserver(queryClient, defaultedQueries);
+  }),
+      observer = _React$useState2[0];
+
+  var result = observer.getOptimisticResult(defaultedQueries);
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    mountedRef.current = true;
+    var unsubscribe = observer.subscribe(_core_notifyManager__WEBPACK_IMPORTED_MODULE_3__.notifyManager.batchCalls(function () {
+      if (mountedRef.current) {
+        forceUpdate(function (x) {
+          return x + 1;
+        });
+      }
+    }));
+    return function () {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, [observer]);
+  react__WEBPACK_IMPORTED_MODULE_0__.useEffect(function () {
+    // Do not notify on updates because of changes in the options because
+    // these changes should already be reflected in the optimistic result.
+    observer.setQueries(defaultedQueries, {
+      listeners: false
+    });
+  }, [defaultedQueries, observer]);
+  return result;
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/useQuery.js":
+/*!*******************************************************!*\
+  !*** ./node_modules/react-query/es/react/useQuery.js ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "useQuery": () => (/* binding */ useQuery)
+/* harmony export */ });
+/* harmony import */ var _core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../core */ "./node_modules/react-query/es/core/queryObserver.js");
+/* harmony import */ var _core_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../core/utils */ "./node_modules/react-query/es/core/utils.js");
+/* harmony import */ var _useBaseQuery__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./useBaseQuery */ "./node_modules/react-query/es/react/useBaseQuery.js");
+
+
+ // HOOK
+
+function useQuery(arg1, arg2, arg3) {
+  var parsedOptions = (0,_core_utils__WEBPACK_IMPORTED_MODULE_0__.parseQueryArgs)(arg1, arg2, arg3);
+  return (0,_useBaseQuery__WEBPACK_IMPORTED_MODULE_1__.useBaseQuery)(parsedOptions, _core__WEBPACK_IMPORTED_MODULE_2__.QueryObserver);
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-query/es/react/utils.js":
+/*!****************************************************!*\
+  !*** ./node_modules/react-query/es/react/utils.js ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "shouldThrowError": () => (/* binding */ shouldThrowError)
+/* harmony export */ });
+function shouldThrowError(suspense, _useErrorBoundary, params) {
+  // Allow useErrorBoundary function to override throwing behavior on a per-error basis
+  if (typeof _useErrorBoundary === 'function') {
+    return _useErrorBoundary.apply(void 0, params);
+  } // Allow useErrorBoundary to override suspense's throwing behavior
+
+
+  if (typeof _useErrorBoundary === 'boolean') return _useErrorBoundary; // If suspense is enabled default to throwing errors
+
+  return !!suspense;
+}
+
+/***/ }),
+
 /***/ "./node_modules/react/cjs/react-jsx-runtime.development.js":
 /*!*****************************************************************!*\
   !*** ./node_modules/react/cjs/react-jsx-runtime.development.js ***!
@@ -49634,6 +56913,770 @@ if (false) {} else {
 
 /***/ }),
 
+/***/ "./node_modules/regenerator-runtime/runtime.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/regenerator-runtime/runtime.js ***!
+  \*****************************************************/
+/***/ ((module) => {
+
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+var runtime = (function (exports) {
+  "use strict";
+
+  var Op = Object.prototype;
+  var hasOwn = Op.hasOwnProperty;
+  var undefined; // More compressible than void 0.
+  var $Symbol = typeof Symbol === "function" ? Symbol : {};
+  var iteratorSymbol = $Symbol.iterator || "@@iterator";
+  var asyncIteratorSymbol = $Symbol.asyncIterator || "@@asyncIterator";
+  var toStringTagSymbol = $Symbol.toStringTag || "@@toStringTag";
+
+  function define(obj, key, value) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+    return obj[key];
+  }
+  try {
+    // IE 8 has a broken Object.defineProperty that only works on DOM objects.
+    define({}, "");
+  } catch (err) {
+    define = function(obj, key, value) {
+      return obj[key] = value;
+    };
+  }
+
+  function wrap(innerFn, outerFn, self, tryLocsList) {
+    // If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.
+    var protoGenerator = outerFn && outerFn.prototype instanceof Generator ? outerFn : Generator;
+    var generator = Object.create(protoGenerator.prototype);
+    var context = new Context(tryLocsList || []);
+
+    // The ._invoke method unifies the implementations of the .next,
+    // .throw, and .return methods.
+    generator._invoke = makeInvokeMethod(innerFn, self, context);
+
+    return generator;
+  }
+  exports.wrap = wrap;
+
+  // Try/catch helper to minimize deoptimizations. Returns a completion
+  // record like context.tryEntries[i].completion. This interface could
+  // have been (and was previously) designed to take a closure to be
+  // invoked without arguments, but in all the cases we care about we
+  // already have an existing method we want to call, so there's no need
+  // to create a new function object. We can even get away with assuming
+  // the method takes exactly one argument, since that happens to be true
+  // in every case, so we don't have to touch the arguments object. The
+  // only additional allocation required is the completion record, which
+  // has a stable shape and so hopefully should be cheap to allocate.
+  function tryCatch(fn, obj, arg) {
+    try {
+      return { type: "normal", arg: fn.call(obj, arg) };
+    } catch (err) {
+      return { type: "throw", arg: err };
+    }
+  }
+
+  var GenStateSuspendedStart = "suspendedStart";
+  var GenStateSuspendedYield = "suspendedYield";
+  var GenStateExecuting = "executing";
+  var GenStateCompleted = "completed";
+
+  // Returning this object from the innerFn has the same effect as
+  // breaking out of the dispatch switch statement.
+  var ContinueSentinel = {};
+
+  // Dummy constructor functions that we use as the .constructor and
+  // .constructor.prototype properties for functions that return Generator
+  // objects. For full spec compliance, you may wish to configure your
+  // minifier not to mangle the names of these two functions.
+  function Generator() {}
+  function GeneratorFunction() {}
+  function GeneratorFunctionPrototype() {}
+
+  // This is a polyfill for %IteratorPrototype% for environments that
+  // don't natively support it.
+  var IteratorPrototype = {};
+  define(IteratorPrototype, iteratorSymbol, function () {
+    return this;
+  });
+
+  var getProto = Object.getPrototypeOf;
+  var NativeIteratorPrototype = getProto && getProto(getProto(values([])));
+  if (NativeIteratorPrototype &&
+      NativeIteratorPrototype !== Op &&
+      hasOwn.call(NativeIteratorPrototype, iteratorSymbol)) {
+    // This environment has a native %IteratorPrototype%; use it instead
+    // of the polyfill.
+    IteratorPrototype = NativeIteratorPrototype;
+  }
+
+  var Gp = GeneratorFunctionPrototype.prototype =
+    Generator.prototype = Object.create(IteratorPrototype);
+  GeneratorFunction.prototype = GeneratorFunctionPrototype;
+  define(Gp, "constructor", GeneratorFunctionPrototype);
+  define(GeneratorFunctionPrototype, "constructor", GeneratorFunction);
+  GeneratorFunction.displayName = define(
+    GeneratorFunctionPrototype,
+    toStringTagSymbol,
+    "GeneratorFunction"
+  );
+
+  // Helper for defining the .next, .throw, and .return methods of the
+  // Iterator interface in terms of a single ._invoke method.
+  function defineIteratorMethods(prototype) {
+    ["next", "throw", "return"].forEach(function(method) {
+      define(prototype, method, function(arg) {
+        return this._invoke(method, arg);
+      });
+    });
+  }
+
+  exports.isGeneratorFunction = function(genFun) {
+    var ctor = typeof genFun === "function" && genFun.constructor;
+    return ctor
+      ? ctor === GeneratorFunction ||
+        // For the native GeneratorFunction constructor, the best we can
+        // do is to check its .name property.
+        (ctor.displayName || ctor.name) === "GeneratorFunction"
+      : false;
+  };
+
+  exports.mark = function(genFun) {
+    if (Object.setPrototypeOf) {
+      Object.setPrototypeOf(genFun, GeneratorFunctionPrototype);
+    } else {
+      genFun.__proto__ = GeneratorFunctionPrototype;
+      define(genFun, toStringTagSymbol, "GeneratorFunction");
+    }
+    genFun.prototype = Object.create(Gp);
+    return genFun;
+  };
+
+  // Within the body of any async function, `await x` is transformed to
+  // `yield regeneratorRuntime.awrap(x)`, so that the runtime can test
+  // `hasOwn.call(value, "__await")` to determine if the yielded value is
+  // meant to be awaited.
+  exports.awrap = function(arg) {
+    return { __await: arg };
+  };
+
+  function AsyncIterator(generator, PromiseImpl) {
+    function invoke(method, arg, resolve, reject) {
+      var record = tryCatch(generator[method], generator, arg);
+      if (record.type === "throw") {
+        reject(record.arg);
+      } else {
+        var result = record.arg;
+        var value = result.value;
+        if (value &&
+            typeof value === "object" &&
+            hasOwn.call(value, "__await")) {
+          return PromiseImpl.resolve(value.__await).then(function(value) {
+            invoke("next", value, resolve, reject);
+          }, function(err) {
+            invoke("throw", err, resolve, reject);
+          });
+        }
+
+        return PromiseImpl.resolve(value).then(function(unwrapped) {
+          // When a yielded Promise is resolved, its final value becomes
+          // the .value of the Promise<{value,done}> result for the
+          // current iteration.
+          result.value = unwrapped;
+          resolve(result);
+        }, function(error) {
+          // If a rejected Promise was yielded, throw the rejection back
+          // into the async generator function so it can be handled there.
+          return invoke("throw", error, resolve, reject);
+        });
+      }
+    }
+
+    var previousPromise;
+
+    function enqueue(method, arg) {
+      function callInvokeWithMethodAndArg() {
+        return new PromiseImpl(function(resolve, reject) {
+          invoke(method, arg, resolve, reject);
+        });
+      }
+
+      return previousPromise =
+        // If enqueue has been called before, then we want to wait until
+        // all previous Promises have been resolved before calling invoke,
+        // so that results are always delivered in the correct order. If
+        // enqueue has not been called before, then it is important to
+        // call invoke immediately, without waiting on a callback to fire,
+        // so that the async generator function has the opportunity to do
+        // any necessary setup in a predictable way. This predictability
+        // is why the Promise constructor synchronously invokes its
+        // executor callback, and why async functions synchronously
+        // execute code before the first await. Since we implement simple
+        // async functions in terms of async generators, it is especially
+        // important to get this right, even though it requires care.
+        previousPromise ? previousPromise.then(
+          callInvokeWithMethodAndArg,
+          // Avoid propagating failures to Promises returned by later
+          // invocations of the iterator.
+          callInvokeWithMethodAndArg
+        ) : callInvokeWithMethodAndArg();
+    }
+
+    // Define the unified helper method that is used to implement .next,
+    // .throw, and .return (see defineIteratorMethods).
+    this._invoke = enqueue;
+  }
+
+  defineIteratorMethods(AsyncIterator.prototype);
+  define(AsyncIterator.prototype, asyncIteratorSymbol, function () {
+    return this;
+  });
+  exports.AsyncIterator = AsyncIterator;
+
+  // Note that simple async functions are implemented on top of
+  // AsyncIterator objects; they just return a Promise for the value of
+  // the final result produced by the iterator.
+  exports.async = function(innerFn, outerFn, self, tryLocsList, PromiseImpl) {
+    if (PromiseImpl === void 0) PromiseImpl = Promise;
+
+    var iter = new AsyncIterator(
+      wrap(innerFn, outerFn, self, tryLocsList),
+      PromiseImpl
+    );
+
+    return exports.isGeneratorFunction(outerFn)
+      ? iter // If outerFn is a generator, return the full iterator.
+      : iter.next().then(function(result) {
+          return result.done ? result.value : iter.next();
+        });
+  };
+
+  function makeInvokeMethod(innerFn, self, context) {
+    var state = GenStateSuspendedStart;
+
+    return function invoke(method, arg) {
+      if (state === GenStateExecuting) {
+        throw new Error("Generator is already running");
+      }
+
+      if (state === GenStateCompleted) {
+        if (method === "throw") {
+          throw arg;
+        }
+
+        // Be forgiving, per 25.3.3.3.3 of the spec:
+        // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorresume
+        return doneResult();
+      }
+
+      context.method = method;
+      context.arg = arg;
+
+      while (true) {
+        var delegate = context.delegate;
+        if (delegate) {
+          var delegateResult = maybeInvokeDelegate(delegate, context);
+          if (delegateResult) {
+            if (delegateResult === ContinueSentinel) continue;
+            return delegateResult;
+          }
+        }
+
+        if (context.method === "next") {
+          // Setting context._sent for legacy support of Babel's
+          // function.sent implementation.
+          context.sent = context._sent = context.arg;
+
+        } else if (context.method === "throw") {
+          if (state === GenStateSuspendedStart) {
+            state = GenStateCompleted;
+            throw context.arg;
+          }
+
+          context.dispatchException(context.arg);
+
+        } else if (context.method === "return") {
+          context.abrupt("return", context.arg);
+        }
+
+        state = GenStateExecuting;
+
+        var record = tryCatch(innerFn, self, context);
+        if (record.type === "normal") {
+          // If an exception is thrown from innerFn, we leave state ===
+          // GenStateExecuting and loop back for another invocation.
+          state = context.done
+            ? GenStateCompleted
+            : GenStateSuspendedYield;
+
+          if (record.arg === ContinueSentinel) {
+            continue;
+          }
+
+          return {
+            value: record.arg,
+            done: context.done
+          };
+
+        } else if (record.type === "throw") {
+          state = GenStateCompleted;
+          // Dispatch the exception by looping back around to the
+          // context.dispatchException(context.arg) call above.
+          context.method = "throw";
+          context.arg = record.arg;
+        }
+      }
+    };
+  }
+
+  // Call delegate.iterator[context.method](context.arg) and handle the
+  // result, either by returning a { value, done } result from the
+  // delegate iterator, or by modifying context.method and context.arg,
+  // setting context.delegate to null, and returning the ContinueSentinel.
+  function maybeInvokeDelegate(delegate, context) {
+    var method = delegate.iterator[context.method];
+    if (method === undefined) {
+      // A .throw or .return when the delegate iterator has no .throw
+      // method always terminates the yield* loop.
+      context.delegate = null;
+
+      if (context.method === "throw") {
+        // Note: ["return"] must be used for ES3 parsing compatibility.
+        if (delegate.iterator["return"]) {
+          // If the delegate iterator has a return method, give it a
+          // chance to clean up.
+          context.method = "return";
+          context.arg = undefined;
+          maybeInvokeDelegate(delegate, context);
+
+          if (context.method === "throw") {
+            // If maybeInvokeDelegate(context) changed context.method from
+            // "return" to "throw", let that override the TypeError below.
+            return ContinueSentinel;
+          }
+        }
+
+        context.method = "throw";
+        context.arg = new TypeError(
+          "The iterator does not provide a 'throw' method");
+      }
+
+      return ContinueSentinel;
+    }
+
+    var record = tryCatch(method, delegate.iterator, context.arg);
+
+    if (record.type === "throw") {
+      context.method = "throw";
+      context.arg = record.arg;
+      context.delegate = null;
+      return ContinueSentinel;
+    }
+
+    var info = record.arg;
+
+    if (! info) {
+      context.method = "throw";
+      context.arg = new TypeError("iterator result is not an object");
+      context.delegate = null;
+      return ContinueSentinel;
+    }
+
+    if (info.done) {
+      // Assign the result of the finished delegate to the temporary
+      // variable specified by delegate.resultName (see delegateYield).
+      context[delegate.resultName] = info.value;
+
+      // Resume execution at the desired location (see delegateYield).
+      context.next = delegate.nextLoc;
+
+      // If context.method was "throw" but the delegate handled the
+      // exception, let the outer generator proceed normally. If
+      // context.method was "next", forget context.arg since it has been
+      // "consumed" by the delegate iterator. If context.method was
+      // "return", allow the original .return call to continue in the
+      // outer generator.
+      if (context.method !== "return") {
+        context.method = "next";
+        context.arg = undefined;
+      }
+
+    } else {
+      // Re-yield the result returned by the delegate method.
+      return info;
+    }
+
+    // The delegate iterator is finished, so forget it and continue with
+    // the outer generator.
+    context.delegate = null;
+    return ContinueSentinel;
+  }
+
+  // Define Generator.prototype.{next,throw,return} in terms of the
+  // unified ._invoke helper method.
+  defineIteratorMethods(Gp);
+
+  define(Gp, toStringTagSymbol, "Generator");
+
+  // A Generator should always return itself as the iterator object when the
+  // @@iterator function is called on it. Some browsers' implementations of the
+  // iterator prototype chain incorrectly implement this, causing the Generator
+  // object to not be returned from this call. This ensures that doesn't happen.
+  // See https://github.com/facebook/regenerator/issues/274 for more details.
+  define(Gp, iteratorSymbol, function() {
+    return this;
+  });
+
+  define(Gp, "toString", function() {
+    return "[object Generator]";
+  });
+
+  function pushTryEntry(locs) {
+    var entry = { tryLoc: locs[0] };
+
+    if (1 in locs) {
+      entry.catchLoc = locs[1];
+    }
+
+    if (2 in locs) {
+      entry.finallyLoc = locs[2];
+      entry.afterLoc = locs[3];
+    }
+
+    this.tryEntries.push(entry);
+  }
+
+  function resetTryEntry(entry) {
+    var record = entry.completion || {};
+    record.type = "normal";
+    delete record.arg;
+    entry.completion = record;
+  }
+
+  function Context(tryLocsList) {
+    // The root entry object (effectively a try statement without a catch
+    // or a finally block) gives us a place to store values thrown from
+    // locations where there is no enclosing try statement.
+    this.tryEntries = [{ tryLoc: "root" }];
+    tryLocsList.forEach(pushTryEntry, this);
+    this.reset(true);
+  }
+
+  exports.keys = function(object) {
+    var keys = [];
+    for (var key in object) {
+      keys.push(key);
+    }
+    keys.reverse();
+
+    // Rather than returning an object with a next method, we keep
+    // things simple and return the next function itself.
+    return function next() {
+      while (keys.length) {
+        var key = keys.pop();
+        if (key in object) {
+          next.value = key;
+          next.done = false;
+          return next;
+        }
+      }
+
+      // To avoid creating an additional object, we just hang the .value
+      // and .done properties off the next function object itself. This
+      // also ensures that the minifier will not anonymize the function.
+      next.done = true;
+      return next;
+    };
+  };
+
+  function values(iterable) {
+    if (iterable) {
+      var iteratorMethod = iterable[iteratorSymbol];
+      if (iteratorMethod) {
+        return iteratorMethod.call(iterable);
+      }
+
+      if (typeof iterable.next === "function") {
+        return iterable;
+      }
+
+      if (!isNaN(iterable.length)) {
+        var i = -1, next = function next() {
+          while (++i < iterable.length) {
+            if (hasOwn.call(iterable, i)) {
+              next.value = iterable[i];
+              next.done = false;
+              return next;
+            }
+          }
+
+          next.value = undefined;
+          next.done = true;
+
+          return next;
+        };
+
+        return next.next = next;
+      }
+    }
+
+    // Return an iterator with no values.
+    return { next: doneResult };
+  }
+  exports.values = values;
+
+  function doneResult() {
+    return { value: undefined, done: true };
+  }
+
+  Context.prototype = {
+    constructor: Context,
+
+    reset: function(skipTempReset) {
+      this.prev = 0;
+      this.next = 0;
+      // Resetting context._sent for legacy support of Babel's
+      // function.sent implementation.
+      this.sent = this._sent = undefined;
+      this.done = false;
+      this.delegate = null;
+
+      this.method = "next";
+      this.arg = undefined;
+
+      this.tryEntries.forEach(resetTryEntry);
+
+      if (!skipTempReset) {
+        for (var name in this) {
+          // Not sure about the optimal order of these conditions:
+          if (name.charAt(0) === "t" &&
+              hasOwn.call(this, name) &&
+              !isNaN(+name.slice(1))) {
+            this[name] = undefined;
+          }
+        }
+      }
+    },
+
+    stop: function() {
+      this.done = true;
+
+      var rootEntry = this.tryEntries[0];
+      var rootRecord = rootEntry.completion;
+      if (rootRecord.type === "throw") {
+        throw rootRecord.arg;
+      }
+
+      return this.rval;
+    },
+
+    dispatchException: function(exception) {
+      if (this.done) {
+        throw exception;
+      }
+
+      var context = this;
+      function handle(loc, caught) {
+        record.type = "throw";
+        record.arg = exception;
+        context.next = loc;
+
+        if (caught) {
+          // If the dispatched exception was caught by a catch block,
+          // then let that catch block handle the exception normally.
+          context.method = "next";
+          context.arg = undefined;
+        }
+
+        return !! caught;
+      }
+
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        var record = entry.completion;
+
+        if (entry.tryLoc === "root") {
+          // Exception thrown outside of any try block that could handle
+          // it, so set the completion value of the entire function to
+          // throw the exception.
+          return handle("end");
+        }
+
+        if (entry.tryLoc <= this.prev) {
+          var hasCatch = hasOwn.call(entry, "catchLoc");
+          var hasFinally = hasOwn.call(entry, "finallyLoc");
+
+          if (hasCatch && hasFinally) {
+            if (this.prev < entry.catchLoc) {
+              return handle(entry.catchLoc, true);
+            } else if (this.prev < entry.finallyLoc) {
+              return handle(entry.finallyLoc);
+            }
+
+          } else if (hasCatch) {
+            if (this.prev < entry.catchLoc) {
+              return handle(entry.catchLoc, true);
+            }
+
+          } else if (hasFinally) {
+            if (this.prev < entry.finallyLoc) {
+              return handle(entry.finallyLoc);
+            }
+
+          } else {
+            throw new Error("try statement without catch or finally");
+          }
+        }
+      }
+    },
+
+    abrupt: function(type, arg) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.tryLoc <= this.prev &&
+            hasOwn.call(entry, "finallyLoc") &&
+            this.prev < entry.finallyLoc) {
+          var finallyEntry = entry;
+          break;
+        }
+      }
+
+      if (finallyEntry &&
+          (type === "break" ||
+           type === "continue") &&
+          finallyEntry.tryLoc <= arg &&
+          arg <= finallyEntry.finallyLoc) {
+        // Ignore the finally entry if control is not jumping to a
+        // location outside the try/catch block.
+        finallyEntry = null;
+      }
+
+      var record = finallyEntry ? finallyEntry.completion : {};
+      record.type = type;
+      record.arg = arg;
+
+      if (finallyEntry) {
+        this.method = "next";
+        this.next = finallyEntry.finallyLoc;
+        return ContinueSentinel;
+      }
+
+      return this.complete(record);
+    },
+
+    complete: function(record, afterLoc) {
+      if (record.type === "throw") {
+        throw record.arg;
+      }
+
+      if (record.type === "break" ||
+          record.type === "continue") {
+        this.next = record.arg;
+      } else if (record.type === "return") {
+        this.rval = this.arg = record.arg;
+        this.method = "return";
+        this.next = "end";
+      } else if (record.type === "normal" && afterLoc) {
+        this.next = afterLoc;
+      }
+
+      return ContinueSentinel;
+    },
+
+    finish: function(finallyLoc) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.finallyLoc === finallyLoc) {
+          this.complete(entry.completion, entry.afterLoc);
+          resetTryEntry(entry);
+          return ContinueSentinel;
+        }
+      }
+    },
+
+    "catch": function(tryLoc) {
+      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
+        var entry = this.tryEntries[i];
+        if (entry.tryLoc === tryLoc) {
+          var record = entry.completion;
+          if (record.type === "throw") {
+            var thrown = record.arg;
+            resetTryEntry(entry);
+          }
+          return thrown;
+        }
+      }
+
+      // The context.catch method must only be called with a location
+      // argument that corresponds to a known catch block.
+      throw new Error("illegal catch attempt");
+    },
+
+    delegateYield: function(iterable, resultName, nextLoc) {
+      this.delegate = {
+        iterator: values(iterable),
+        resultName: resultName,
+        nextLoc: nextLoc
+      };
+
+      if (this.method === "next") {
+        // Deliberately forget the last sent value so that we don't
+        // accidentally pass it on to the delegate.
+        this.arg = undefined;
+      }
+
+      return ContinueSentinel;
+    }
+  };
+
+  // Regardless of whether this script is executing as a CommonJS module
+  // or not, return the runtime object so that we can declare the variable
+  // regeneratorRuntime in the outer scope, which allows this module to be
+  // injected easily by `bin/regenerator --include-runtime script.js`.
+  return exports;
+
+}(
+  // If this script is executing as a CommonJS module, use module.exports
+  // as the regeneratorRuntime namespace. Otherwise create a new empty
+  // object. Either way, the resulting object will be used to initialize
+  // the regeneratorRuntime variable at the top of this file.
+   true ? module.exports : 0
+));
+
+try {
+  regeneratorRuntime = runtime;
+} catch (accidentalStrictMode) {
+  // This module should not be running in strict mode, so the above
+  // assignment should always work unless something is misconfigured. Just
+  // in case runtime.js accidentally runs in strict mode, in modern engines
+  // we can explicitly access globalThis. In older engines we can escape
+  // strict mode using a global Function call. This could conceivably fail
+  // if a Content Security Policy forbids using Function, but in that case
+  // the proper solution is to fix the accidental strict mode problem. If
+  // you've misconfigured your bundler to force strict mode and applied a
+  // CSP to forbid Function, and you're not willing to fix either of those
+  // problems, please detail your unique predicament in a GitHub issue.
+  if (typeof globalThis === "object") {
+    globalThis.regeneratorRuntime = runtime;
+  } else {
+    Function("r", "regeneratorRuntime = r")(runtime);
+  }
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/scheduler/cjs/scheduler-tracing.development.js":
 /*!*********************************************************************!*\
   !*** ./node_modules/scheduler/cjs/scheduler-tracing.development.js ***!
@@ -50679,6 +58722,419 @@ if (false) {} else {
 }
 
 
+/***/ }),
+
+/***/ "./admin/assets/static/css/soft-ui-dashboard.css":
+/*!*******************************************************!*\
+  !*** ./admin/assets/static/css/soft-ui-dashboard.css ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! !../../../../node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js */ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js");
+/* harmony import */ var _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_soft_ui_dashboard_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! !!../../../../node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!../../../../node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./soft-ui-dashboard.css */ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/static/css/soft-ui-dashboard.css");
+
+            
+
+var options = {};
+
+options.insert = "head";
+options.singleton = false;
+
+var update = _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default()(_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_soft_ui_dashboard_css__WEBPACK_IMPORTED_MODULE_1__["default"], options);
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_soft_ui_dashboard_css__WEBPACK_IMPORTED_MODULE_1__["default"].locals || {});
+
+/***/ }),
+
+/***/ "./admin/assets/styles/main.css":
+/*!**************************************!*\
+  !*** ./admin/assets/styles/main.css ***!
+  \**************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! !../../../node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js */ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js");
+/* harmony import */ var _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_main_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! !!../../../node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!../../../node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./main.css */ "./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].oneOf[1].use[2]!./admin/assets/styles/main.css");
+
+            
+
+var options = {};
+
+options.insert = "head";
+options.singleton = false;
+
+var update = _node_modules_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default()(_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_main_css__WEBPACK_IMPORTED_MODULE_1__["default"], options);
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (_node_modules_css_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_1_node_modules_postcss_loader_dist_cjs_js_ruleSet_1_rules_6_oneOf_1_use_2_main_css__WEBPACK_IMPORTED_MODULE_1__["default"].locals || {});
+
+/***/ }),
+
+/***/ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js":
+/*!****************************************************************************!*\
+  !*** ./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js ***!
+  \****************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var isOldIE = function isOldIE() {
+  var memo;
+  return function memorize() {
+    if (typeof memo === 'undefined') {
+      // Test for IE <= 9 as proposed by Browserhacks
+      // @see http://browserhacks.com/#hack-e71d8692f65334173fee715c222cb805
+      // Tests for existence of standard globals is to allow style-loader
+      // to operate correctly into non-standard environments
+      // @see https://github.com/webpack-contrib/style-loader/issues/177
+      memo = Boolean(window && document && document.all && !window.atob);
+    }
+
+    return memo;
+  };
+}();
+
+var getTarget = function getTarget() {
+  var memo = {};
+  return function memorize(target) {
+    if (typeof memo[target] === 'undefined') {
+      var styleTarget = document.querySelector(target); // Special case to return head of iframe instead of iframe itself
+
+      if (window.HTMLIFrameElement && styleTarget instanceof window.HTMLIFrameElement) {
+        try {
+          // This will throw an exception if access to iframe is blocked
+          // due to cross-origin restrictions
+          styleTarget = styleTarget.contentDocument.head;
+        } catch (e) {
+          // istanbul ignore next
+          styleTarget = null;
+        }
+      }
+
+      memo[target] = styleTarget;
+    }
+
+    return memo[target];
+  };
+}();
+
+var stylesInDom = [];
+
+function getIndexByIdentifier(identifier) {
+  var result = -1;
+
+  for (var i = 0; i < stylesInDom.length; i++) {
+    if (stylesInDom[i].identifier === identifier) {
+      result = i;
+      break;
+    }
+  }
+
+  return result;
+}
+
+function modulesToDom(list, options) {
+  var idCountMap = {};
+  var identifiers = [];
+
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i];
+    var id = options.base ? item[0] + options.base : item[0];
+    var count = idCountMap[id] || 0;
+    var identifier = "".concat(id, " ").concat(count);
+    idCountMap[id] = count + 1;
+    var index = getIndexByIdentifier(identifier);
+    var obj = {
+      css: item[1],
+      media: item[2],
+      sourceMap: item[3]
+    };
+
+    if (index !== -1) {
+      stylesInDom[index].references++;
+      stylesInDom[index].updater(obj);
+    } else {
+      stylesInDom.push({
+        identifier: identifier,
+        updater: addStyle(obj, options),
+        references: 1
+      });
+    }
+
+    identifiers.push(identifier);
+  }
+
+  return identifiers;
+}
+
+function insertStyleElement(options) {
+  var style = document.createElement('style');
+  var attributes = options.attributes || {};
+
+  if (typeof attributes.nonce === 'undefined') {
+    var nonce =  true ? __webpack_require__.nc : 0;
+
+    if (nonce) {
+      attributes.nonce = nonce;
+    }
+  }
+
+  Object.keys(attributes).forEach(function (key) {
+    style.setAttribute(key, attributes[key]);
+  });
+
+  if (typeof options.insert === 'function') {
+    options.insert(style);
+  } else {
+    var target = getTarget(options.insert || 'head');
+
+    if (!target) {
+      throw new Error("Couldn't find a style target. This probably means that the value for the 'insert' parameter is invalid.");
+    }
+
+    target.appendChild(style);
+  }
+
+  return style;
+}
+
+function removeStyleElement(style) {
+  // istanbul ignore if
+  if (style.parentNode === null) {
+    return false;
+  }
+
+  style.parentNode.removeChild(style);
+}
+/* istanbul ignore next  */
+
+
+var replaceText = function replaceText() {
+  var textStore = [];
+  return function replace(index, replacement) {
+    textStore[index] = replacement;
+    return textStore.filter(Boolean).join('\n');
+  };
+}();
+
+function applyToSingletonTag(style, index, remove, obj) {
+  var css = remove ? '' : obj.media ? "@media ".concat(obj.media, " {").concat(obj.css, "}") : obj.css; // For old IE
+
+  /* istanbul ignore if  */
+
+  if (style.styleSheet) {
+    style.styleSheet.cssText = replaceText(index, css);
+  } else {
+    var cssNode = document.createTextNode(css);
+    var childNodes = style.childNodes;
+
+    if (childNodes[index]) {
+      style.removeChild(childNodes[index]);
+    }
+
+    if (childNodes.length) {
+      style.insertBefore(cssNode, childNodes[index]);
+    } else {
+      style.appendChild(cssNode);
+    }
+  }
+}
+
+function applyToTag(style, options, obj) {
+  var css = obj.css;
+  var media = obj.media;
+  var sourceMap = obj.sourceMap;
+
+  if (media) {
+    style.setAttribute('media', media);
+  } else {
+    style.removeAttribute('media');
+  }
+
+  if (sourceMap && typeof btoa !== 'undefined') {
+    css += "\n/*# sourceMappingURL=data:application/json;base64,".concat(btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))), " */");
+  } // For old IE
+
+  /* istanbul ignore if  */
+
+
+  if (style.styleSheet) {
+    style.styleSheet.cssText = css;
+  } else {
+    while (style.firstChild) {
+      style.removeChild(style.firstChild);
+    }
+
+    style.appendChild(document.createTextNode(css));
+  }
+}
+
+var singleton = null;
+var singletonCounter = 0;
+
+function addStyle(obj, options) {
+  var style;
+  var update;
+  var remove;
+
+  if (options.singleton) {
+    var styleIndex = singletonCounter++;
+    style = singleton || (singleton = insertStyleElement(options));
+    update = applyToSingletonTag.bind(null, style, styleIndex, false);
+    remove = applyToSingletonTag.bind(null, style, styleIndex, true);
+  } else {
+    style = insertStyleElement(options);
+    update = applyToTag.bind(null, style, options);
+
+    remove = function remove() {
+      removeStyleElement(style);
+    };
+  }
+
+  update(obj);
+  return function updateStyle(newObj) {
+    if (newObj) {
+      if (newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap) {
+        return;
+      }
+
+      update(obj = newObj);
+    } else {
+      remove();
+    }
+  };
+}
+
+module.exports = function (list, options) {
+  options = options || {}; // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+  // tags it will allow on a page
+
+  if (!options.singleton && typeof options.singleton !== 'boolean') {
+    options.singleton = isOldIE();
+  }
+
+  list = list || [];
+  var lastIdentifiers = modulesToDom(list, options);
+  return function update(newList) {
+    newList = newList || [];
+
+    if (Object.prototype.toString.call(newList) !== '[object Array]') {
+      return;
+    }
+
+    for (var i = 0; i < lastIdentifiers.length; i++) {
+      var identifier = lastIdentifiers[i];
+      var index = getIndexByIdentifier(identifier);
+      stylesInDom[index].references--;
+    }
+
+    var newLastIdentifiers = modulesToDom(newList, options);
+
+    for (var _i = 0; _i < lastIdentifiers.length; _i++) {
+      var _identifier = lastIdentifiers[_i];
+
+      var _index = getIndexByIdentifier(_identifier);
+
+      if (stylesInDom[_index].references === 0) {
+        stylesInDom[_index].updater();
+
+        stylesInDom.splice(_index, 1);
+      }
+    }
+
+    lastIdentifiers = newLastIdentifiers;
+  };
+};
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/extends.js":
+/*!************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/extends.js ***!
+  \************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _extends)
+/* harmony export */ });
+function _extends() {
+  _extends = Object.assign || function (target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+
+      for (var key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+
+    return target;
+  };
+
+  return _extends.apply(this, arguments);
+}
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/inheritsLoose.js ***!
+  \******************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _inheritsLoose)
+/* harmony export */ });
+/* harmony import */ var _setPrototypeOf_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./setPrototypeOf.js */ "./node_modules/@babel/runtime/helpers/esm/setPrototypeOf.js");
+
+function _inheritsLoose(subClass, superClass) {
+  subClass.prototype = Object.create(superClass.prototype);
+  subClass.prototype.constructor = subClass;
+  (0,_setPrototypeOf_js__WEBPACK_IMPORTED_MODULE_0__["default"])(subClass, superClass);
+}
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/setPrototypeOf.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/setPrototypeOf.js ***!
+  \*******************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _setPrototypeOf)
+/* harmony export */ });
+function _setPrototypeOf(o, p) {
+  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+    o.__proto__ = p;
+    return o;
+  };
+
+  return _setPrototypeOf(o, p);
+}
+
 /***/ })
 
 /******/ 	});
@@ -50710,7 +59166,66 @@ if (false) {} else {
 /******/ 		return module.exports;
 /******/ 	}
 /******/ 	
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = __webpack_modules__;
+/******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/chunk loaded */
+/******/ 	(() => {
+/******/ 		var deferred = [];
+/******/ 		__webpack_require__.O = (result, chunkIds, fn, priority) => {
+/******/ 			if(chunkIds) {
+/******/ 				priority = priority || 0;
+/******/ 				for(var i = deferred.length; i > 0 && deferred[i - 1][2] > priority; i--) deferred[i] = deferred[i - 1];
+/******/ 				deferred[i] = [chunkIds, fn, priority];
+/******/ 				return;
+/******/ 			}
+/******/ 			var notFulfilled = Infinity;
+/******/ 			for (var i = 0; i < deferred.length; i++) {
+/******/ 				var [chunkIds, fn, priority] = deferred[i];
+/******/ 				var fulfilled = true;
+/******/ 				for (var j = 0; j < chunkIds.length; j++) {
+/******/ 					if ((priority & 1 === 0 || notFulfilled >= priority) && Object.keys(__webpack_require__.O).every((key) => (__webpack_require__.O[key](chunkIds[j])))) {
+/******/ 						chunkIds.splice(j--, 1);
+/******/ 					} else {
+/******/ 						fulfilled = false;
+/******/ 						if(priority < notFulfilled) notFulfilled = priority;
+/******/ 					}
+/******/ 				}
+/******/ 				if(fulfilled) {
+/******/ 					deferred.splice(i--, 1)
+/******/ 					var r = fn();
+/******/ 					if (r !== undefined) result = r;
+/******/ 				}
+/******/ 			}
+/******/ 			return result;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	(() => {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = (module) => {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/global */
 /******/ 	(() => {
 /******/ 		__webpack_require__.g = (function() {
@@ -50721,6 +59236,11 @@ if (false) {} else {
 /******/ 				if (typeof window === 'object') return window;
 /******/ 			}
 /******/ 		})();
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
@@ -50743,17 +59263,68 @@ if (false) {} else {
 /******/ 		};
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/jsonp chunk loading */
+/******/ 	(() => {
+/******/ 		// no baseURI
+/******/ 		
+/******/ 		// object to store loaded and loading chunks
+/******/ 		// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 		// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
+/******/ 		var installedChunks = {
+/******/ 			"/js/admin": 0,
+/******/ 			"css/admin": 0
+/******/ 		};
+/******/ 		
+/******/ 		// no chunk on demand loading
+/******/ 		
+/******/ 		// no prefetching
+/******/ 		
+/******/ 		// no preloaded
+/******/ 		
+/******/ 		// no HMR
+/******/ 		
+/******/ 		// no HMR manifest
+/******/ 		
+/******/ 		__webpack_require__.O.j = (chunkId) => (installedChunks[chunkId] === 0);
+/******/ 		
+/******/ 		// install a JSONP callback for chunk loading
+/******/ 		var webpackJsonpCallback = (parentChunkLoadingFunction, data) => {
+/******/ 			var [chunkIds, moreModules, runtime] = data;
+/******/ 			// add "moreModules" to the modules object,
+/******/ 			// then flag all "chunkIds" as loaded and fire callback
+/******/ 			var moduleId, chunkId, i = 0;
+/******/ 			if(chunkIds.some((id) => (installedChunks[id] !== 0))) {
+/******/ 				for(moduleId in moreModules) {
+/******/ 					if(__webpack_require__.o(moreModules, moduleId)) {
+/******/ 						__webpack_require__.m[moduleId] = moreModules[moduleId];
+/******/ 					}
+/******/ 				}
+/******/ 				if(runtime) var result = runtime(__webpack_require__);
+/******/ 			}
+/******/ 			if(parentChunkLoadingFunction) parentChunkLoadingFunction(data);
+/******/ 			for(;i < chunkIds.length; i++) {
+/******/ 				chunkId = chunkIds[i];
+/******/ 				if(__webpack_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 					installedChunks[chunkId][0]();
+/******/ 				}
+/******/ 				installedChunks[chunkId] = 0;
+/******/ 			}
+/******/ 			return __webpack_require__.O(result);
+/******/ 		}
+/******/ 		
+/******/ 		var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
+/******/ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+/******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+/******/ 	})();
+/******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-(() => {
-/*!*******************************!*\
-  !*** ./resources/js/admin.js ***!
-  \*******************************/
-__webpack_require__(/*! ./bootstrap */ "./resources/js/bootstrap.js");
-
-__webpack_require__(/*! ./admin/index */ "./resources/js/admin/index.js"); // require('./admin/index');
-})();
-
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module depends on other loaded chunks and execution need to be delayed
+/******/ 	__webpack_require__.O(undefined, ["css/admin"], () => (__webpack_require__("./resources/js/admin.js")))
+/******/ 	var __webpack_exports__ = __webpack_require__.O(undefined, ["css/admin"], () => (__webpack_require__("./resources/css/admin.css")))
+/******/ 	__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
+/******/ 	
 /******/ })()
 ;
