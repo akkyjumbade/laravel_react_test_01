@@ -146,14 +146,14 @@ export default function DashboardScreen(props) {
                      <div className="col-lg-5 ms-auto text-center mt-5 mt-lg-0">
                      <div className="bg-gradient-primary border-radius-lg h-100">
                         <img
-                           src="../assets/img/shapes/waves-white.svg"
+                           src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/shapes/waves-white.svg"
                            className="position-absolute h-100 w-50 top-0 d-lg-block d-none"
                            alt="waves"
                         />
                         <div className="position-relative d-flex align-items-center justify-content-center h-100">
                            <img
                            className="w-100 position-relative z-index-2 pt-4"
-                           src="../assets/img/illustrations/rocket-white.png"
+                           src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/illustrations/rocket-white.png"
                            alt="rocket"
                            />
                         </div>
@@ -167,7 +167,7 @@ export default function DashboardScreen(props) {
                <div className="card h-100 p-3">
                <div
                   className="overflow-hidden position-relative border-radius-lg bg-cover h-100"
-                  style={{ backgroundImage: 'url("../assets/img/ivancik.jpg")' }}
+                  style={{ backgroundImage: 'url("https://demos.creative-tim.com/soft-ui-dashboard/assets/img/ivancik.jpg")' }}
                >
                   <span className="mask bg-gradient-dark" />
                   <div className="card-body position-relative z-index-1 d-flex flex-column h-100 p-3">
@@ -269,7 +269,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-xd.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-xd.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="xd"
                                  />
@@ -288,7 +288,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Ryan Tompson"
                               >
-                                 <img src="../assets/img/team-1.jpg" alt="team1" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-1.jpg" alt="team1" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -297,7 +297,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Romina Hadid"
                               >
-                                 <img src="../assets/img/team-2.jpg" alt="team2" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-2.jpg" alt="team2" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -306,7 +306,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Alexander Smith"
                               >
-                                 <img src="../assets/img/team-3.jpg" alt="team3" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-3.jpg" alt="team3" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -315,7 +315,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Jessica Doe"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="team4" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="team4" />
                               </a>
                            </div>
                            </td>
@@ -346,7 +346,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-atlassian.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-atlassian.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="atlassian"
                                  />
@@ -365,7 +365,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Romina Hadid"
                               >
-                                 <img src="../assets/img/team-2.jpg" alt="team5" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-2.jpg" alt="team5" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -374,7 +374,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Jessica Doe"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="team6" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="team6" />
                               </a>
                            </div>
                            </td>
@@ -405,7 +405,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-slack.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-slack.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="team7"
                                  />
@@ -424,7 +424,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Romina Hadid"
                               >
-                                 <img src="../assets/img/team-3.jpg" alt="team8" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-3.jpg" alt="team8" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -433,7 +433,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Jessica Doe"
                               >
-                                 <img src="../assets/img/team-1.jpg" alt="team9" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-1.jpg" alt="team9" />
                               </a>
                            </div>
                            </td>
@@ -464,7 +464,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-spotify.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-spotify.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="spotify"
                                  />
@@ -483,7 +483,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Ryan Tompson"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="user1" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="user1" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -492,7 +492,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Romina Hadid"
                               >
-                                 <img src="../assets/img/team-3.jpg" alt="user2" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-3.jpg" alt="user2" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -501,7 +501,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Alexander Smith"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="user3" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="user3" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -510,7 +510,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Jessica Doe"
                               >
-                                 <img src="../assets/img/team-1.jpg" alt="user4" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-1.jpg" alt="user4" />
                               </a>
                            </div>
                            </td>
@@ -541,7 +541,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-jira.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-jira.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="jira"
                                  />
@@ -562,7 +562,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Ryan Tompson"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="user5" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="user5" />
                               </a>
                            </div>
                            </td>
@@ -593,7 +593,7 @@ export default function DashboardScreen(props) {
                            <div className="d-flex px-2 py-1">
                               <div>
                                  <img
-                                 src="../assets/img/small-logos/logo-invision.svg"
+                                 src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/small-logos/logo-invision.svg"
                                  className="avatar avatar-sm me-3"
                                  alt="invision"
                                  />
@@ -614,7 +614,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Ryan Tompson"
                               >
-                                 <img src="../assets/img/team-1.jpg" alt="user6" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-1.jpg" alt="user6" />
                               </a>
                               <a
                                  href="javascript:;"
@@ -623,7 +623,7 @@ export default function DashboardScreen(props) {
                                  data-bs-placement="bottom"
                                  title="Jessica Doe"
                               >
-                                 <img src="../assets/img/team-4.jpg" alt="user7" />
+                                 <img src="https://demos.creative-tim.com/soft-ui-dashboard/assets/img/team-4.jpg" alt="user7" />
                               </a>
                            </div>
                            </td>

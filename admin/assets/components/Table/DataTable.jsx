@@ -1,15 +1,22 @@
 import { Fragment, useMemo } from "react"
 import { useQuery } from "react-query"
 import { useTable } from "react-table"
+import { useRowSelect, useSortBy } from "react-table/dist/react-table.development"
 import Table from "."
 import Column from "./Column"
+import useTableActionsFeature from "./hooks/useTableActionsFeature"
 
-export default function DataTable({ url, children, ...props }) {
-   const { data: { data } = {} } = useQuery(url, {
+const useTableQuery = (url, params = {}) => {
+   return useQuery(url, {
+      cacheTime: ((1000 * 60) * 60),
       placeholderData: () => ({
          data: [],
       })
    })
+}
+
+export default function DataTable({ url, children, ...props }) {
+   const { data: { data } = {} } = useTableQuery(url)
    const tableColumns = useMemo(() => {
       const _mapedCols = children?.map(cl => ({
          ...cl.props,
@@ -20,7 +27,7 @@ export default function DataTable({ url, children, ...props }) {
       return _mapedCols
    }, [ children ])
 
-   const table = useTable({ columns: tableColumns, data: data })
+   const table = useTable({ columns: tableColumns, data: data }, useSortBy, useRowSelect, useTableActionsFeature)
    const {
       getTableProps,
       getTableBodyProps,
