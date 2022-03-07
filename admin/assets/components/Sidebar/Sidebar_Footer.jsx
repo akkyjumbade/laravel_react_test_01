@@ -1,6 +1,6 @@
 export default function Sidebar_Footer() {
    return (
-      <div className="sidenav-footer mx-3 ">
+      <div className="sidenav-footer bg-gray-800 ">
          <div className="card card-background shadow-none card-background-mask-secondary" id="sidenavCard">
             <div className="full-background" style={{backgroundImage: 'url("../assets/img/curved-images/white-curved.jpeg")'}} />
             <div className="card-body text-start p-3 w-100">

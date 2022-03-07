@@ -24,14 +24,23 @@ export default [
                {
                   path: '/',
                   element: <UsersScreen />,
+                  meta: {
+                     breadcrumb: () => 'Users',
+                  },
                },
                {
                   path: 'create',
                   element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
+                  meta: {
+                     breadcrumb: () => 'New user',
+                  },
                },
                {
                   path: 'edit/:id',
                   element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
+                  meta: {
+                     breadcrumb: () => 'Edit user',
+                  },
                   loader: async ({ params }) => {
                      try {
                         const { data } = await axios.get(`/api/users/${params?.id}`)
@@ -44,6 +53,9 @@ export default [
                {
                   path: 'info/:id',
                   element: <UsersScreen.Create />,
+                  meta: {
+                     breadcrumb: () => 'User',
+                  },
                },
             ]
          },
@@ -52,15 +64,26 @@ export default [
             children: [
                {
                   path: '/',
+                  // id: 'productIndex',
+                  index: true,
                   element: <ProductsScreen />,
+                  meta: {
+                     breadcrumb: () => 'Products',
+                  },
                },
                {
                   path: 'create',
                   element: <ProductsScreen.Create />,
+                  meta: {
+                     breadcrumb: () => 'New product',
+                  },
                },
                {
                   path: 'edit/:id',
                   element: <ProductsScreen.Create />,
+                  meta: {
+                     breadcrumb: () => 'Edit product',
+                  },
                   loader: async ({ params }) => {
                      try {
                         const { data } = await axios.get(`/api/products/${params?.id}`)

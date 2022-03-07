@@ -3,6 +3,7 @@ import { useState } from "react";
 // import { useMatch, useNavigate, useResolvedPath } from "react-router-dom";
 import home from '../../icons/home.svg'
 
+
 export default function NavItem({ label, url, iconClass }) {
    // let navigate = useNavigate();
    const [ active, ] = useState(false)
@@ -17,10 +18,7 @@ export default function NavItem({ label, url, iconClass }) {
 
    return (
       <li className={'nav-item'}>
-         <Link className={`nav-link cursor-pointer ${match ? 'active' : ''}`} to={url}>
-            <div className="icon p-3 icon-shape shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-               <span className={`fas  ${iconClass}  ${activeIconClass}`} aria-hidden="true" />
-            </div>
+         <Link className={`block mb-1 text-sm font-medium text-gray-300 ${match ? 'active' : ''}`} to={url}>
             <span className="nav-link-text ms-1">{label}</span>
          </Link>
       </li>

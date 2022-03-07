@@ -9,6 +9,8 @@ import { Link, Outlet, useMatch, useNavigate } from '@tanstack/react-location'
 import { http } from '../utils'
 import Field from '../components/Form/Field'
 import { toast } from 'react-toastify';
+import Button from '../components/atoms/Button'
+import TextInput from '../components/atoms/TextInput'
 
 
 const Index = () => (
@@ -133,12 +135,12 @@ function CreateOrder ({ ...props }) {
                                  </td>
                                  {/* <td>
                                     <Field label={'Price'} required={true} error={errors && errors[`items.${_rowIndex}.price`]}>
-                                       <input style={{ width: '150px' }} type={'number'} className='form-control' disabled value={products?.data?.find(r => r.id === values.items[_rowIndex]?.item_id)?.price} onChange={handleChange(`items[${_rowIndex}].price`)} />
+                                       <TextInput style={{ width: '150px' }} type={'number'} className='form-control' disabled value={products?.data?.find(r => r.id === values.items[_rowIndex]?.item_id)?.price} onChange={handleChange(`items[${_rowIndex}].price`)} />
                                     </Field>
                                  </td> */}
                                  <td>
                                     <Field label={'Qty'} required={true} error={errors && errors[`items.${_rowIndex}.qty`]}>
-                                       <input style={{ width: '100px' }} type={'number'} className='form-control' value={values.items[_rowIndex]?.qty} onChange={handleChange(`items[${_rowIndex}].qty`)} />
+                                       <TextInput style={{ width: '100px' }} type={'number'} className='form-control' value={values.items[_rowIndex]?.qty} onChange={handleChange(`items[${_rowIndex}].qty`)} />
                                     </Field>
                                  </td>
                                  <td>
@@ -159,13 +161,13 @@ function CreateOrder ({ ...props }) {
                   </Field>
 
                   <Field label={'Total'} required={true} error={errors?.total}>
-                     <input type={'number'} className='form-control' value={values.total} onChange={handleChange('total')} />
+                     <TextInput type={'number'} className='form-control' value={values.total} onChange={handleChange('total')} />
                   </Field>
                </fieldset>
                <fieldset className='d-flex gap-3'>
-                  <button type='button' className='btn bg-gradient-primary' disabled={isSubmitting} onClick={handleSubmit}>Submit</button>
+                  <Button type='button' className='btn bg-gradient-primary' disabled={isSubmitting} onClick={handleSubmit}>Submit</Button>
                   {values?.id && (
-                  <button type='button' className='btn btn-outline-secondary' disabled={isDeleting} onClick={deleteAction}>Delete</button>
+                  <Button type='button' className='btn btn-outline-secondary' disabled={isDeleting} onClick={deleteAction}>Delete</Button>
                   )}
                </fieldset>
             </div>

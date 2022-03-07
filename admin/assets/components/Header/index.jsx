@@ -10,7 +10,6 @@ const StyledHeader = styled.nav`
    left: 0;
    width: 100%;
    display: flex;
-   background: var(--navbar-bg, gray);
    .container {
       display: flex;
    }
@@ -64,12 +63,10 @@ export default function Header(props) {
       <>
          {/* Navbar */}
          <StyledHeader
-            className="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl"
-            id="navbarBlur"
-            navbar-scroll="true"
+         className={'bg-white border-b border-gray-200 dark:border-gray-600 dark:bg-gray-800'}
          >
             <Container className="container py-1 px-3">
-               {/* <Breadcrumb /> */}
+               <Breadcrumb />
                <div
                className="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4"
                id="navbar"

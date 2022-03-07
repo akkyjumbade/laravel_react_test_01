@@ -15,7 +15,7 @@ const Index = () => (
    <>
       <Toolbar title={'Products'} createAction={{ to: 'create' }} />
       <DataTable url={'/api/products'}>
-         <DataTable.Field name={'id'} title={'ID'} />
+         <DataTable.Field name={'id'} title={'ID'} hidden={true} visible={false} />
          <DataTable.Field name={'title'} title={'Title'} Cell={cellProps => (
             <Link className='link-primary' to={`/products/edit/${cellProps.row.values?.id}`}>{cellProps.value}</Link>
          )} />

@@ -1,6 +1,7 @@
 import { sumBy } from "lodash"
 import { useMemo } from "react"
 import { useQuery } from "react-query"
+import AsyncWidget from "../components/Widget/AsyncWidget"
 
 export default function DashboardScreen(props) {
    const { data: orders, isLoading } = useQuery([ 'api/orders' ])
@@ -12,6 +13,8 @@ export default function DashboardScreen(props) {
 
    return (
       <div>
+         <AsyncWidget code={'users_count'} />
+         <AsyncWidget code={'orders_count'} />
          <div className="row">
             <div className="col-xl-3 col-sm-6 mb-xl-0 mb-4">
                <div className="card">

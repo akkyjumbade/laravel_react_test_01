@@ -1,4 +1,6 @@
 import styled from "@emotion/styled"
+import Menu from "../Menu"
+import MenuItem from "../Menu/MenuItem"
 import Navicon from "../Navicon"
 import NavItem from "./NavItem"
 import Sidebar_Footer from "./Sidebar_Footer"
@@ -10,7 +12,8 @@ const StyledSidebar = styled.aside`
    top: 0;
    width: var(--sidebar-width, 200px);
    height: 100vh;
-   background-color: var(--sidebar-bg, white);
+   display: flex;
+   flex-direction: column;
    @media screen and (min-width: 800px)
    {
       left: 0;
@@ -25,16 +28,23 @@ const StyledSidebar = styled.aside`
 
 export default function Sidebar({ appName }) {
    return (
-      <StyledSidebar className="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 " id="sidenav-main">
+      <StyledSidebar className="bg-gray-900 ">
          <Sidebar_Header />
-         <hr className="horizontal dark mt-0" />
-         <div className="collapse navbar-collapse  w-auto  max-height-vh-100 h-100" id="sidenav-collapse-main">
-            <ul className="navbar-nav">
+         <div className="flex-1">
+            <Menu>
+               <MenuItem label={'Dashboard'} url={'/'}>
+                  <Menu>
+                     <MenuItem label={'Home'} url={'/'} />
+                     <MenuItem label={'Sales'} url={'/'} />
+                  </Menu>
+               </MenuItem>
+            </Menu>
+            {/* <ul className="navbar-nav">
                <NavItem label={'Dashboard'} url={'/'} />
                <NavItem label={'Products'} url={'/products'} iconClass={'fa-cube'} />
                <NavItem label={'Orders'} url={'/orders'} iconClass={'fa-list'} />
                <NavItem label={'Customers'} url={'/users'} iconClass={'fa-users'} />
-            </ul>
+            </ul> */}
          </div>
          <Sidebar_Footer />
       </StyledSidebar>

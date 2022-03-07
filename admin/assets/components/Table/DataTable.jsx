@@ -4,6 +4,7 @@ import { useTable } from "react-table"
 import { useRowSelect, useSortBy } from "react-table/dist/react-table.development"
 import Table from "."
 import Column from "./Column"
+import DefaultCellRender from "./DefaultCellRender"
 import useTableActionsFeature from "./hooks/useTableActionsFeature"
 
 const useTableQuery = (url, params = {}) => {
@@ -15,10 +16,12 @@ const useTableQuery = (url, params = {}) => {
    })
 }
 
+
 export default function DataTable({ url, children, ...props }) {
    const { data: { data } = {} } = useTableQuery(url)
    const tableColumns = useMemo(() => {
       const _mapedCols = children?.map(cl => ({
+         Cell: DefaultCellRender,
          ...cl.props,
          Header: cl.props.title,
          accessor: cl.props.name,
@@ -84,8 +87,18 @@ export default function DataTable({ url, children, ...props }) {
    )
 }
 
-DataTable.Field = ({ name, title }) => {
+DataTable.Field = ({ name, title, Cell }) => {
    return (
       <Fragment />
+      )
+   }
+DataTable.Field.defaultProps = {
+   Cell: props => (
+      <Fragment>
+         <span>
+            {props.value}
+         </span>
+      </Fragment>
    )
 }
+

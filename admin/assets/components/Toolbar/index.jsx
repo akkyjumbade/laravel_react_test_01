@@ -1,6 +1,7 @@
 // import { useNavigate } from "react-router-dom";
 
 import { Link } from "@tanstack/react-location"
+import Button from "../atoms/Button"
 
 export default function Toolbar({ title, description, createAction =  null }) {
    // const navigate = useNavigate()
@@ -15,14 +16,9 @@ export default function Toolbar({ title, description, createAction =  null }) {
             )}
          </div>
          <div className="align-self-end">
-            {/* {JSON.stringify({ createAction })} */}
-            <Link className="btn bg-gradient-primary  mb-0" {...createAction}>Create</Link>
-            {/* <button onClick={() => onCreateClick()}>Create</button> */}
-            {/* {createAction && (
-            <Link {...createAction} className="btn bg-gradient-primary btn-sm mb-0">
-               <span>+&nbsp; New </span>
+            <Link {...createAction}>
+               <Button title={'Create'}  variant={'dark'} />
             </Link>
-            )} */}
          </div>
       </div>
    )

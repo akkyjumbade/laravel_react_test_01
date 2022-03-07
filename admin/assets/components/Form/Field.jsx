@@ -1,4 +1,21 @@
+import { css } from "@emotion/react"
+import styled from "@emotion/styled"
 import { useMemo } from "react"
+import ErrorMessage from "./ErrorMessage"
+import Label from "./Label"
+
+const StyledField = styled.div`
+   margin-bottom: 1rem;
+   ${props => {
+      if (props.hasError) {
+         return css`
+            input {
+               border-color: red;
+            }
+         `
+      }
+   }}
+`
 
 export default function Field({ label, children, required = false, error, ...props }) {
    const errorMessage = useMemo(() => {
@@ -13,18 +30,14 @@ export default function Field({ label, children, required = false, error, ...pro
       return error
    }, [ error ])
    return (
-      <div className="mb-3">
-         <div>
-            <label className="form-label">
-               {label}
-            </label>
-         </div>
+      <StyledField hasError={Boolean(errorMessage)}>
+         <Label title={label} />
          <div>
             {children}
          </div>
          {errorMessage && (
-            <p className='text-danger text-sm'>{errorMessage}</p>
+            <ErrorMessage>{errorMessage}</ErrorMessage>
          )}
-      </div>
+      </StyledField>
    )
 }

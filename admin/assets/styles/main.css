@@ -1,6 +1,10 @@
 /* @import url("https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700"); */
 /* @import url("../static/css/nucleo-icons.css");
 @import url("../static/css/nucleo-svg.css"); */
+:root {
+   --heading-3: 30px;
+   --legend-size: 20px;
+}
 
 [type='checkbox'], [type='radio'] {
    cursor: pointer;
@@ -11,9 +15,16 @@
    max-width: 200px;
 }
 
-.form-control {
-   --line-height: 35px;
-   height: var(--line-height);
-   line-height: var(--line-height);
-   border: 1px solid gray;
+.link-primary {
+   --link-color: #3737c7;
+   color: var(--link-color);
+}
+
+h3 {
+   font-size: var(--heading-3);
+   font-weight: bold;
+}
+legend {
+   font-size: var(--legend-size);
+   font-weight: bold;
 }
