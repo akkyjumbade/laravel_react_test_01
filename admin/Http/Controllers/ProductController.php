@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\Request;
 
 class ProductController extends Controller
 {
-   function index(Request $request) {
+   function index(ProductRequest $request) {
       $data = Product::query();
       $data->latest();
-      $data = $data->paginate(1000);
+      $data = $data->paginate(6);
       return response()->json($data);
    }
    function store(ProductRequest $request) {

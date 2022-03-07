@@ -9,6 +9,9 @@ import { Link, Outlet, useMatch, useNavigate } from '@tanstack/react-location'
 import { http } from '../utils'
 import Field from '../components/Form/Field'
 import { toast } from 'react-toastify';
+import ImageInput from '../components/atoms/ImageInput'
+import Button from '../components/atoms/Button'
+import TextInput from '../components/atoms/TextInput'
 
 
 const Index = () => (
@@ -84,22 +87,28 @@ function CreateProduct ({ ...props }) {
                <fieldset>
                   <legend>{values?.id ? 'Edit product' : 'Create product'}</legend>
                   <Field label={'Title'} required={true} error={errors?.title}>
-                     <input className='form-control' value={values.title} onChange={handleChange('title')} />
+                     <TextInput value={values.title} onChange={handleChange('title')} />
                   </Field>
                   <Field label={'Qty'} required={true} error={errors?.qty}>
-                     <input className='form-control' value={values.qty} onChange={handleChange('qty')} />
+                     <TextInput value={values.qty} onChange={handleChange('qty')} />
                   </Field>
                   <Field label={'Price'} required={true} error={errors?.price}>
-                     <input type={'number'} className='form-control' value={values.price} onChange={handleChange('price')} />
+                     <TextInput type={'number'} value={values.price} onChange={handleChange('price')} />
                   </Field>
                   <Field label={'Stock'} required={true} error={errors?.stock}>
-                     <input type={'number'} className='form-control' value={values.stock} onChange={handleChange('stock')} />
+                     <TextInput type={'number'} value={values.stock} onChange={handleChange('stock')} />
+                  </Field>
+               </fieldset>
+               <fieldset>
+                  <legend>Images</legend>
+                  <Field label={'Thumbnail'} required={true} error={errors?.address}>
+                     <ImageInput maxSize={2018} />
                   </Field>
                </fieldset>
                <fieldset className='d-flex gap-3'>
-                  <button type='button' className='btn bg-gradient-primary' disabled={isSubmitting} onClick={handleSubmit}>Submit</button>
+                  <Button variant='primary' className='btn bg-gradient-primary' disabled={isSubmitting} onClick={handleSubmit}>Submit</Button>
                   {values?.id && (
-                  <button type='button' className='btn btn-outline-secondary' disabled={isDeleting} onClick={deleteAction}>Delete</button>
+                  <Button variant='primary' className='btn btn-outline-secondary' disabled={isDeleting} onClick={deleteAction}>Delete</Button>
                   )}
                </fieldset>
             </div>

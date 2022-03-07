@@ -1,7 +1,10 @@
+@import url("https://rsms.me/inter/inter.css");
 /* @import url("https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700"); */
 /* @import url("../static/css/nucleo-icons.css");
 @import url("../static/css/nucleo-svg.css"); */
 :root {
+   --font-sans-serif: 'Inter var';
+   font-family: var(--font-sans-serif);
    --heading-3: 30px;
    --legend-size: 20px;
 }

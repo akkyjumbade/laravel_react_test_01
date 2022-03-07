@@ -1,24 +1,58 @@
-import { Fragment, useMemo } from "react"
+import { Fragment, useState, useMemo, useEffect } from "react"
 import { useQuery } from "react-query"
 import { useTable } from "react-table"
 import { useRowSelect, useSortBy } from "react-table/dist/react-table.development"
 import Table from "."
+import { http } from "../../utils"
+import Button from "../atoms/Button"
 import Column from "./Column"
 import DefaultCellRender from "./DefaultCellRender"
 import useTableActionsFeature from "./hooks/useTableActionsFeature"
 
 const useTableQuery = (url, params = {}) => {
-   return useQuery(url, {
-      cacheTime: ((1000 * 60) * 60),
+   const { page } = url[1]
+   return useQuery(url[0], async () => {
+      const { data } = await http.get(url[0] + '?page=' + page)
+      return data
+   }, {
+      // cacheTime: ((1000 * 60) * 60),
+      keepPreviousData: true,
+      // enabled: false,
+      // staleTime: 0,
+      // cacheTime: 0,
+      select: (data) => {
+         console.log('data', data)
+         return data?.data
+      },
+      ...params,
       placeholderData: () => ({
-         data: [],
+         data: []
       })
    })
 }
 
+const initialState = {
+   hiddenColumns: [ 'id', 'title', 'thumbnail', 'thumbnail_url' ]
+}
 
 export default function DataTable({ url, children, ...props }) {
-   const { data: { data } = {} } = useTableQuery(url)
+   const [cursorIndex, setCursorIndex] = useState(1)
+   const { data, isLoading, isFetching, refetch } = useTableQuery([url, { page: cursorIndex },])
+   function loadMoreQueryFn() {
+      setCursorIndex(prev => prev + 1)
+      refetch()
+   }
+   function loadPrevQueryFn() {
+      if (cursorIndex <= 1) {
+         setCursorIndex(1)
+         refetch()
+         return
+      }
+      setCursorIndex(prev => prev - 1)
+      refetch()
+   }
+   // useEffect(() => {
+   // }, [ cursorIndex ])
    const tableColumns = useMemo(() => {
       const _mapedCols = children?.map(cl => ({
          Cell: DefaultCellRender,
@@ -29,8 +63,7 @@ export default function DataTable({ url, children, ...props }) {
       console.log({ children, _mapedCols })
       return _mapedCols
    }, [ children ])
-
-   const table = useTable({ columns: tableColumns, data: data }, useSortBy, useRowSelect, useTableActionsFeature)
+   const table = useTable({ columns: tableColumns, data: data, initialState }, useSortBy, useRowSelect, useTableActionsFeature)
    const {
       getTableProps,
       getTableBodyProps,
@@ -83,6 +116,15 @@ export default function DataTable({ url, children, ...props }) {
                })}
             </tbody>
          </Table>
+
+         <div className="flex items-center gap-3 mb-3">
+            <Button disabled={isLoading || isFetching} title={'Prev'} small onClick={loadPrevQueryFn} />
+            <Button disabled={isLoading || isFetching} title={'Next'} small onClick={loadMoreQueryFn} />
+         </div>
+         <div>
+            Total: {data?.length ?? 0}
+            {/* Total: {cursorIndex ?? 0} */}
+         </div>
       </>
    )
 }

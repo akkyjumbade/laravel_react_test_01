@@ -1,3 +1,4 @@
+import React from 'react'
 import DataTable from '../components/Table/DataTable'
 import { useMutation, useQuery } from 'react-query'
 import Table from '../components/Table'
@@ -13,21 +14,27 @@ import TitleCell from '../components/Table/TitleCell'
 import Button from '../components/atoms/Button'
 import TextInput from '../components/atoms/TextInput'
 import ImageInput from '../components/atoms/ImageInput'
+import _ from 'lodash'
 
 
-const Index = () => (
-   <>
-      <Toolbar title={'Users'} createAction={{ to: 'create' }} />
-      <DataTable url={'/api/users'}>
-         <DataTable.Field name={'id'} title={'ID'} />
-         <DataTable.Field name={'name'} title={'Name'} Cell={TitleCell} />
-         <DataTable.Field name={'email'} title={'Email'} />
-         <DataTable.Field name={'phone_number'} title={'Phone number'} />
-         <DataTable.Field name={'address'} title={'Address'} />
-         <DataTable.Field name={'created_at'} title={'Regd. at'} />
-      </DataTable>
-   </>
-)
+const Index = () => {
+   const { data: users, } = useQuery(['/api/users'])
+
+   return (
+      <>
+         <Toolbar title={'Users'} createAction={{ to: 'create' }} />
+
+         <DataTable url={'/api/users'}>
+            <DataTable.Field name={'id'} title={'ID'} />
+            <DataTable.Field name={'name'} title={'Name'} Cell={TitleCell} />
+            <DataTable.Field name={'email'} title={'Email'} />
+            <DataTable.Field name={'phone_number'} title={'Phone number'} />
+            <DataTable.Field name={'address'} title={'Address'} />
+            <DataTable.Field name={'created_at'} title={'Regd. at'} />
+         </DataTable>
+      </>
+   )
+}
 
 const useDeleteAction = (url) => {
    const navigate = useNavigate()

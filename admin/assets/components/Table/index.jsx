@@ -21,10 +21,13 @@ const StyledTable = styled.div`
          }
          th {
             text-align: left;
-            line-height: 1.8;
+            line-height: 2;
+            &:first-child {
+               width: 20px;
+            }
          }
          td, th {
-            padding: .3rem;
+            padding: .5rem .3rem;
             white-space: nowrap;
 
             a {

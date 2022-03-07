@@ -11,7 +11,7 @@ class UserController extends Controller
    function index(Request $request) {
       $data = User::query();
       $data->latest();
-      $data = $data->paginate(1000);
+      $data = $data->paginate(10);
       return response()->json($data);
    }
    function store(UserRequest $request) {

@@ -1,6 +1,7 @@
 import { sumBy } from "lodash"
 import { useMemo } from "react"
 import { useQuery } from "react-query"
+import DashboardLayout from "../components/Layout/DashboardLayout"
 import AsyncWidget from "../components/Widget/AsyncWidget"
 
 export default function DashboardScreen(props) {
@@ -12,9 +13,13 @@ export default function DashboardScreen(props) {
    }, [ orders ])
 
    return (
-      <div>
-         <AsyncWidget code={'users_count'} />
-         <AsyncWidget code={'orders_count'} />
+      <DashboardLayout>
+         <AsyncWidget className={'col-span-4'} code={'users_count'} />
+         <AsyncWidget className={'col-span-4'} code={'orders_count'} />
+         <AsyncWidget className={'col-span-4'} code={'orders_count'} />
+         <AsyncWidget className={'col-span-4'} code={'orders_count'} />
+         <AsyncWidget className={'col-span-4'} code={'orders_count'} />
+         <AsyncWidget className={'col-span-4'} code={'orders_count'} />
          <div className="row">
             <div className="col-xl-3 col-sm-6 mb-xl-0 mb-4">
                <div className="card">
@@ -811,6 +816,6 @@ export default function DashboardScreen(props) {
                </div>
             </div>
          </footer>
-      </div>
+      </DashboardLayout>
    )
 }
