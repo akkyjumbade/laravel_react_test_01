@@ -68,5 +68,51 @@ const StyledContentEditor = styled.div`
          cursor: col-resize;
        }
    }
+   .menubar {
+      button {
+         background: none;
+         border: none;
+         border-radius: 0.4rem;
+         color: #0d0d0d;
+         font: inherit;
+         font-size: 12px;
+         font-weight: 600;
+         padding: 0.25rem 0.5rem;
+
+         &:hover {
+            background-color: #0d0d0d;
+            color: #fff;
+         }
+      }
+      .divider {
+         background-color: rgba(#000, 0.1);
+         height: 1.25rem;
+         margin-left: 0.5rem;
+         margin-right: 0.75rem;
+         width: 2px;
+      }
+      .menu-item {
+         background-color: transparent;
+         border: none;
+         border-radius: 0.4rem;
+         color: #0d0d0d;
+         height: 1.75rem;
+         margin-right: 0.25rem;
+         padding: 0.25rem;
+         width: 1.75rem;
+
+         svg {
+           fill: currentColor;
+           height: 100%;
+           width: 100%;
+         }
+
+         &:hover,
+         &.is-active {
+           background-color: #0d0d0d;
+           color: #fff;
+         }
+      }
+   }
 `
 export default StyledContentEditor

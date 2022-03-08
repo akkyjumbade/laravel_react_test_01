@@ -55,7 +55,7 @@ export default function ContentEditor (props){
 
    return (
       <StyledContentEditor>
-         <EditorMenuBar editor={editor} />
+         {editor && <EditorMenuBar editor={editor} />}
          <EditorContent ref={editorRef} editor={editor} />
       </StyledContentEditor>
    )
