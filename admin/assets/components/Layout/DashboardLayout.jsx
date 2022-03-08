@@ -9,12 +9,13 @@ const StyledDashboardLayout = styled.div`
 `
 export default function DashboardLayout({ children }) {
    const layout = [
-      { i: "a", x: 0, y: 0, w: 1, h: 2, static: true },
-      { i: "b", x: 1, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
-      { i: "c", x: 4, y: 0, w: 1, h: 2 }
+      { i: "a", x: 0, y: 0, w: 3, h: 2, static: true },
+      { i: "b", x: 3, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
+      { i: "c", x: 6, y: 0, w: 3, h: 2 }
     ];
    return (
       <StyledDashboardLayout>
+         {children}
          <GridLayout
             className="layout"
             layout={layout}
@@ -25,8 +26,8 @@ export default function DashboardLayout({ children }) {
             <div key="a"><AsyncWidget code={'total_users'}  /></div>
             <div key="b"><AsyncWidget code={'total_users'}  /></div>
             <div key="c"><AsyncWidget code={'total_users'}  /></div>
-            </GridLayout>
-         {/* {children} */}
+            <div key="d"><AsyncWidget code={'total_users'}  /></div>
+         </GridLayout>
       </StyledDashboardLayout>
    )
 }

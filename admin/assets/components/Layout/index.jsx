@@ -30,7 +30,7 @@ export default function Layout({ children }) {
       // }
    }, [ match ])
    return (
-      <StyledLayout className={'dark:bg-gray-900'}>
+      <StyledLayout className={'dark__bg-gray-900'}>
          <Sidebar />
          <main role={'main'}>
             {/* <Header /> */}

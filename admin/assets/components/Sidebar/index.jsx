@@ -1,5 +1,5 @@
 import styled from "@emotion/styled"
-import { Link } from "@tanstack/react-location"
+import { Link, useNavigate } from "@tanstack/react-location"
 import Menu from "../Menu"
 import MenuItem from "../Menu/MenuItem"
 import Navicon from "../Navicon"
@@ -27,20 +27,30 @@ const StyledSidebar = styled.aside`
    }
    .menu {
       margin: 1rem 0;
+      max-height: 600px;
+      overflow: auto;
    }
 `
 
 export default function Sidebar({ appName }) {
+   const navigate = useNavigate()
+   function onClick(name) {
+
+   }
    return (
-      <StyledSidebar className="bg-gray-900 ">
+      <StyledSidebar className="bg-gray-200 ">
          <Sidebar_Header />
          <Menu>
-            <Menu.Item label={'Dashboard'} />
+            {/* <Menu.Item onClick={() => navigate({ to: '/' })} label={'Dashboard'} /> */}
+            <Menu.Item heading={{ title: 'Dashboard', icon: '<sd>' }} >
+               <Menu.Item onClick={() => navigate({ to: '/' })} label={'Home'} />
+               <Menu.Item onClick={() => navigate({ to: '/' })} label={'Analytics'} />
+            </Menu.Item>
             <Menu.Item heading={{ title: 'Resources', icon: '<sd>' }} >
-               <Menu.Item label={'Categories'} />
-               <Menu.Item label={'Products'} />
-               <Menu.Item label={'Orders'} />
-               <Menu.Item label={'Transactions'} />
+               <Menu.Item onClick={() => navigate({ to: '/users' })} label={'Categories'} />
+               <Menu.Item onClick={() => navigate({ to: '/products' })} label={'Products'} />
+               <Menu.Item onClick={() => navigate({ to: '/orders' })} label={'Orders'} />
+               <Menu.Item onClick={() => navigate({ to: '/products' })} label={'Transactions'} />
             </Menu.Item>
             <Menu.Item label={'Users'} />
             <Menu.Item label={'System'} />

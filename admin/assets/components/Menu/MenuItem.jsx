@@ -6,7 +6,7 @@ export default function MenuItem({ heading, children, label, ...props }) {
          {heading ? (
          <Menu.Group {...heading} />
          ): (
-            <div className="menuitem-label cursor-pointer text-sm text-gray-200 nav-item">{label}</div>
+            <div className="menuitem-label cursor-pointer text-sm text-gray-800 nav-item">{label}</div>
          )}
 
          {children}
