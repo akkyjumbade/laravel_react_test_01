@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import ImageInput from '../components/atoms/ImageInput'
 import Button from '../components/atoms/Button'
 import TextInput from '../components/atoms/TextInput'
+import ContentEditor from '../components/ContentEditor'
 
 
 const Index = () => (
@@ -103,6 +104,12 @@ function CreateProduct ({ ...props }) {
                   <legend>Images</legend>
                   <Field label={'Thumbnail'} required={true} error={errors?.address}>
                      <ImageInput maxSize={2018} />
+                  </Field>
+               </fieldset>
+               <fieldset>
+                  <legend>Content</legend>
+                  <Field label={'Thumbnail'} required={true} error={errors?.address}>
+                     <ContentEditor />
                   </Field>
                </fieldset>
                <fieldset className='d-flex gap-3'>
