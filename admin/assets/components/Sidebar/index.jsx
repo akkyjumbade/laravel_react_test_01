@@ -25,44 +25,26 @@ const StyledSidebar = styled.aside`
    .navbar-brand {
       max-width: 100px
    }
+   .menu {
+      margin: 1rem 0;
+   }
 `
 
 export default function Sidebar({ appName }) {
    return (
       <StyledSidebar className="bg-gray-900 ">
          <Sidebar_Header />
-         <div className="flex-1 py-3">
-            <Menu>
-               <MenuItem label={'Dashboard'} url={'/'}>
-                  <Menu>
-                     <Link to={'/'}>
-                        <MenuItem label={'Home'} url={'/'} />
-                     </Link>
-                     <Link to={'/sales'}>
-                        <MenuItem label={'Sales'} url={'/'} />
-                     </Link>
-                  </Menu>
-               </MenuItem>
-               <Link to={'/products'}>
-                  <MenuItem label={'Products'} url={'/'} />
-               </Link>
-               <Link to={'/posts'}>
-                  <MenuItem label={'Posts'} url={'/'} />
-               </Link>
-               <Link to={'/orders'}>
-                  <MenuItem label={'Orders'} url={'/'} />
-               </Link>
-               <Link to={'/users'}>
-                  <MenuItem label={'Users'} url={'/'} />
-               </Link>
-            </Menu>
-            {/* <ul className="navbar-nav">
-               <NavItem label={'Dashboard'} url={'/'} />
-               <NavItem label={'Products'} url={'/products'} iconClass={'fa-cube'} />
-               <NavItem label={'Orders'} url={'/orders'} iconClass={'fa-list'} />
-               <NavItem label={'Customers'} url={'/users'} iconClass={'fa-users'} />
-            </ul> */}
-         </div>
+         <Menu>
+            <Menu.Item label={'Dashboard'} />
+            <Menu.Item heading={{ title: 'Resources', icon: '<sd>' }} >
+               <Menu.Item label={'Categories'} />
+               <Menu.Item label={'Products'} />
+               <Menu.Item label={'Orders'} />
+               <Menu.Item label={'Transactions'} />
+            </Menu.Item>
+            <Menu.Item label={'Users'} />
+            <Menu.Item label={'System'} />
+         </Menu>
          <Sidebar_Footer />
       </StyledSidebar>
 

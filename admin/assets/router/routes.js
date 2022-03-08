@@ -4,6 +4,8 @@ import Layout from "../components/Layout";
 import DashboardScreen from "../screens/DashboardScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import ProductsScreen from "../screens/ProductsScreen";
+import Users from "../screens/users";
+import CreateUser from "../screens/users/create";
 import UsersScreen from "../screens/UsersScreen";
 
 // Router
@@ -23,21 +25,21 @@ export default [
             children: [
                {
                   path: '/',
-                  element: <UsersScreen />,
+                  element: <Users />,
                   meta: {
                      breadcrumb: () => 'Users',
                   },
                },
                {
                   path: 'create',
-                  element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
+                  element: <CreateUser initialValues={{ name: 'sdf' }} />,
                   meta: {
                      breadcrumb: () => 'New user',
                   },
                },
                {
                   path: 'edit/:id',
-                  element: <UsersScreen.Create initialValues={{ name: 'sdf' }} />,
+                  element: <CreateUser initialValues={{ name: 'sdf' }} />,
                   meta: {
                      breadcrumb: () => 'Edit user',
                   },

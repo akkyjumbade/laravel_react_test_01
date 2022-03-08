@@ -3,7 +3,7 @@ import React, { createContext, useContext } from 'react'
 
 const formContext = createContext({})
 
-export default function Form({ initialValues = {}, children, url }) {
+export default function FormContext({ initialValues = {}, children, url }) {
    const firmik = useFormik({ initialValues: initialValues })
    return (
       <formContext.Provider value={firmik}>
@@ -11,8 +11,8 @@ export default function Form({ initialValues = {}, children, url }) {
       </formContext.Provider>
    )
 }
-Form.Consumer = formContext.Consumer
+FormContext.Consumer = formContext.Consumer
 
-export function useFormContext() {
+export function useFormField() {
    return useContext(formContext)
 }

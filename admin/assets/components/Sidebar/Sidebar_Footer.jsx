@@ -2,6 +2,7 @@ export default function Sidebar_Footer() {
    return (
       <div className="sidenav-footer bg-gray-800 ">
          <div className="full-background" style={{backgroundImage: 'url("../assets/img/curved-images/white-curved.jpeg")'}} />
+      <UserMenu />
             <div className="card-body text-start p-3 w-100">
             <div className="icon icon-shape icon-sm bg-white shadow text-center mb-3 d-flex align-items-center justify-content-center border-radius-md">
                <i className="ni ni-diamond text-dark text-gradient text-lg top-0" aria-hidden="true" id="sidenavCardIcon" />
@@ -13,6 +14,20 @@ export default function Sidebar_Footer() {
             </div>
          </div>
          {/* <a className="btn bg-gradient-primary mt-4 w-100" href="https://www.creative-tim.com/product/soft-ui-dashboard-pro?ref=sidebarfree" type="button">Upgrade to pro</a> */}
+      </div>
+   )
+}
+
+const UserMenu = () => {
+   return (
+      <div className="flex gap-3 items-center">
+         <picture className="">
+            <img className="w-10 h-10 rounded-full" src="" alt="" />
+         </picture>
+         <div>
+            <p>@username</p>
+            <p>username</p>
+         </div>
       </div>
    )
 }

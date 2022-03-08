@@ -1,8 +1,14 @@
+import Menu from ".";
 
-export default function MenuItem({ children, label, ...props }) {
+export default function MenuItem({ heading, children, label, ...props }) {
    return (
       <div role={'menuitem'} className={'text-gray-300'} {...props}>
-         <div className="menuitem-label cursor-pointer">{label}</div>
+         {heading ? (
+         <Menu.Group {...heading} />
+         ): (
+            <div className="menuitem-label cursor-pointer text-sm text-gray-200 nav-item">{label}</div>
+         )}
+
          {children}
       </div>
    )
