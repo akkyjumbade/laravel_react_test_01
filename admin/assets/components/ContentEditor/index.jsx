@@ -15,6 +15,8 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import StyledContentEditor from './StyledContentEditor';
 import CustomTableCell from './extensions/CustomTableCell';
+import Image from '@tiptap/extension-image';
+import Dropcursor from '@tiptap/extension-dropcursor';
 
 
 export default function ContentEditor (props){
@@ -29,6 +31,8 @@ export default function ContentEditor (props){
          Highlight,
          Typography,
          Placeholder,
+         Image,
+         Dropcursor,
          Table.configure({
             resizable: true,
          }),
