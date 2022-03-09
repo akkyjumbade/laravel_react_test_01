@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import { Outlet, useMatch, useMatchRoute } from "@tanstack/react-location";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import Container from "../Container";
 import Header from "../Header";
@@ -30,15 +31,19 @@ export default function Layout({ children }) {
       // }
    }, [ match ])
    return (
-      <StyledLayout className={'dark__bg-gray-900'}>
+      <StyledLayout className={'dark__bg-gray-900'} >
          <Sidebar />
          <main role={'main'}>
             {/* <Header /> */}
             <Container>
-               <Outlet />
+               <AnimatePresence exitBeforeEnter>
+                  <Outlet />
+               </AnimatePresence>
             </Container>
          </main>
       </StyledLayout>
 
    )
 }
+{/* <motion.div variants={{ initial: { opacity: 0, }, to: { opacity: 1, } }} initial={'initial'}>
+      </motion.div> */}

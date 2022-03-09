@@ -19,7 +19,7 @@ const StyledField = styled.div`
    }}
 `
 
-export default function Field({ label, name, children, Component, required = false, error, ...props }) {
+export default function Field({ label, name, children, Component, caption, required = false, error, ...props }) {
    const formik = useFormContext()
    const errorMessage = useMemo(() => {
       if (!error) {
@@ -32,29 +32,37 @@ export default function Field({ label, name, children, Component, required = fal
       }
       return error
    }, [ error ])
-   if (Component) {
-      return (
-         <StyledField hasError={Boolean(errorMessage)}>
-            <Label title={label} />
-            <div>
-               <Component aria-label={label} value={formik.values[name]} onChange={formik.handleChange(name)} />
-            </div>
-            {errorMessage && (
-               <ErrorMessage>{errorMessage}</ErrorMessage>
-            )}
-            {JSON.stringify(formik.values)}
-         </StyledField>
-      )
-   }
+   // if (Component) {
+   //    return (
+   //       <StyledField hasError={Boolean(errorMessage)}>
+   //          <Label title={label} required={required} />
+   //          <div>
+   //             {Component ? (
+   //                <Component aria-label={label} value={formik.values[name]} onChange={formik.handleChange(name)} />
+   //             ) : (children)}
+   //          </div>
+   //          {errorMessage && (
+   //             <ErrorMessage>{errorMessage}</ErrorMessage>
+   //          )}
+   //          {/* {JSON.stringify({ required, props })} */}
+   //       </StyledField>
+   //    )
+   // }
    return (
-      <StyledField hasError={Boolean(errorMessage)}>
-         <Label title={label} />
+      <StyledField  hasError={Boolean(errorMessage)}>
+         <Label title={label} required={required} />
          <div>
-            {children}
+            {Component ? (
+               <Component aria-label={label} value={formik.values[name]} onChange={formik.handleChange(name)} />
+            ) : (children)}
          </div>
+         {caption && (
+            <div className="mb-2 mt-1">{caption}</div>
+         )}
          {errorMessage && (
             <ErrorMessage>{errorMessage}</ErrorMessage>
          )}
+         {/* {JSON.stringify({ required, props })} */}
       </StyledField>
    )
 }

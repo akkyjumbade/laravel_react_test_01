@@ -6,6 +6,7 @@ import OrdersScreen from "../screens/OrdersScreen";
 import ProductsScreen from "../screens/ProductsScreen";
 import UsersScreen from "../screens/UsersScreen";
 import routes from "./routes";
+import { motion } from "framer-motion"
 
 const location = new ReactLocation({
    history: createHashHistory({

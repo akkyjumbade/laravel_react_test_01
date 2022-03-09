@@ -1,14 +1,18 @@
 import styled from "@emotion/styled";
 
 const StyledLabel = styled.div`
-@apply {
-   block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300
-}
+   .required {
+      color: red;
+      font-weight: bold;
+   }
 `
-export default function Label({ title, ...props }) {
+export default function Label({ title, required = false, ...props }) {
    return (
       <StyledLabel className={'block mb-1 text-sm font-medium text-gray-900 dark:text-gray-300'}>
-         <label {...props}>{title}</label>
+         <label {...props}>
+            <span>{title}</span>
+            {required && <span className="text-red-600 text-sm">{'*'}</span>}
+         </label>
       </StyledLabel>
    )
 }

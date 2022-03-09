@@ -13,10 +13,11 @@ import ImageInput from '../components/atoms/ImageInput'
 import Button from '../components/atoms/Button'
 import TextInput from '../components/atoms/TextInput'
 import ContentEditor from '../components/ContentEditor'
+import Page from '../components/Layout/Page'
 
 
 const Index = () => (
-   <>
+   <Page>
       <Toolbar title={'Products'} createAction={{ to: 'create' }} />
       <DataTable url={'/api/products'}>
          <DataTable.Field name={'id'} title={'ID'} hidden={true} visible={false} />
@@ -28,7 +29,7 @@ const Index = () => (
          <DataTable.Field name={'stock'} title={'Stock'} />
          <DataTable.Field name={'created_at'} title={'Created at'} />
       </DataTable>
-   </>
+   </Page>
 )
 
 const useDeleteAction = (url) => {
@@ -81,7 +82,7 @@ function CreateProduct ({ ...props }) {
    //    url: '/api/products'
    // })
    return (
-      <>
+      <Page>
       <Formik enableReinitialize={true} initialValues={initialValues} onSubmit={onSubmit}>
          {({ values, errors, handleSubmit, handleChange, isSubmitting }) => (
             <div className='card p-3'>
@@ -121,16 +122,16 @@ function CreateProduct ({ ...props }) {
             </div>
          )}
       </Formik>
-      </>
+      </Page>
    )
 }
 
 export default function ProductsScreen(props) {
    return (
-      <div>
+      <Page>
          <Index />
          <Outlet />
-      </div>
+      </Page>
    )
 }
 

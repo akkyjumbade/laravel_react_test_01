@@ -1,6 +1,7 @@
 import { useFormik } from 'formik'
 import React, { createContext, useContext } from 'react'
 import { http } from '../../utils'
+import { motion } from 'framer-motion'
 
 const formContext = createContext({})
 
@@ -26,6 +27,21 @@ export default function Form({ initialValues = {}, children, url }) {
       <formContext.Provider value={form}>
          {children}
       </formContext.Provider>
+   )
+}
+
+Form.Footer = ({ submitProps }) => {
+   const form = useFormContext()
+   return (
+      <fieldset>
+         <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={form.handleSubmit}
+         >
+            Submit
+         </motion.button>
+      </fieldset>
    )
 }
 Form.Consumer = formContext.Consumer

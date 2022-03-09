@@ -5,10 +5,13 @@ import { useMutation } from 'react-query'
 import { toast } from 'react-toastify'
 import Button from '../../components/atoms/Button'
 import ImageInput from '../../components/atoms/ImageInput'
+import PasswordInput from '../../components/atoms/PasswordInput'
+import PhoneNumberInput from '../../components/atoms/PhoneNumberInput'
 import TextInput from '../../components/atoms/TextInput'
 import Form from '../../components/Form'
 import Field from '../../components/Form/Field'
 import FormContext, { FormConsumer } from '../../components/Form/FormContext'
+import Page from '../../components/Layout/Page'
 import { http } from '../../utils'
 
 const useDeleteAction = (url) => {
@@ -57,7 +60,7 @@ export default function CreateUser() {
       }
    }
    return (
-      <>
+      <Page>
       <Form initialValues={{ username: '' }}>
          <fieldset>
             <legend>{initialValues?.id ? 'Edit user' : 'Create user'}</legend>
@@ -71,8 +74,8 @@ export default function CreateUser() {
             </Form.Consumer>
             <Field label={'Name'} required={true} name={'username'} Component={TextInput} />
             <Field label={'Email'} required={true} name={'email'} Component={TextInput} />
-            <Field label={'Phone number'} required={true} name={'phone_number'} Component={TextInput} />
-            <Field label={'Password'} required={true} name={'password'} Component={TextInput} />
+            <Field label={'Phone number'} required={true} name={'phone_number'} Component={PhoneNumberInput} />
+            <Field label={'Password'} caption={<p className='text-xs '>Min 8 chars long</p>} required={true} name={'password'} Component={PasswordInput} />
          </fieldset>
          <fieldset>
             <legend>{'Images'}</legend>
@@ -89,6 +92,7 @@ export default function CreateUser() {
             <legend>Address</legend>
 
          </fieldset>
+         <Form.Footer />
       </Form>
       {/* <Formik enableReinitialize={true} initialValues={initialValues} onSubmit={onSubmit}>
          {({ values, errors, handleSubmit, handleChange, isSubmitting }) => (
@@ -131,6 +135,6 @@ export default function CreateUser() {
             </div>
          )}
       </Formik> */}
-      </>
+      </Page>
    )
 }
